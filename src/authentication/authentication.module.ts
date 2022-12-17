@@ -7,5 +7,6 @@ import { AuthenticationService } from './authentication.service';
 @Module({
   imports: [TypeOrmModule.forFeature([UsersEntity])],
   providers: [AuthenticationService, AuthenticationResolver],
+  exports: [AuthenticationService],
 })
 export class AuthenticationModule {}

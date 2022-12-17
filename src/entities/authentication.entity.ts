@@ -22,11 +22,11 @@ export class UsersEntity {
   phone: number;
 
   @Field(() => String)
-  @Column({ type: 'varchar', length: 60 })
+  @Column({ type: 'varchar', length: 60, default: '' })
   firstName: string;
 
   @Field(() => String)
-  @Column({ type: 'varchar', length: 60 })
+  @Column({ type: 'varchar', length: 60, default: '' })
   lastName: string;
 
   @Field(() => Int)

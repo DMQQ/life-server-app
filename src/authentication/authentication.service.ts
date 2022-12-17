@@ -51,12 +51,12 @@ export class AuthenticationService {
 
   generateToken(accountId: string): string {
     return jwt.sign({ accountId }, JWT_SECRET_TEMP, {
-      expiresIn: '6d',
+      expiresIn: '192h',
     });
   }
 
-  verifyToken(token: string) {
-    return jwt.verify(token, JWT_SECRET_TEMP);
+  verifyToken(token: string, cb: (err: any, dec: any) => void) {
+    return jwt.verify(token, JWT_SECRET_TEMP, cb);
   }
 
   hashPassword(password: string): Promise<string> {

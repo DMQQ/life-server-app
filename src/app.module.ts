@@ -1,9 +1,14 @@
 import { ApolloDriver } from '@nestjs/apollo';
-import { Module } from '@nestjs/common';
+import { Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthenticationModule } from './authentication/authentication.module';
+import { ReminderModule } from './reminder/reminder.module';
+import { TokenMiddleware } from './utils/middlewares/TokenMiddleware';
+import { WorkoutModule } from './workout/workout.module';
+import { ExerciseModule } from './exercises/exercises.module';
 
 @Module({
   imports: [
@@ -11,6 +16,8 @@ import { AuthenticationModule } from './authentication/authentication.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    ScheduleModule.forRoot(),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -31,10 +38,20 @@ import { AuthenticationModule } from './authentication/authentication.module';
 
     AuthenticationModule,
 
+    WorkoutModule,
+
+    ExerciseModule,
+
     GraphQLModule.forRoot({
       driver: ApolloDriver,
       autoSchemaFile: true,
     }),
+
+    ReminderModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: any) {
+    consumer.apply(TokenMiddleware).forRoutes('*');
+  }
+}

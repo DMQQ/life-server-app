@@ -8,10 +8,10 @@ export class CreateAccountInput {
   @Field(() => String)
   password: string;
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   firstName: string;
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   lastName: string;
 
   @Field(() => String, { nullable: true })
