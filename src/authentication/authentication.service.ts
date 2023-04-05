@@ -51,7 +51,7 @@ export class AuthenticationService {
 
   generateToken(accountId: string): string {
     return jwt.sign({ accountId }, JWT_SECRET_TEMP, {
-      expiresIn: '192h',
+      expiresIn: '1000h',
     });
   }
 

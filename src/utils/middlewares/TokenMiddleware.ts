@@ -7,7 +7,9 @@ export class TokenMiddleware implements NestMiddleware {
   constructor(private authenticationService: AuthenticationService) {}
 
   async use(req: Request, res: any, next: (error?: any) => void) {
-    const token = req.headers['authentication'] as string;
+    let token = (req.headers?.authentication ||
+      req.headers?.authorization ||
+      req.headers?.token) as string | undefined;
 
     if (token) {
       this.authenticationService.verifyToken(token, (err, dec) => {

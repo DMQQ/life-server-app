@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, UseGuards } from '@nestjs/common';
 import { Resolver, Mutation, Query, Args } from '@nestjs/graphql';
 import { UsersEntity } from 'src/entities/authentication.entity';
 import {
@@ -7,6 +7,8 @@ import {
   LoginAccountInput,
 } from './authentication.schemas';
 import { AuthenticationService } from './authentication.service';
+import { User } from 'src/utils/decorators/User';
+import { AuthGuard } from 'src/utils/guards/AuthGuard';
 
 @Resolver((of) => UsersEntity)
 export class AuthenticationResolver {
@@ -85,5 +87,12 @@ export class AuthenticationResolver {
       error: '',
       id: existingAccount.id,
     };
+  }
+
+  @UseGuards(AuthGuard)
+  @Mutation(() => String)
+  async refreshToken(@User() usrId: string) {
+    const token = this.authenticationService.generateToken(usrId);
+    return token;
   }
 }

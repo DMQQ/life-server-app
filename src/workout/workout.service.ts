@@ -1,54 +1,45 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { WorkoutEntity } from 'src/entities/workout.entity';
+import { WorkoutEntity } from './workout.entity';
 import { Repository } from 'typeorm';
+import { CreateWorkout } from './workout.dto';
 
 @Injectable()
 export class WorkoutService {
   constructor(
     @InjectRepository(WorkoutEntity)
-    private workoutRepository: Repository<WorkoutEntity>,
+    private workoutEntity: Repository<WorkoutEntity>,
   ) {}
 
-  async createWorkout(userId: string, name: string, exercises: string[]) {
-    const insertResult = await this.workoutRepository.insert({ userId, name });
+  private readonly RELATIONS = ['exercises', 'exercises.tips'];
 
-    const workoutId = insertResult.identifiers[0].id as string;
+  public async createWorkout(
+    input: CreateWorkout & {
+      userId: string;
+    },
+  ) {
+    const workout = await this.workoutEntity.insert({
+      description: input.description,
+      title: input.title,
+      difficulty: input.difficulty,
+      type: input.type,
+      authorId: input.userId,
+    });
 
-    if (!exercises.length) return;
-
-    if (typeof workoutId === 'undefined')
-      throw new Error('Workout ID is undefined');
-
-    const query =
-      'INSERT INTO workout_exercises_exercise(workoutId,exerciseId) VALUES (?,?)';
-
-    const promises = await Promise.all(
-      exercises.map((exerciseId) =>
-        this.workoutRepository.query(query, [workoutId, exerciseId]),
-      ),
-    );
-
-    const isInsertSuccessful = promises.every(
-      (promise) => promise.affectedRows > 0,
-    );
-
-    return { isInsertSuccessful, workoutId };
+    return workout.identifiers[0].workoutId;
   }
 
-  getWorkoutById(id: string) {
-    return this.workoutRepository.findOne({
-      where: {
-        id,
-      },
-      relations: ['exercises', 'exercises.exercise_progress'],
+  public async getWorkouts(userId: string) {
+    return await this.workoutEntity.find({
+      where: { authorId: userId },
+      relations: this.RELATIONS,
     });
   }
 
-  getWorkouts(userId: string) {
-    return this.workoutRepository.find({
-      where: { userId },
-      relations: ['exercises', 'exercises.exercise_progress'],
+  public async getWorkout(workoutId: string, userId: string) {
+    return await this.workoutEntity.findOneOrFail({
+      where: { workoutId, authorId: userId },
+      relations: this.RELATIONS,
     });
   }
 }
