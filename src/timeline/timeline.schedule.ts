@@ -13,7 +13,7 @@ export class TimelineSchedule {
     private notifiService: NotificationsService,
     private timelineScheduleService: TimelineScheduleService,
   ) {}
-  @Cron('0 * * * * *')
+  @Cron('0 * * * * *', { timeZone: 'Europe/Warsaw' })
   async handleCron() {
     const date = moment().format('YYYY-MM-DD');
 
@@ -45,7 +45,7 @@ export class TimelineSchedule {
     const output = await this.notifiService.sendChunkNotifications(messages);
   }
 
-  @Cron('0 * * * * *')
+  @Cron('0 * * * * *', { timeZone: 'Europe/Warsaw' })
   async handleEndingEvents() {
     const currentDate = moment().format('YYYY-MM-DD');
 
