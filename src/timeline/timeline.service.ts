@@ -187,7 +187,7 @@ export class TimelineService {
   ) {
     let dates = [] as string[];
 
-    if (typeof repeat === 'undefined' || repeat === null) {
+    if (typeof repeat.repeatOn === 'undefined' || repeat.repeatOn === null) {
       return this.createTimeline(input);
     }
 

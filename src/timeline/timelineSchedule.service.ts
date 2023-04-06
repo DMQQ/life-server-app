@@ -13,7 +13,7 @@ export class TimelineScheduleService {
 
   async findEventsWithDateAndTime(date: string, time: string) {
     return this.timelineRepository.find({
-      where: { date: Like(`%${date}%`), beginTime: time },
+      where: { date: date, beginTime: time },
     });
   }
 

@@ -9,7 +9,6 @@ import { TimelineScheduleService } from './timelineSchedule.service';
 @Injectable()
 export class TimelineSchedule {
   constructor(
-    private timelineService: TimelineService,
     private notifiService: NotificationsService,
     private timelineScheduleService: TimelineScheduleService,
   ) {}
