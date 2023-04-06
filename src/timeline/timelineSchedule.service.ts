@@ -13,12 +13,13 @@ export class TimelineScheduleService {
 
   async findEventsWithDateAndTime(date: string, time: string) {
     return this.timelineRepository.find({
-      where: { date: date, beginTime: time },
+      where: { date: Like(`%${date}%`), beginTime: time },
     });
   }
 
   async findEndingEvents(date: string, time: string) {
     const afterAnHour = moment(time, 'HH:mm:ss')
+      .tz('Europe/Warsaw')
       .add(1, 'hours')
       .format('HH:mm:ss');
 

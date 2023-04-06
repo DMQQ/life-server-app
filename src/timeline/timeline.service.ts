@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as moment from 'moment';
+import * as moment from 'moment-timezone';
 import {
   TimelineEntity,
   TimelineFilesEntity,
@@ -93,7 +93,7 @@ export class TimelineService {
   }
 
   async findByCurrentDate(userId: string) {
-    const currentDate = moment().format('YYYY-MM-DD');
+    const currentDate = moment().tz('Europe/Warsaw').format('YYYY-MM-DD');
     return this.timelineRepository.find({
       where: { date: Like(`%${currentDate}%`), userId },
       relations: ['images', 'todos'],
@@ -173,6 +173,7 @@ export class TimelineService {
     for (let i = 0; i < input.reapeatCount; i++) {
       dates.push(
         moment(input.startDate)
+          .tz('Europe/Warsaw')
           .add(i * input.repeatEveryNth, momentType)
           .format('YYYY-MM-DD'),
       );
