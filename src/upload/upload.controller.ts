@@ -73,7 +73,9 @@ export class UploadController {
       name: file.originalname,
       size: file.size,
       type: file.mimetype,
-      path: file.path.split('\\')[1],
+      path: file.path.includes('\\')
+        ? file.path.split('\\')[1]
+        : file.path.split('/')[1],
     }));
 
     if (type === 'timeline') {
@@ -85,6 +87,8 @@ export class UploadController {
 
         return response.send(result);
       } catch (error) {
+        console.log(error);
+
         response.status(400).send({
           error: 'Error uploading file',
         });
