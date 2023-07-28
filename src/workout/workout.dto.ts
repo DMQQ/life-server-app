@@ -1,4 +1,4 @@
-import { Field, ID, InputType } from '@nestjs/graphql';
+import { Field, Float, ID, InputType, Int } from '@nestjs/graphql';
 import { Difficulty, Type } from './workout.entity';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
@@ -11,7 +11,7 @@ export class CreateWorkout {
   description: string;
 
   @Field(() => String)
-  type: Type;
+  type: string;
 
   @Field()
   difficulty: Difficulty;
@@ -36,4 +36,19 @@ export class CreateExercise {
 
   @Field()
   equipment: string;
+}
+
+@InputType()
+export class CreateProgressInput {
+  @Field(() => ID)
+  exerciseId: string;
+
+  @Field(() => Float)
+  weight: number;
+
+  @Field(() => Int)
+  reps: number;
+
+  @Field(() => Int)
+  sets: number;
 }

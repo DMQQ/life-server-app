@@ -144,7 +144,7 @@ export class ExerciseProgressEntity {
   exerciseProgressId: string;
 
   @Field(() => String)
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'varchar', length: '10' })
   date: string;
 
   @Field(() => Int)

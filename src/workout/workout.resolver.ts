@@ -41,6 +41,7 @@ export class WorkoutResolver {
         Object.assign(input, { userId }),
       );
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
 
@@ -59,6 +60,7 @@ export class WorkoutResolver {
 
       return await this.workoutService.getWorkout(workoutId, userId);
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }

@@ -1,7 +1,7 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { ExerciseService } from './exercise.service';
-import { ExerciseEntity } from './workout.entity';
-import { CreateExercise } from './workout.dto';
+import { ExerciseEntity, ExerciseProgressEntity } from './workout.entity';
+import { CreateExercise, CreateProgressInput } from './workout.dto';
 import { BadRequestException, UseGuards } from '@nestjs/common';
 import { User } from 'src/utils/decorators/User';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
@@ -46,5 +46,40 @@ export class ExerciseResolver {
     } catch (error) {
       throw new BadRequestException(error);
     }
+  }
+
+  @Query(() => [ExerciseProgressEntity])
+  exerciseProgress(
+    @User() usr: string,
+    @Args('exerciseId', { type: () => ID }) exerciseId: string,
+  ) {
+    return this.exerciseService.getExerciseProgress(exerciseId, usr);
+  }
+
+  @Mutation(() => ExerciseProgressEntity)
+  async createExerciseProgress(
+    @User() usr: string,
+    @Args('input', { type: () => CreateProgressInput })
+    input: CreateProgressInput,
+  ) {
+    const insert = await this.exerciseService.createExerciseProgress({
+      ...input,
+      userId: usr,
+    });
+
+    const insertId = insert.generatedMaps[0]?.exerciseProgressId;
+    return this.exerciseService.getOneExerciseProgressById(insertId);
+  }
+
+  @Query(() => Boolean)
+  async exerciseProgressStats(
+    @User() usr: string,
+    @Args('exerciseId', { type: () => ID }) exerciseId: string,
+  ) {
+    const v = await this.exerciseService.exerciseProgressStats(exerciseId, usr);
+
+    console.log(v);
+
+    return false;
   }
 }
