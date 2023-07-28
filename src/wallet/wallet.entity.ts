@@ -6,7 +6,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { ObjectType, Field, Int, ID } from '@nestjs/graphql';
+import { ObjectType, Field, Int, ID, Float } from '@nestjs/graphql';
 
 @ObjectType()
 @Entity('wallet')
@@ -15,8 +15,8 @@ export class WalletEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'int', nullable: false, default: 0 })
-  @Field((type) => Int)
+  @Column({ type: 'float', nullable: false, default: 0 })
+  @Field((type) => Float)
   balance: number;
 
   @Column({ type: 'uuid', nullable: false })
@@ -40,8 +40,8 @@ export class ExpenseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'int', nullable: false })
-  @Field((type) => Int)
+  @Column({ type: 'float', nullable: false })
+  @Field((type) => Float)
   amount: number;
 
   @Column({ type: 'varchar', nullable: false })

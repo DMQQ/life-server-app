@@ -4,7 +4,7 @@ import {
   ExpenseEntity,
   ExpenseType,
   WalletEntity,
-} from 'src/entities/wallet.entity';
+} from 'src/wallet/wallet.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -75,7 +75,7 @@ export class WalletService {
       walletId = insertResult.identifiers[0].id;
     }
 
-    await this.expenseRepository.insert({
+    const insert = await this.expenseRepository.insert({
       amount,
       description,
       date: new Date(),
@@ -90,9 +90,8 @@ export class WalletService {
       type === ExpenseType.expense ? ExpenseType.expense : ExpenseType.income,
     );
 
-    return this.walletRepository.findOne({
-      where: { id: walletId },
-      relations: ['expenses'],
+    return this.expenseRepository.find({
+      where: { id: insert.identifiers[0].id },
     });
   }
 
