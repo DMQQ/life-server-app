@@ -5,7 +5,7 @@ import {
   TimelineEntity,
   TimelineFilesEntity,
   TimelineTodosEntity,
-} from 'src/entities/timeline.entity';
+} from 'src/timeline/timeline.entity';
 import { Like, Repository } from 'typeorm';
 import { RepeatableTimeline } from './timeline.schemas';
 

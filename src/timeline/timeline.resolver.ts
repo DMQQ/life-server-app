@@ -15,7 +15,7 @@ import {
   TimelineEntity,
   TimelineFilesEntity,
   TimelineTodosEntity,
-} from 'src/entities/timeline.entity';
+} from 'src/timeline/timeline.entity';
 import { User } from 'src/utils/decorators/User';
 import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
 import { NotFoundException, UseGuards } from '@nestjs/common';
@@ -132,14 +132,14 @@ export class TimelineResolver {
     return true;
   }
 
-  @Mutation(() => TimelineEntity)
+  @Mutation(() => TimelineTodosEntity)
   async createTimelineTodos(
     @User() usrId: string,
     @Args('todos', { type: () => [TimelineTodo] }) todos: TimelineTodo[],
   ) {
-    await this.timelineService.createTimelineTodos(todos);
+    const todoInsert = await this.timelineService.createTimelineTodos(todos);
 
-    return this.timelineService.findOneById(todos[0].timelineId, usrId);
+    return this.timelineService.findTodoById(todoInsert.generatedMaps[0].id);
   }
 
   @Mutation(() => Boolean)

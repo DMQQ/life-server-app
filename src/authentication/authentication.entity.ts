@@ -1,6 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { Field, ID, Int, ObjectType } from '@nestjs/graphql';
-import { Exclude } from 'class-transformer';
 
 @ObjectType()
 @Entity('users')

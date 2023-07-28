@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { TimelineFilesEntity } from 'src/entities/timeline.entity';
+import { TimelineFilesEntity } from 'src/timeline/timeline.entity';
 import { In, Repository } from 'typeorm';
 import { File } from './upload.controller';
 

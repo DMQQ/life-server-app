@@ -1,6 +1,6 @@
 import { BadRequestException, UseGuards } from '@nestjs/common';
 import { Resolver, Mutation, Query, Args } from '@nestjs/graphql';
-import { UsersEntity } from 'src/entities/authentication.entity';
+import { UsersEntity } from './authentication.entity';
 import {
   CreateAccountOutput,
   CreateAccountInput,

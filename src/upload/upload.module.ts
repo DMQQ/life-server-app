@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { UploadController } from './upload.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TimelineFilesEntity } from 'src/entities/timeline.entity';
+import { TimelineFilesEntity } from 'src/timeline/timeline.entity';
 import { UploadService } from './upload.service';
-import { ExpenseFileEntity } from 'src/entities/wallet.entity';
+import { ExpenseFileEntity } from 'src/wallet/wallet.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([TimelineFilesEntity, ExpenseFileEntity])],

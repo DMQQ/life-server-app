@@ -1,6 +1,5 @@
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Field, ID, ObjectType } from '@nestjs/graphql';
-import { UsersEntity } from './authentication.entity';
 
 @ObjectType()
 @Entity('notifications')

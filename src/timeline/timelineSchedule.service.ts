@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as moment from 'moment';
-import { TimelineEntity } from 'src/entities/timeline.entity';
+import { TimelineEntity } from 'src/timeline/timeline.entity';
 import { Like, Repository } from 'typeorm';
 
 @Injectable()
