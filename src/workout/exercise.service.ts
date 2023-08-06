@@ -34,13 +34,13 @@ export class ExerciseService {
   async getExercise(exerciseId: string) {
     return await this.exerciseEntity.findOne({
       where: { exerciseId },
-      relations: ['tips'],
+      relations: ['tips', 'exerciseProgress'],
     });
   }
 
   async getExercises() {
     return await this.exerciseEntity.find({
-      relations: ['tips'],
+      relations: ['tips', 'exerciseProgress'],
     });
   }
 
@@ -82,6 +82,9 @@ export class ExerciseService {
       where: {
         exerciseId,
         userId,
+      },
+      order: {
+        date: 'DESC',
       },
     });
   }
