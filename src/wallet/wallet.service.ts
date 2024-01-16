@@ -61,6 +61,7 @@ export class WalletService {
     amount: number,
     description: string,
     type: ExpenseType,
+    category: string,
   ) {
     const wallet = await this.getWalletByUserId(userId);
 
@@ -82,6 +83,7 @@ export class WalletService {
       walletId: walletId,
       type,
       balanceBeforeInteraction: wallet?.balance as number,
+      category,
     });
 
     await this._updateWalletBalance(
@@ -90,7 +92,7 @@ export class WalletService {
       type === ExpenseType.expense ? ExpenseType.expense : ExpenseType.income,
     );
 
-    return this.expenseRepository.find({
+    return this.expenseRepository.findOne({
       where: { id: insert.identifiers[0].id },
     });
   }
@@ -133,5 +135,39 @@ export class WalletService {
             : `balance + ${amount}`,
       },
     );
+  }
+
+  async editExpense(expenseId: string, userId: string, expense: any) {
+    const exisiting = await this.expenseRepository.findOne({
+      where: { id: expenseId },
+    });
+
+    if (typeof exisiting === 'undefined' || exisiting == null)
+      throw new Error('Expense doesnt exist');
+
+    const balanceBeforeInteraction = exisiting.balanceBeforeInteraction;
+
+    const newBalance =
+      expense.type === 'income'
+        ? balanceBeforeInteraction + expense.amount
+        : balanceBeforeInteraction - expense.amount;
+
+    await this.walletRepository.update(
+      { userId },
+      {
+        balance: newBalance,
+      },
+    );
+
+    await this.expenseRepository.update(
+      {
+        id: expenseId,
+      },
+      {
+        ...expense,
+      },
+    );
+
+    return await this.expenseRepository.findOne({ where: { id: expenseId } });
   }
 }
