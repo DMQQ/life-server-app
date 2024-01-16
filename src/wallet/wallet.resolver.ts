@@ -35,15 +35,17 @@ export class WalletResolver {
     @Args('amount', { type: () => Float }) amount: number,
     @Args('description') description: string,
     @Args('type', { type: () => String }) type: ExpenseType,
+    @Args('category', { type: () => String }) category: string,
   ) {
     const expense = await this.walletService.createExpense(
       usrId,
       amount,
       description,
       type,
+      category,
     );
 
-    return expense?.[0];
+    return expense;
   }
 
   @Mutation(() => ID)
@@ -62,5 +64,24 @@ export class WalletResolver {
     @Args('amount', { type: () => Int }) amount: number,
   ) {
     return await this.walletService.editUserWalletBalance(usrId, amount);
+  }
+
+  @Mutation(() => ExpenseEntity)
+  async editExpense(
+    @User() usrId: string,
+    @Args('expenseId', { type: () => ID }) expenseId: string,
+    @Args('amount', { type: () => Float }) amount: number,
+    @Args('description') description: string,
+    @Args('type', { type: () => String }) type: ExpenseType,
+    @Args('category', { type: () => String }) category: string,
+  ) {
+    const result = await this.walletService.editExpense(expenseId, usrId, {
+      amount,
+      description,
+      type,
+      category,
+    });
+
+    return result;
   }
 }

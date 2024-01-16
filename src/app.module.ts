@@ -40,8 +40,8 @@ import { WorkoutModule } from './workout/workout.module';
 
         entities: ['dist/**/*.entity{.ts,.js}'],
 
-        // synchronize: true,
-        synchronize: false,
+        synchronize: true,
+        // synchronize: false,
       }),
       inject: [ConfigService],
     }),
