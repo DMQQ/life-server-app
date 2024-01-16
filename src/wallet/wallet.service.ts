@@ -137,20 +137,24 @@ export class WalletService {
     );
   }
 
-  async editExpense(expenseId: string, userId: string, expense: any) {
-    const exisiting = await this.expenseRepository.findOne({
+  async editExpense(expenseId: string, userId: string, incoming: any) {
+    const wallet = await this.walletRepository.findOne({ where: { userId } });
+    const exisitng = await this.expenseRepository.findOne({
       where: { id: expenseId },
     });
 
-    if (typeof exisiting === 'undefined' || exisiting == null)
+    if (typeof wallet === 'undefined' || wallet == null)
       throw new Error('Expense doesnt exist');
 
-    const balanceBeforeInteraction = exisiting.balanceBeforeInteraction;
+    const originalBalance =
+      exisitng.type === 'income'
+        ? wallet.balance - exisitng.amount
+        : wallet.balance + exisitng.amount; // restoring balance to state without this expense
 
     const newBalance =
-      expense.type === 'income'
-        ? balanceBeforeInteraction + expense.amount
-        : balanceBeforeInteraction - expense.amount;
+      incoming.type === 'income'
+        ? originalBalance + incoming.amount
+        : originalBalance - incoming.amount; // operating on old balance to create new with new expense
 
     await this.walletRepository.update(
       { userId },
@@ -164,7 +168,8 @@ export class WalletService {
         id: expenseId,
       },
       {
-        ...expense,
+        ...incoming,
+        balanceBeforeInteraction: originalBalance,
       },
     );
 
