@@ -159,6 +159,25 @@ export class TimelineResolver {
     return this.timelineService.findTodoById(id);
   }
 
+  @Mutation(() => TimelineEntity)
+  async editTimeline(
+    @User() user: string,
+
+    @Args('id', { type: () => ID }) timelineId: string,
+
+    @Args('input', { type: () => CreateTimelineInput })
+    input: Partial<CreateTimelineInput>,
+  ) {
+    const timeline = await this.timelineService.findOneById(timelineId, user);
+
+    if (timeline === undefined || timeline == null)
+      throw new NotFoundException('Timeline not found');
+
+    const result = await this.timelineService.editTimeline(input, timelineId);
+
+    return result;
+  }
+
   @ResolveField('images', () => [TimelineFilesEntity])
   async images(
     @Parent() timeline: TimelineEntity,
