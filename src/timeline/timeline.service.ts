@@ -7,7 +7,7 @@ import {
   TimelineTodosEntity,
 } from 'src/timeline/timeline.entity';
 import { Like, Repository } from 'typeorm';
-import { RepeatableTimeline } from './timeline.schemas';
+import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
 
 interface CreateTimelineProps {
   beginTime: string;
@@ -212,6 +212,24 @@ export class TimelineService {
       where: {
         id: insert.identifiers[0].id,
       },
+    });
+  }
+
+  async editTimeline(input: Partial<CreateTimelineInput>, timelineId: string) {
+    await this.timelineRepository.update(
+      {
+        id: timelineId,
+      },
+      {
+        ...input,
+        ...(input.beginTime && { beginTime: excludeSeconds(input.beginTime) }),
+        ...(input.endTime && { endTime: excludeSeconds(input.endTime) }),
+      },
+    );
+
+    return this.timelineRepository.findOne({
+      where: { id: timelineId },
+      relations: ['images', 'todos'],
     });
   }
 }
