@@ -16,9 +16,10 @@ export class ExerciseResolver {
     @Args('input', { type: () => CreateExercise, nullable: false })
     input: CreateExercise,
   ) {
-    if (!['Beginner', 'Intermediate', 'Advanced'].includes(input.difficulty))
+    const diff = ['Beginner', 'Intermediate', 'Advanced'];
+    if (!diff.includes(input.difficulty))
       throw new BadRequestException(
-        'Difficulty must be one of Beginner, Intermediate, or Advanced',
+        'Difficulty must be one of: ' + diff.join(', '),
       );
 
     return this.exerciseService.createExercise(input);
