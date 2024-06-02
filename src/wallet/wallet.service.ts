@@ -175,4 +175,26 @@ export class WalletService {
 
     return await this.expenseRepository.findOne({ where: { id: expenseId } });
   }
+
+  async getMonthTotalByType(
+    type: 'income' | 'expense',
+    userId: string,
+    month: number,
+    year: number,
+  ) {
+    const date = new Date(year, month, 1);
+
+    const expenses = await this.expenseRepository.query(
+      `
+      SELECT SUM(amount) as total FROM expense WHERE walletId = (
+        SELECT id FROM wallet WHERE userId = ?
+      ) AND expense.type = ? AND expense.date >= ?
+    `,
+      [userId, type, date],
+    );
+
+    console.log(expenses);
+
+    return expenses[0].total;
+  }
 }

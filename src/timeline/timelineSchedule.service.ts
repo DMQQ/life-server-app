@@ -4,6 +4,16 @@ import * as moment from 'moment';
 import { TimelineEntity } from 'src/timeline/timeline.entity';
 import { Like, Repository } from 'typeorm';
 
+interface FindEventsResponse {
+  title: string;
+  description: string;
+  token: string;
+  isEnable: boolean;
+  beginTime: string;
+  endTime: string;
+  id: string;
+}
+
 @Injectable()
 export class TimelineScheduleService {
   constructor(
@@ -11,33 +21,23 @@ export class TimelineScheduleService {
     private timelineRepository: Repository<TimelineEntity>,
   ) {}
 
-  async findEventsWithDateAndTime(date: string, time: string) {
-    return this.timelineRepository.find({
-      where: { date: Like(`%${date}%`), beginTime: time },
-    });
-  }
-
-  async findEndingEvents(date: string, time: string) {
-    const afterAnHour = moment(time, 'HH:mm:ss')
-      .tz('Europe/Warsaw')
-      .add(1, 'hours')
-      .format('HH:mm:ss');
-
-    return this.timelineRepository.find({
-      where: [
-        {
-          date: Like(`%${date}%`),
-          endTime: time,
-          isCompleted: false,
-          notification: true,
-        },
-        {
-          date: Like(`%${date}%`),
-          endTime: afterAnHour,
-          isCompleted: false,
-          notification: true,
-        },
-      ],
-    });
+  async findEventsByTypeWithCurrentTime(
+    type: 'beginTime' | 'endTime',
+  ): Promise<FindEventsResponse[]> {
+    return this.timelineRepository.query(
+      `
+      SELECT 
+        t.id, t.title, t.description, n.token, n.isEnable, t.beginTime, t.endTime
+      FROM timeline as t
+        LEFT JOIN notifications as n ON t.userId = n.userId
+      WHERE FIND_IN_SET(CURDATE(), REPLACE(t.date, ';', ',')) > 0
+        AND ${type} = TIME_FORMAT(CURTIME(), '%H:%i:00')
+        AND notification = 1
+        AND isCompleted = 0
+        AND (n.token IS NOT NULL OR n.token != "")
+        AND n.isEnable = 1
+    `,
+      [],
+    );
   }
 }

@@ -84,4 +84,35 @@ export class WalletResolver {
 
     return result;
   }
+
+  @Query(() => Int)
+  async getMonthTotalExpenses(@User() usrId: string) {
+    return await this.walletService.getMonthTotalByType(
+      'expense',
+      usrId,
+      new Date().getMonth(),
+      new Date().getFullYear(),
+    );
+  }
+
+  @Query(() => Int)
+  async getMonthTotal(@User() usrId: string) {
+    const expenses = this.walletService.getMonthTotalByType(
+      'expense',
+      usrId,
+      new Date().getMonth(),
+      new Date().getFullYear(),
+    );
+
+    const incomes = this.walletService.getMonthTotalByType(
+      'income',
+      usrId,
+      new Date().getMonth(),
+      new Date().getFullYear(),
+    );
+
+    const promise = await Promise.all([expenses, incomes]);
+
+    return promise[1] - promise[0];
+  }
 }
