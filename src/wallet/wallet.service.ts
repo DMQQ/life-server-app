@@ -62,6 +62,7 @@ export class WalletService {
     description: string,
     type: ExpenseType,
     category: string,
+    date: Date,
   ) {
     const wallet = await this.getWalletByUserId(userId);
 
@@ -79,11 +80,11 @@ export class WalletService {
     const insert = await this.expenseRepository.insert({
       amount,
       description,
-      date: new Date(),
       walletId: walletId,
       type,
       balanceBeforeInteraction: wallet?.balance as number,
       category,
+      date,
     });
 
     await this._updateWalletBalance(
