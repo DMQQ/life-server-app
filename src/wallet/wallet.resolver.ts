@@ -100,19 +100,21 @@ export class WalletResolver {
   }
 
   @Query(() => Int)
-  async getMonthTotal(@User() usrId: string) {
+  async getMonthTotal(@User() usrId: string, @Args('date') date: string) {
+    const parsedDate = new Date(date);
+
     const expenses = this.walletService.getMonthTotalByType(
       'expense',
       usrId,
-      new Date().getMonth(),
-      new Date().getFullYear(),
+      parsedDate.getMonth(),
+      parsedDate.getFullYear(),
     );
 
     const incomes = this.walletService.getMonthTotalByType(
       'income',
       usrId,
-      new Date().getMonth(),
-      new Date().getFullYear(),
+      parsedDate.getMonth(),
+      parsedDate.getFullYear(),
     );
 
     const promise = await Promise.all([expenses, incomes]);
