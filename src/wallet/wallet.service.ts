@@ -189,12 +189,10 @@ export class WalletService {
       `
       SELECT SUM(amount) as total FROM expense WHERE walletId = (
         SELECT id FROM wallet WHERE userId = ?
-      ) AND expense.type = ? AND expense.date >= ?
+      ) AND type = ? AND date >= ? AND date < DATE_ADD(?, INTERVAL 1 MONTH)
     `,
-      [userId, type, date],
+      [userId, type, date, date],
     );
-
-    console.log(expenses);
 
     return expenses[0].total;
   }
