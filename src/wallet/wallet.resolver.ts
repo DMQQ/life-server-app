@@ -36,13 +36,17 @@ export class WalletResolver {
     @Args('description') description: string,
     @Args('type', { type: () => String }) type: ExpenseType,
     @Args('category', { type: () => String }) category: string,
+    @Args('date') date: string,
   ) {
+    const parsedDate = new Date(date || new Date());
+
     const expense = await this.walletService.createExpense(
       usrId,
       amount,
       description,
       type,
       category,
+      parsedDate,
     );
 
     return expense;
