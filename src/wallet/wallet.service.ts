@@ -27,11 +27,12 @@ export class WalletService {
 
       await this.expenseRepository.insert({
         amount: 0,
-        description: 'Balance edit',
+        description: `Balance edited to ${amount}`,
         date: new Date(),
         walletId: wallet.id,
         type: ExpenseType.income,
         category: 'edit',
+        balanceBeforeInteraction: wallet.balance,
       });
 
       return await this.getWalletByUserId(userId);

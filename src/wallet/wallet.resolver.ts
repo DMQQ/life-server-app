@@ -4,9 +4,7 @@ import {
   ID,
   Int,
   Mutation,
-  Parent,
   Query,
-  ResolveField,
   Resolver,
 } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
@@ -104,14 +102,14 @@ export class WalletResolver {
     const parsedDate = new Date(date);
 
     const expenses = this.walletService.getMonthTotalByType(
-      'expense',
+      ExpenseType.expense,
       usrId,
       parsedDate.getMonth(),
       parsedDate.getFullYear(),
     );
 
     const incomes = this.walletService.getMonthTotalByType(
-      'income',
+      ExpenseType.income,
       usrId,
       parsedDate.getMonth(),
       parsedDate.getFullYear(),
