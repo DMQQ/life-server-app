@@ -83,12 +83,14 @@ export class WalletResolver {
     @Args('description') description: string,
     @Args('type', { type: () => String }) type: ExpenseType,
     @Args('category', { type: () => String }) category: string,
+    @Args('date') date: string,
   ) {
     const result = await this.walletService.editExpense(expenseId, usrId, {
       amount,
       description,
       type,
       category,
+      date,
     });
 
     return result;
