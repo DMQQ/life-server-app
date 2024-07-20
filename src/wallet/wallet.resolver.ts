@@ -96,7 +96,7 @@ export class WalletResolver {
     return result;
   }
 
-  @Query(() => Int)
+  @Query(() => Float)
   async getMonthTotalExpenses(@User() usrId: string) {
     return await this.walletService.getMonthTotalByType(
       'expense',
@@ -106,7 +106,7 @@ export class WalletResolver {
     );
   }
 
-  @Query(() => Int)
+  @Query(() => Float)
   async getMonthTotal(@User() usrId: string, @Args('date') date: string) {
     const parsedDate = new Date(date);
 
