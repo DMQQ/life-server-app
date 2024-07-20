@@ -5,7 +5,42 @@ import {
   ExpenseType,
   WalletEntity,
 } from 'src/wallet/wallet.entity';
-import { Repository } from 'typeorm';
+import { Between, Like, MoreThan, Repository } from 'typeorm';
+import { GetWalletFilters } from './wallet.schemas';
+
+const dateFilter = (dateRange: GetWalletFilters['date']) => {
+  if (dateRange.from && dateRange.to)
+    return {
+      date: Between(dateRange.from, dateRange.to),
+    };
+
+  if (dateRange.from && !dateRange.to)
+    return {
+      date: MoreThan(dateRange.from),
+    };
+
+  if (!dateRange.from && dateRange.to)
+    return {
+      date: MoreThan(dateRange.to),
+    };
+};
+
+const amountFilter = (amountRange: GetWalletFilters['amount']) => {
+  if (amountRange.from && amountRange.to)
+    return {
+      amount: Between(amountRange.from, amountRange.to),
+    };
+
+  if (amountRange.from && !amountRange.to)
+    return {
+      amount: MoreThan(amountRange.from),
+    };
+
+  if (!amountRange.from && amountRange.to)
+    return {
+      amount: MoreThan(amountRange.to),
+    };
+};
 
 @Injectable()
 export class WalletService {
@@ -17,8 +52,17 @@ export class WalletService {
     private readonly expenseRepository: Repository<ExpenseEntity>,
   ) {}
 
+  async getWalletIdByUserId(userId: string) {
+    const wallet = await this.walletRepository.findOne({
+      where: { userId },
+      relations: ['expenses'],
+    });
+
+    return wallet;
+  }
+
   async editUserWalletBalance(userId: string, amount: number) {
-    let wallet = await this.getWalletByUserId(userId);
+    let wallet = await this.getWalletIdByUserId(userId);
 
     if (wallet) {
       await this.walletRepository.update(wallet.id, {
@@ -35,7 +79,7 @@ export class WalletService {
         balanceBeforeInteraction: wallet.balance,
       });
 
-      return await this.getWalletByUserId(userId);
+      return await this.getWalletIdByUserId(userId);
     } else {
       await this.walletRepository.insert({
         balance: amount,
@@ -44,17 +88,41 @@ export class WalletService {
     }
   }
 
-  async getWalletByUserId(userId: string) {
-    return await this.walletRepository.findOne({
-      where: { userId },
-      relations: ['expenses'],
-
-      order: {
-        expenses: {
-          date: 'DESC',
-        },
+  async getWalletByUserId(
+    userId: string,
+    settings?: {
+      where: GetWalletFilters;
+    },
+  ) {
+    const wallet = await this.walletRepository.findOne({
+      where: {
+        userId,
       },
     });
+
+    const expenses = await this.expenseRepository
+      .createQueryBuilder('e')
+      .where('e.walletId = :walletId', { walletId: wallet.id })
+      .andWhere('e.description LIKE :d', {
+        d: `%${settings?.where?.title || ''}%`,
+      })
+
+      .andWhere('e.date >= :from', {
+        from: settings?.where?.date?.from || '1900-01-01',
+      })
+      .andWhere('e.date <= :to', {
+        to: settings?.where?.date?.to || '2100-01-01',
+      })
+      .andWhere('e.amount >= :min', { min: settings?.where?.amount?.from || 0 })
+      .andWhere('e.amount <= :max', {
+        max: settings?.where?.amount?.to || 1000000000,
+      })
+      .getMany();
+
+    return {
+      ...wallet,
+      expenses,
+    };
   }
 
   async createExpense(
@@ -65,7 +133,7 @@ export class WalletService {
     category: string,
     date: Date,
   ) {
-    const wallet = await this.getWalletByUserId(userId);
+    const wallet = await this.getWalletIdByUserId(userId);
 
     let walletId = wallet?.id as string | undefined;
 
@@ -101,7 +169,7 @@ export class WalletService {
 
   async getExpenses(userId: string) {
     return await this.expenseRepository.find({
-      where: { walletId: (await this.getWalletByUserId(userId)).id },
+      where: { walletId: (await this.getWalletIdByUserId(userId)).id },
     });
   }
 
