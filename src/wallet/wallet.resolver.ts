@@ -16,6 +16,7 @@ import {
   WalletEntity,
 } from 'src/wallet/wallet.entity';
 import { User } from 'src/utils/decorators/User';
+import { GetWalletFilters } from './wallet.schemas';
 
 @UseGuards(AuthGuard)
 @Resolver(() => WalletEntity)
@@ -23,8 +24,14 @@ export class WalletResolver {
   constructor(private walletService: WalletService) {}
 
   @Query((returns) => WalletEntity)
-  async wallet(@User() usrId: string) {
-    return await this.walletService.getWalletByUserId(usrId);
+  async wallet(
+    @User() usrId: string,
+    @Args('filters', { nullable: true, type: () => GetWalletFilters })
+    filters: GetWalletFilters,
+  ) {
+    return this.walletService.getWalletByUserId(usrId, {
+      where: filters,
+    });
   }
 
   @Mutation((returns) => ExpenseEntity)
