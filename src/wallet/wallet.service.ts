@@ -117,6 +117,7 @@ export class WalletService {
       .andWhere('e.amount <= :max', {
         max: settings?.where?.amount?.to || 1000000000,
       })
+      .orderBy('e.date', 'DESC')
       .getMany();
 
     return {
