@@ -31,4 +31,7 @@ export class GetWalletFilters {
 
   @Field(() => AmountRange, { nullable: true })
   amount?: RangeDate;
+
+  @Field(() => String, { nullable: true })
+  type: 'income' | 'expense';
 }
