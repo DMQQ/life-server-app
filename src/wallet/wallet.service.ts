@@ -100,25 +100,42 @@ export class WalletService {
       },
     });
 
-    const expenses = await this.expenseRepository
+    if (!wallet) {
+      const walletInsert = this.walletRepository.save({
+        balance: 0,
+        userId,
+      });
+
+      return walletInsert;
+    }
+
+    const expensesQuery = this.expenseRepository
       .createQueryBuilder('e')
       .where('e.walletId = :walletId', { walletId: wallet.id })
       .andWhere('e.description LIKE :d', {
         d: `%${settings?.where?.title || ''}%`,
       })
-
-      .andWhere('e.date >= :from', {
+      .andWhere('e.date >= :from AND e.date <= :to', {
         from: settings?.where?.date?.from || '1900-01-01',
-      })
-      .andWhere('e.date <= :to', {
         to: settings?.where?.date?.to || '2100-01-01',
       })
-      .andWhere('e.amount >= :min', { min: settings?.where?.amount?.from || 0 })
-      .andWhere('e.amount <= :max', {
+      .andWhere('e.amount >= :min AND e.amount <= :max', {
+        min: settings?.where?.amount?.from || 0,
         max: settings?.where?.amount?.to || 1000000000,
       })
-      .orderBy('e.date', 'DESC')
-      .getMany();
+      .andWhere('e.type IN(:...type)', {
+        type: settings?.where?.type
+          ? [settings.where.type]
+          : [ExpenseType.expense, ExpenseType.income],
+      });
+
+    if (settings?.where?.category.length > 0) {
+      expensesQuery.andWhere('e.category IN(:...category)', {
+        category: settings?.where?.category,
+      });
+    }
+
+    const expenses = await expensesQuery.orderBy('e.date', 'DESC').getMany();
 
     return {
       ...wallet,
