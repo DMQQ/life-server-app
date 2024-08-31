@@ -1,0 +1,39 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - master # Trigger deployment on push to main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # Use the Node.js version your project requires
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build
+
+      - name: Deploy to VPS
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          PORT: ${{ secrets.VPS_PORT }}
+          KEY: ${{ secrets.VPS_KEY }}
+        run: |
+          scp -i $KEY -r ./dist $USER@$HOST:/home/$USER/life-server
+          ssh -i $KEY $USER@$HOST << 'EOF'
+            cd /home/$USER/life-server
+            npm install --production
+            pm2 restart life-server || pm2 start dist/main.js --name life-server
+          EOF

@@ -49,9 +49,16 @@ export class TimelineResolver {
     @User() userId: string,
     @Args('date', { nullable: true }) date: string,
     @Args('pagination', { nullable: true, type: () => PaginationInput })
+    @Args('query', { nullable: true })
+    query: string,
     pagination: PaginationInput,
   ) {
-    return this.timelineService.findAllByUserId({ userId, date, pagination });
+    return this.timelineService.findAllByUserId({
+      userId,
+      date,
+      pagination,
+      query,
+    });
   }
 
   @Query(() => [TimelineEntity])

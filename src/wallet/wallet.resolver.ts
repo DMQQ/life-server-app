@@ -4,10 +4,12 @@ import {
   ID,
   Int,
   Mutation,
+  Parent,
   Query,
+  ResolveField,
   Resolver,
 } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { BadRequestException, UseGuards } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { WalletService } from './wallet.service';
 import {
@@ -16,7 +18,7 @@ import {
   WalletEntity,
 } from 'src/wallet/wallet.entity';
 import { User } from 'src/utils/decorators/User';
-import { GetWalletFilters } from './wallet.schemas';
+import { GetWalletFilters, WalletStatistics } from './wallet.schemas';
 
 @UseGuards(AuthGuard)
 @Resolver(() => WalletEntity)
@@ -24,12 +26,20 @@ export class WalletResolver {
   constructor(private walletService: WalletService) {}
 
   @Query((returns) => WalletEntity)
-  async wallet(
-    @User() usrId: string,
+  async wallet(@User() usrId: string) {
+    return this.walletService.getWalletByUserId(usrId);
+  }
+
+  @ResolveField(() => [ExpenseEntity])
+  async expenses(
+    @Parent() wallet: WalletEntity,
+    @Args('skip', { type: () => Int, nullable: true }) skip: number = 0,
+    @Args('take', { type: () => Int, nullable: true }) take: number = 10,
     @Args('filters', { nullable: true, type: () => GetWalletFilters })
     filters: GetWalletFilters,
   ) {
-    return this.walletService.getWalletByUserId(usrId, {
+    return this.walletService.getExpensesByWalletId(wallet.id, {
+      pagination: { skip, take },
       where: filters,
     });
   }
@@ -127,5 +137,16 @@ export class WalletResolver {
     const promise = await Promise.all([expenses, incomes]);
 
     return promise[1] - promise[0];
+  }
+
+  @Query(() => WalletStatistics)
+  async getStatistics(
+    @User() usrId: string,
+    @Args('type', { type: () => String, description: 'today, month, week' })
+    type: 'today' | 'month' | 'week',
+  ) {
+    if (['today', 'month', 'week'].indexOf(type) === -1)
+      throw new BadRequestException('Invalid type');
+    return this.walletService.getStatistics(usrId, type);
   }
 }

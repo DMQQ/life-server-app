@@ -5,42 +5,8 @@ import {
   ExpenseType,
   WalletEntity,
 } from 'src/wallet/wallet.entity';
-import { Between, Like, MoreThan, Repository } from 'typeorm';
-import { GetWalletFilters } from './wallet.schemas';
-
-const dateFilter = (dateRange: GetWalletFilters['date']) => {
-  if (dateRange.from && dateRange.to)
-    return {
-      date: Between(dateRange.from, dateRange.to),
-    };
-
-  if (dateRange.from && !dateRange.to)
-    return {
-      date: MoreThan(dateRange.from),
-    };
-
-  if (!dateRange.from && dateRange.to)
-    return {
-      date: MoreThan(dateRange.to),
-    };
-};
-
-const amountFilter = (amountRange: GetWalletFilters['amount']) => {
-  if (amountRange.from && amountRange.to)
-    return {
-      amount: Between(amountRange.from, amountRange.to),
-    };
-
-  if (amountRange.from && !amountRange.to)
-    return {
-      amount: MoreThan(amountRange.from),
-    };
-
-  if (!amountRange.from && amountRange.to)
-    return {
-      amount: MoreThan(amountRange.to),
-    };
-};
+import { Repository } from 'typeorm';
+import { GetWalletFilters, WalletStatistics } from './wallet.schemas';
 
 @Injectable()
 export class WalletService {
@@ -88,13 +54,9 @@ export class WalletService {
     }
   }
 
-  async getWalletByUserId(
-    userId: string,
-    settings?: {
-      where: GetWalletFilters;
-    },
-  ) {
+  async getWalletByUserId(userId: string) {
     const wallet = await this.walletRepository.findOne({
+      relations: ['expenses'],
       where: {
         userId,
       },
@@ -109,9 +71,19 @@ export class WalletService {
       return walletInsert;
     }
 
+    return wallet;
+  }
+
+  async getExpensesByWalletId(
+    walletId: string,
+    settings?: {
+      where: GetWalletFilters;
+      pagination: { skip: number; take: number };
+    },
+  ) {
     const expensesQuery = this.expenseRepository
       .createQueryBuilder('e')
-      .where('e.walletId = :walletId', { walletId: wallet.id })
+      .where('e.walletId = :walletId', { walletId: walletId })
       .andWhere('e.description LIKE :d', {
         d: `%${settings?.where?.title || ''}%`,
       })
@@ -135,12 +107,13 @@ export class WalletService {
       });
     }
 
-    const expenses = await expensesQuery.orderBy('e.date', 'DESC').getMany();
+    const expenses = await expensesQuery
+      .orderBy('e.date', 'DESC')
+      .skip(settings?.pagination.skip || 0)
+      .take(settings?.pagination.take || 10)
+      .getMany();
 
-    return {
-      ...wallet,
-      expenses,
-    };
+    return expenses;
   }
 
   async createExpense(
@@ -282,5 +255,47 @@ export class WalletService {
     );
 
     return expenses[0].total;
+  }
+
+  getStatistics(
+    userId: string,
+    dateRange: 'today' | 'week' | 'month',
+  ): Promise<[WalletStatistics]> {
+    // Determine the appropriate interval based on the dateRange
+    let interval: string;
+    switch (dateRange) {
+      case 'today':
+        interval = 'DAY';
+        break;
+      case 'week':
+        interval = 'WEEK';
+        break;
+      case 'month':
+        interval = 'MONTH';
+        break;
+      default:
+        throw new Error('Invalid date range');
+    }
+
+    return this.expenseRepository.query(
+      `
+      SELECT 
+        SUM(amount) as total,
+        AVG(amount) as average,
+        MAX(amount) as max,
+        MIN(amount) as min,
+        COUNT(*) as count,
+        (SELECT category FROM expense WHERE walletId = (SELECT id FROM wallet WHERE userId = ?) GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) as theMostCommonCategory,
+        (SELECT category FROM expense WHERE walletId = (SELECT id FROM wallet WHERE userId = ?) GROUP BY category ORDER BY COUNT(*) ASC LIMIT 1) as theLeastCommonCategory,
+        (SELECT balance FROM wallet WHERE userId = ?) as lastBalance,
+        (SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM wallet WHERE userId = ?) AND type = 'income') as income,
+        (SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM wallet WHERE userId = ?) AND type = 'expense') as expense
+      FROM expense 
+      WHERE walletId = (SELECT id FROM wallet WHERE userId = ?)
+        AND date >= ?
+        AND date < DATE_ADD(?, INTERVAL 1 ${interval})
+      `,
+      [userId, userId, userId, userId, userId, userId, new Date(), new Date()],
+    );
   }
 }
