@@ -3,7 +3,7 @@ name: Deploy to VPS
 on:
   push:
     branches:
-      - master # Trigger deployment on push to main branch
+      - master
 
 jobs:
   deploy:
@@ -16,7 +16,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18' # Use the Node.js version your project requires
+          node-version: '18'
 
       - name: Install dependencies
         run: npm install
@@ -24,15 +24,19 @@ jobs:
       - name: Build project
         run: npm run build
 
+      - name: Prepare SSH Key
+        run: |
+          echo "${{ secrets.KEY }}" > /tmp/vps_key
+          chmod 600 /tmp/vps_key
+
       - name: Deploy to VPS
         env:
           HOST: ${{ secrets.VPS_HOST }}
           USER: ${{ secrets.VPS_USER }}
           PORT: ${{ secrets.VPS_PORT }}
-          KEY: ${{ secrets.VPS_KEY }}
         run: |
-          scp -i $KEY -r ./dist $USER@$HOST:/home/$USER/life-server
-          ssh -i $KEY $USER@$HOST << 'EOF'
+          scp -P $PORT -i /tmp/vps_key -r ./dist $USER@$HOST:/home/$USER/life-server
+          ssh -p $PORT -i /tmp/vps_key $USER@$HOST << 'EOF'
             cd /home/$USER/life-server
             npm install --production
             pm2 restart life-server || pm2 start dist/main.js --name life-server
