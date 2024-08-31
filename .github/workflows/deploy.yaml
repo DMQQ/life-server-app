@@ -24,16 +24,12 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Prepare SSH Key and Known Hosts
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+
+      - name: Prepare SSH Environment
         run: |
-          # Create .ssh directory
           mkdir -p ~/.ssh
-
-          # Write the private key to a file
-          echo "${{ secrets.VPS_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-          # Add the VPS's host key to known_hosts to avoid verification prompt
           ssh-keyscan -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to VPS
@@ -41,12 +37,10 @@ jobs:
           HOST: ${{ secrets.VPS_HOST }}
           USER: ${{ secrets.VPS_USER }}
           PORT: ${{ secrets.VPS_PORT }}
+          PASS: ${{ secrets.VPS_PASS }}
         run: |
-          # Copy the build files to the VPS
-          scp -P $PORT -i ~/.ssh/id_rsa -r ./dist $USER@$HOST:/home/$USER/life-server
-
-          # SSH into the VPS and restart the application
-          ssh -p $PORT -i ~/.ssh/id_rsa $USER@$HOST << 'EOF'
+          sshpass -p $PASS scp -P $PORT -o StrictHostKeyChecking=no -r ./dist $USER@$HOST:/home/$USER/life-server
+          sshpass -p $PASS ssh -p $PORT -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
             cd /home/$USER/life-server
             npm install --production
             pm2 restart life-server || pm2 start dist/main.js --name life-server
