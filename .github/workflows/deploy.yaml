@@ -35,7 +35,13 @@ jobs:
           USER: ${{ secrets.VPS_USER }}
           PORT: ${{ secrets.VPS_PORT }}
         run: |
+          # Create a known_hosts file to avoid host key verification issues
+          ssh-keyscan -p $PORT $HOST >> ~/.ssh/known_hosts
+
+          # Deploy the code using scp
           scp -P $PORT -i /tmp/vps_key -r ./dist $USER@$HOST:/home/$USER/life-server
+
+          # SSH into the server and restart the application
           ssh -p $PORT -i /tmp/vps_key $USER@$HOST << 'EOF'
             cd /home/$USER/life-server
             npm install --production
