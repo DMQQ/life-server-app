@@ -24,10 +24,17 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Prepare SSH Key
+      - name: Prepare SSH Key and Known Hosts
         run: |
-          echo "${{ secrets.KEY }}" > /tmp/vps_key
-          chmod 600 /tmp/vps_key
+          # Create .ssh directory
+          mkdir -p ~/.ssh
+
+          # Write the private key to a file
+          echo "${{ secrets.VPS_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Add the VPS's host key to known_hosts to avoid verification prompt
+          ssh-keyscan -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to VPS
         env:
@@ -35,14 +42,11 @@ jobs:
           USER: ${{ secrets.VPS_USER }}
           PORT: ${{ secrets.VPS_PORT }}
         run: |
-          # Create a known_hosts file to avoid host key verification issues
-          ssh-keyscan -p $PORT $HOST >> ~/.ssh/known_hosts
+          # Copy the build files to the VPS
+          scp -P $PORT -i ~/.ssh/id_rsa -r ./dist $USER@$HOST:/home/$USER/life-server
 
-          # Deploy the code using scp
-          scp -P $PORT -i /tmp/vps_key -r ./dist $USER@$HOST:/home/$USER/life-server
-
-          # SSH into the server and restart the application
-          ssh -p $PORT -i /tmp/vps_key $USER@$HOST << 'EOF'
+          # SSH into the VPS and restart the application
+          ssh -p $PORT -i ~/.ssh/id_rsa $USER@$HOST << 'EOF'
             cd /home/$USER/life-server
             npm install --production
             pm2 restart life-server || pm2 start dist/main.js --name life-server
