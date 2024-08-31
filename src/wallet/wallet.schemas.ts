@@ -1,4 +1,4 @@
-import { Field, Float, InputType } from '@nestjs/graphql';
+import { Field, Float, InputType, ObjectType } from '@nestjs/graphql';
 
 @InputType()
 export class RangeDate {
@@ -34,4 +34,52 @@ export class GetWalletFilters {
 
   @Field(() => String, { nullable: true })
   type: 'income' | 'expense';
+}
+
+@ObjectType()
+class WalletStatisticsRange {
+  @Field(() => Float, { nullable: true })
+  total: number;
+
+  @Field(() => Float, { nullable: true })
+  average: number;
+
+  @Field(() => Float, { nullable: true })
+  max: number;
+
+  @Field(() => Float, { nullable: true })
+  min: number;
+
+  @Field(() => Float, { nullable: true })
+  count: number;
+
+  @Field(() => String)
+  theMostCommonCategory: string;
+
+  @Field(() => String)
+  theLeastCommonCategory: string;
+
+  @Field(() => Float)
+  lastBalance: number;
+
+  @Field(() => Float)
+  income: number;
+
+  @Field(() => Float)
+  expense: number;
+}
+
+@ObjectType()
+export class WalletStatistics {
+  @Field(() => Float)
+  balance: number;
+
+  @Field(() => WalletStatisticsRange)
+  month: WalletStatisticsRange;
+
+  @Field(() => WalletStatisticsRange)
+  today: WalletStatisticsRange;
+
+  @Field(() => WalletStatisticsRange)
+  week: WalletStatisticsRange;
 }

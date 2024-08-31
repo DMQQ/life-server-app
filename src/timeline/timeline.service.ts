@@ -71,9 +71,14 @@ export class TimelineService {
     userId: string;
     date: string;
     pagination?: { skip: number; take: number };
+    query?: string;
   }) {
     return this.timelineRepository.find({
-      where: { userId: opts.userId, date: Like(`%${opts.date}%`) },
+      where: {
+        userId: opts.userId,
+        date: Like(`%${opts.date}%`),
+        ...(opts.query && { title: Like(`%${opts.query}%`) }),
+      },
       order: {
         beginTime: 'DESC',
       },
