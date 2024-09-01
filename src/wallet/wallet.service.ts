@@ -6,7 +6,7 @@ import {
   WalletEntity,
 } from 'src/wallet/wallet.entity';
 import { Repository } from 'typeorm';
-import { GetWalletFilters, WalletStatistics } from './wallet.schemas';
+import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
 
 @Injectable()
 export class WalletService {
@@ -260,7 +260,7 @@ export class WalletService {
   getStatistics(
     userId: string,
     dateRange: 'today' | 'week' | 'month',
-  ): Promise<[WalletStatistics]> {
+  ): Promise<[WalletStatisticsRange]> {
     // Determine the appropriate interval based on the dateRange
     let interval: string;
     switch (dateRange) {

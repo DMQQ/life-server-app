@@ -37,7 +37,7 @@ export class GetWalletFilters {
 }
 
 @ObjectType()
-class WalletStatisticsRange {
+export class WalletStatisticsRange {
   @Field(() => Float, { nullable: true })
   total: number;
 
@@ -53,33 +53,18 @@ class WalletStatisticsRange {
   @Field(() => Float, { nullable: true })
   count: number;
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   theMostCommonCategory: string;
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   theLeastCommonCategory: string;
 
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
   lastBalance: number;
 
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
   income: number;
 
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
   expense: number;
-}
-
-@ObjectType()
-export class WalletStatistics {
-  @Field(() => Float)
-  balance: number;
-
-  @Field(() => WalletStatisticsRange)
-  month: WalletStatisticsRange;
-
-  @Field(() => WalletStatisticsRange)
-  today: WalletStatisticsRange;
-
-  @Field(() => WalletStatisticsRange)
-  week: WalletStatisticsRange;
 }

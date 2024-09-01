@@ -18,7 +18,7 @@ import {
   WalletEntity,
 } from 'src/wallet/wallet.entity';
 import { User } from 'src/utils/decorators/User';
-import { GetWalletFilters, WalletStatistics } from './wallet.schemas';
+import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
 
 @UseGuards(AuthGuard)
 @Resolver(() => WalletEntity)
@@ -139,7 +139,7 @@ export class WalletResolver {
     return promise[1] - promise[0];
   }
 
-  @Query(() => WalletStatistics)
+  @Query(() => WalletStatisticsRange)
   async getStatistics(
     @User() usrId: string,
     @Args('type', { type: () => String, description: 'today, month, week' })
@@ -147,6 +147,8 @@ export class WalletResolver {
   ) {
     if (['today', 'month', 'week'].indexOf(type) === -1)
       throw new BadRequestException('Invalid type');
-    return this.walletService.getStatistics(usrId, type);
+    const stats = await this.walletService.getStatistics(usrId, type);
+
+    return stats[0];
   }
 }
