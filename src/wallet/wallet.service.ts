@@ -257,45 +257,58 @@ export class WalletService {
     return expenses[0].total;
   }
 
-  getStatistics(
+  async getStatistics(
     userId: string,
     dateRange: 'today' | 'week' | 'month',
   ): Promise<[WalletStatisticsRange]> {
-    // Determine the appropriate interval based on the dateRange
-    let interval: string;
+    // Calculate start and end dates based on the dateRange
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date;
+
     switch (dateRange) {
       case 'today':
-        interval = 'DAY';
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 1);
         break;
       case 'week':
-        interval = 'WEEK';
+        startDate = new Date(now.setDate(now.getDate() - now.getDay()));
+        endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 7);
         break;
       case 'month':
-        interval = 'MONTH';
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 1);
         break;
       default:
         throw new Error('Invalid date range');
     }
 
+    // Query database
     return this.expenseRepository.query(
       `
+      WITH walletId AS (
+        SELECT id FROM wallet WHERE userId = ?
+      )
       SELECT 
-        SUM(amount) as total,
-        AVG(amount) as average,
-        MAX(amount) as max,
-        MIN(amount) as min,
-        COUNT(*) as count,
-        (SELECT category FROM expense WHERE walletId = (SELECT id FROM wallet WHERE userId = ?) GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) as theMostCommonCategory,
-        (SELECT category FROM expense WHERE walletId = (SELECT id FROM wallet WHERE userId = ?) GROUP BY category ORDER BY COUNT(*) ASC LIMIT 1) as theLeastCommonCategory,
+        COALESCE(SUM(amount), 0) as total,
+        COALESCE(AVG(amount), 0) as average,
+        COALESCE(MAX(amount), 0) as max,
+        COALESCE(MIN(amount), 0) as min,
+        COALESCE(COUNT(*), 0) as count,
+        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) as theMostCommonCategory,
+        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) GROUP BY category ORDER BY COUNT(*) ASC LIMIT 1) as theLeastCommonCategory,
         (SELECT balance FROM wallet WHERE userId = ?) as lastBalance,
-        (SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM wallet WHERE userId = ?) AND type = 'income') as income,
-        (SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM wallet WHERE userId = ?) AND type = 'expense') as expense
+        COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'income'), 0) as income,
+        COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'expense'), 0) as expense
       FROM expense 
-      WHERE walletId = (SELECT id FROM wallet WHERE userId = ?)
+      WHERE walletId = (SELECT id FROM walletId)
         AND date >= ?
-        AND date < DATE_ADD(?, INTERVAL 1 ${interval})
+        AND date < ?
       `,
-      [userId, userId, userId, userId, userId, userId, new Date(), new Date()],
+      [userId, userId, startDate, endDate],
     );
   }
 }
