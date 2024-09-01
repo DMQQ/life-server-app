@@ -7,6 +7,7 @@ import {
 } from 'src/wallet/wallet.entity';
 import { Repository } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
+import * as moment from 'moment';
 
 @Injectable()
 export class WalletService {
@@ -259,28 +260,43 @@ export class WalletService {
 
   async getStatistics(
     userId: string,
-    dateRange: 'today' | 'week' | 'month',
+    dateRange: 'today' | 'week' | 'lastWeek' | 'month' | 'lastMonth',
   ): Promise<[WalletStatisticsRange]> {
-    // Calculate start and end dates based on the dateRange
-    const now = new Date();
-    let startDate: Date;
-    let endDate: Date;
+    let startDate: string;
+    let endDate: string;
 
     switch (dateRange) {
       case 'today':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 1);
+        startDate = moment().startOf('day').format('YYYY-MM-DD');
+        endDate = moment().endOf('day').format('YYYY-MM-DD');
         break;
       case 'week':
-        startDate = new Date(now.setDate(now.getDate() - now.getDay()));
-        endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 7);
+        startDate = moment().startOf('week').format('YYYY-MM-DD');
+        endDate = moment().endOf('week').format('YYYY-MM-DD');
         break;
       case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        endDate = new Date(startDate);
-        endDate.setMonth(endDate.getMonth() + 1);
+        startDate = moment().startOf('month').format('YYYY-MM-DD');
+        endDate = moment().endOf('month').format('YYYY-MM-DD');
+        break;
+      case 'lastWeek':
+        startDate = moment()
+          .subtract(1, 'week')
+          .startOf('week')
+          .format('YYYY-MM-DD');
+        endDate = moment()
+          .subtract(1, 'week')
+          .endOf('week')
+          .format('YYYY-MM-DD');
+        break;
+      case 'lastMonth':
+        startDate = moment()
+          .subtract(1, 'month')
+          .startOf('month')
+          .format('YYYY-MM-DD');
+        endDate = moment()
+          .subtract(1, 'month')
+          .endOf('month')
+          .format('YYYY-MM-DD');
         break;
       default:
         throw new Error('Invalid date range');
@@ -289,25 +305,25 @@ export class WalletService {
     // Query database
     return this.expenseRepository.query(
       `
-      WITH walletId AS (
-        SELECT id FROM wallet WHERE userId = ?
-      )
-      SELECT 
-        COALESCE(SUM(amount), 0) as total,
-        COALESCE(AVG(amount), 0) as average,
-        COALESCE(MAX(amount), 0) as max,
-        COALESCE(MIN(amount), 0) as min,
-        COALESCE(COUNT(*), 0) as count,
-        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) as theMostCommonCategory,
-        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) GROUP BY category ORDER BY COUNT(*) ASC LIMIT 1) as theLeastCommonCategory,
-        (SELECT balance FROM wallet WHERE userId = ?) as lastBalance,
-        COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'income'), 0) as income,
-        COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'expense'), 0) as expense
-      FROM expense 
-      WHERE walletId = (SELECT id FROM walletId)
-        AND date >= ?
-        AND date < ?
-      `,
+          WITH walletId AS (
+            SELECT id FROM wallet WHERE userId = ?
+          )
+          SELECT 
+            COALESCE(SUM(amount), 0) as total,
+            COALESCE(AVG(amount), 0) as average,
+            COALESCE(MAX(amount), 0) as max,
+            COALESCE(MIN(amount), 0) as min,
+            COALESCE(COUNT(*), 0) as count,
+            (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) as theMostCommonCategory,
+            (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) GROUP BY category ORDER BY COUNT(*) ASC LIMIT 1) as theLeastCommonCategory,
+            (SELECT balance FROM wallet WHERE userId = ?) as lastBalance,
+            COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'income'), 0) as income,
+            COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'expense'), 0) as expense
+          FROM expense 
+          WHERE walletId = (SELECT id FROM walletId)
+            AND date >= ?
+            AND date <= ? 
+  `,
       [userId, userId, startDate, endDate],
     );
   }

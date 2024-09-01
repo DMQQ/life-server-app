@@ -143,9 +143,11 @@ export class WalletResolver {
   async getStatistics(
     @User() usrId: string,
     @Args('type', { type: () => String, description: 'today, month, week' })
-    type: 'today' | 'month' | 'week',
+    type: 'today' | 'month' | 'week' | 'lastWeek' | 'lastMonth',
   ) {
-    if (['today', 'month', 'week'].indexOf(type) === -1)
+    if (
+      ['today', 'month', 'week', 'lastWeek', 'lastMonth'].indexOf(type) === -1
+    )
       throw new BadRequestException('Invalid type');
     const stats = await this.walletService.getStatistics(usrId, type);
 
