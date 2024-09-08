@@ -44,19 +44,7 @@ export class NotificationsService {
   }
 
   async create(token: string, userId: string) {
-    const isIn = await this.notificationsRepository.findOne({
-      where: { userId },
-    });
-
-    if (isIn) {
-      return this.notificationsRepository.update(
-        { id: isIn.id },
-        {
-          token,
-        },
-      );
-    }
-    return this.notificationsRepository.insert({
+    return this.notificationsRepository.save({
       token,
       userId,
     });

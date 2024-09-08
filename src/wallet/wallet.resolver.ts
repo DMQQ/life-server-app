@@ -142,14 +142,17 @@ export class WalletResolver {
   @Query(() => WalletStatisticsRange)
   async getStatistics(
     @User() usrId: string,
-    @Args('type', { type: () => String, description: 'today, month, week' })
-    type: 'today' | 'month' | 'week' | 'lastWeek' | 'lastMonth',
+    @Args('range', { type: () => [String, String] }) range: [string, string],
   ) {
-    if (
-      ['today', 'month', 'week', 'lastWeek', 'lastMonth'].indexOf(type) === -1
-    )
-      throw new BadRequestException('Invalid type');
-    const stats = await this.walletService.getStatistics(usrId, type);
+    if (range.length !== 2) {
+      throw new BadRequestException('Invalid range');
+    }
+
+    if (new Date(range[0]) > new Date(range[1])) {
+      throw new BadRequestException('Invalid range');
+    }
+
+    const stats = await this.walletService.getStatistics(usrId, range);
 
     return stats[0];
   }
