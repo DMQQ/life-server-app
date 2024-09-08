@@ -61,6 +61,7 @@ export class UploadController {
     @UploadedFiles() file: Array<Express.Multer.File>,
     @Query('type') type: string,
     @Query('timelineId') timelineId: string,
+    @Query('expenseId') expenseId: string,
     @Res() response: Response,
   ) {
     if (typeof file === 'undefined' || file.length === 0)
@@ -83,6 +84,21 @@ export class UploadController {
         const result = await this.uploadService.uploadFiles(
           transformedFiles,
           timelineId,
+        );
+
+        return response.send(result);
+      } catch (error) {
+        console.log(error);
+
+        response.status(400).send({
+          error: 'Error uploading file',
+        });
+      }
+    } else if (type === 'expense') {
+      try {
+        const result = await this.uploadService.uploadExpenseFiles(
+          transformedFiles,
+          expenseId,
         );
 
         return response.send(result);

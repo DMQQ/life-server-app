@@ -260,71 +260,46 @@ export class WalletService {
 
   async getStatistics(
     userId: string,
-    dateRange: 'today' | 'week' | 'lastWeek' | 'month' | 'lastMonth',
+    dateRange: [string, string],
   ): Promise<[WalletStatisticsRange]> {
-    let startDate: string;
-    let endDate: string;
-
-    switch (dateRange) {
-      case 'today':
-        startDate = moment().startOf('day').format('YYYY-MM-DD');
-        endDate = moment().endOf('day').format('YYYY-MM-DD');
-        break;
-      case 'week':
-        startDate = moment().startOf('week').format('YYYY-MM-DD');
-        endDate = moment().endOf('week').format('YYYY-MM-DD');
-        break;
-      case 'month':
-        startDate = moment().startOf('month').format('YYYY-MM-DD');
-        endDate = moment().endOf('month').format('YYYY-MM-DD');
-        break;
-      case 'lastWeek':
-        startDate = moment()
-          .subtract(1, 'week')
-          .startOf('week')
-          .format('YYYY-MM-DD');
-        endDate = moment()
-          .subtract(1, 'week')
-          .endOf('week')
-          .format('YYYY-MM-DD');
-        break;
-      case 'lastMonth':
-        startDate = moment()
-          .subtract(1, 'month')
-          .startOf('month')
-          .format('YYYY-MM-DD');
-        endDate = moment()
-          .subtract(1, 'month')
-          .endOf('month')
-          .format('YYYY-MM-DD');
-        break;
-      default:
-        throw new Error('Invalid date range');
-    }
+    const [startDate, endDate] = dateRange;
 
     // Query database
     return this.expenseRepository.query(
       `
-          WITH walletId AS (
-            SELECT id FROM wallet WHERE userId = ?
-          )
-          SELECT 
-            COALESCE(SUM(amount), 0) as total,
-            COALESCE(AVG(amount), 0) as average,
-            COALESCE(MAX(amount), 0) as max,
-            COALESCE(MIN(amount), 0) as min,
-            COALESCE(COUNT(*), 0) as count,
-            (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) as theMostCommonCategory,
-            (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) GROUP BY category ORDER BY COUNT(*) ASC LIMIT 1) as theLeastCommonCategory,
-            (SELECT balance FROM wallet WHERE userId = ?) as lastBalance,
-            COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'income'), 0) as income,
-            COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'expense'), 0) as expense
-          FROM expense 
-          WHERE walletId = (SELECT id FROM walletId)
-            AND date >= ?
-            AND date <= ? 
+      WITH walletId AS (
+        SELECT id FROM wallet WHERE userId = ?
+      )
+      SELECT 
+        COALESCE(SUM(e.amount), 0) AS total,
+        COALESCE(AVG(e.amount), 0) AS average,
+        COALESCE(MAX(e.amount), 0) AS max,
+        COALESCE(MIN(e.amount), 0) AS min,
+        COALESCE(COUNT(*), 0) AS count,
+        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) AND date >= ? AND date <= ? GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) AS theMostCommonCategory,
+        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) AND date >= ? AND date <= ? GROUP BY category ORDER BY COUNT(*) ASC LIMIT 1) AS theLeastCommonCategory,
+        COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'income' AND date >= ? AND date <= ?), 0) AS income,
+        COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'expense' AND date >= ? AND date <= ?), 0) AS expense,
+        (SELECT balance FROM wallet WHERE userId = ?) AS lastBalance
+      FROM expense e
+      JOIN walletId w ON e.walletId = w.id
+      WHERE e.date >= ? 
+        AND e.date <= ?
   `,
-      [userId, userId, startDate, endDate],
+      [
+        userId, // for walletId subquery
+        startDate, // for mostCommonCategory date range
+        endDate, // for mostCommonCategory date range
+        startDate, // for leastCommonCategory date range
+        endDate, // for leastCommonCategory date range
+        startDate, // for income date range
+        endDate, // for income date range
+        startDate, // for expense date range
+        endDate, // for expense date range
+        userId, // for lastBalance subquery
+        startDate, // for main query date range
+        endDate, // for main query date range
+      ],
     );
   }
 }
