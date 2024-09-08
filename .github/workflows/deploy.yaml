@@ -33,6 +33,10 @@ jobs:
           echo "${{ secrets.VPS_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
+          # Check the SSH key file
+          ls -l ~/.ssh/id_rsa
+          cat ~/.ssh/id_rsa
+
           # Add the VPS's host key to known_hosts to avoid verification prompt
           ssh-keyscan -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
