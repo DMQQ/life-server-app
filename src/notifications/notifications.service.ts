@@ -44,10 +44,15 @@ export class NotificationsService {
   }
 
   async create(token: string, userId: string) {
-    return this.notificationsRepository.save({
-      token,
-      userId,
-    });
+    const userToken = await this.findUserToken(userId);
+
+    if (userToken) {
+      await this.notificationsRepository.update(userToken.id, { token });
+    } else {
+      await this.notificationsRepository.insert({ token, userId });
+    }
+
+    return true;
   }
 
   findUserToken(userId: any): Promise<NotificationsEntity> {
