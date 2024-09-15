@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression, Interval } from '@nestjs/schedule';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { WalletService } from './wallet.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
@@ -90,5 +90,26 @@ export class WalletSchedule {
     }
 
     await this.notificationService.sendChunkNotifications(notifications);
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async addScheduledTransactions() {
+    const transactions = await this.walletService.getScheduledTransactions(
+      new Date(),
+    );
+
+    console.log(
+      'Adding scheduled transactions',
+      new Date(),
+      transactions.map((t) => t.date),
+    );
+
+    for (const transaction of transactions) {
+      try {
+        await this.walletService.addScheduledTransaction(transaction);
+      } catch (error) {
+        console.error(error);
+      }
+    }
   }
 }

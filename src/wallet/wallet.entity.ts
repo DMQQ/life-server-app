@@ -68,6 +68,10 @@ export class ExpenseEntity {
   @Column({ type: 'int', nullable: true })
   balanceBeforeInteraction: number;
 
+  @Field((type) => Boolean)
+  @Column({ type: 'boolean', nullable: false, default: false })
+  schedule: boolean;
+
   @Field(() => [ExpenseFileEntity])
   @OneToMany(() => ExpenseFileEntity, (file) => file.expenseId)
   @JoinColumn({ name: 'files' })

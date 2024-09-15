@@ -52,6 +52,7 @@ export class WalletResolver {
     @Args('type', { type: () => String }) type: ExpenseType,
     @Args('category', { type: () => String }) category: string,
     @Args('date') date: string,
+    @Args('schedule', { type: () => Boolean, nullable: true }) schedule = false,
   ) {
     const parsedDate = new Date(date || new Date());
 
@@ -62,6 +63,7 @@ export class WalletResolver {
       type,
       category,
       parsedDate,
+      schedule,
     );
 
     return expense;
