@@ -5,7 +5,7 @@ import {
   ExpenseType,
   WalletEntity,
 } from 'src/wallet/wallet.entity';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
 import * as moment from 'moment';
 
@@ -21,7 +21,7 @@ export class WalletService {
 
   async getWalletIdByUserId(userId: string) {
     const wallet = await this.walletRepository.findOne({
-      where: { userId },
+      where: { userId, expenses: { schedule: false } },
       relations: ['expenses'],
     });
 
@@ -60,6 +60,7 @@ export class WalletService {
       relations: ['expenses'],
       where: {
         userId,
+        expenses: { schedule: false },
       },
     });
 
@@ -100,7 +101,8 @@ export class WalletService {
         type: settings?.where?.type
           ? [settings.where.type]
           : [ExpenseType.expense, ExpenseType.income],
-      });
+      })
+      .andWhere('e.schedule = :schedule', { schedule: false });
 
     if (settings?.where?.category.length > 0) {
       expensesQuery.andWhere('e.category IN(:...category)', {
@@ -124,6 +126,7 @@ export class WalletService {
     type: ExpenseType,
     category: string,
     date: Date,
+    schedule: boolean = false,
   ) {
     const wallet = await this.getWalletIdByUserId(userId);
 
@@ -146,7 +149,13 @@ export class WalletService {
       balanceBeforeInteraction: wallet?.balance as number,
       category,
       date,
+      schedule,
     });
+
+    if (schedule && date > new Date())
+      return this.expenseRepository.findOne({
+        where: { id: insert.identifiers[0].id },
+      });
 
     await this._updateWalletBalance(
       userId,
@@ -161,7 +170,10 @@ export class WalletService {
 
   async getExpenses(userId: string) {
     return await this.expenseRepository.find({
-      where: { walletId: (await this.getWalletIdByUserId(userId)).id },
+      where: {
+        walletId: (await this.getWalletIdByUserId(userId)).id,
+        schedule: false,
+      },
     });
   }
 
@@ -196,6 +208,33 @@ export class WalletService {
             ? `balance - ${amount}`
             : `balance + ${amount}`,
       },
+    );
+  }
+
+  async addScheduledTransaction(transaction: ExpenseEntity) {
+    await this.walletRepository.update(
+      { id: transaction.walletId },
+      {
+        balance: () =>
+          transaction.type === ExpenseType.expense
+            ? `balance + ${transaction.amount}`
+            : `balance - ${transaction.amount}`,
+      },
+    );
+
+    return this.expenseRepository.update(
+      { id: transaction.id },
+      { schedule: false },
+    );
+  }
+
+  async getScheduledTransactions(date: Date) {
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.expenseRepository.query(
+      'SELECT walletId, type, amount, date FROM expense WHERE schedule = 1 AND date >= ? AND date <= ?',
+      [date, endOfDay],
     );
   }
 
@@ -250,7 +289,7 @@ export class WalletService {
       `
       SELECT SUM(amount) as total FROM expense WHERE walletId = (
         SELECT id FROM wallet WHERE userId = ?
-      ) AND type = ? AND date >= ? AND date < DATE_ADD(?, INTERVAL 1 MONTH)
+      ) AND type = ? AND date >= ? AND date < DATE_ADD(?, INTERVAL 1 MONTH) AND schedule = 0
     `,
       [userId, type, date, date],
     );
@@ -276,15 +315,15 @@ export class WalletService {
         COALESCE(MAX(e.amount), 0) AS max,
         COALESCE(MIN(e.amount), 0) AS min,
         COALESCE(COUNT(*), 0) AS count,
-        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) AND date >= ? AND date <= ? GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) AS theMostCommonCategory,
-        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) AND date >= ? AND date <= ? GROUP BY category ORDER BY COUNT(*) ASC LIMIT 1) AS theLeastCommonCategory,
-        COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'income' AND date >= ? AND date <= ?), 0) AS income,
-        COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'expense' AND date >= ? AND date <= ?), 0) AS expense,
+        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) AND date >= ? AND date <= ? AND schedule = 0 GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) AS theMostCommonCategory,
+        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) AND date >= ? AND date <= ? AND schedule = 0 GROUP BY category ORDER BY COUNT(*) ASC LIMIT 1) AS theLeastCommonCategory,
+        COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'income' AND date >= ? AND date <= ? AND schedule = 0), 0) AS income,
+        COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'expense' AND date >= ? AND date <= ? AND schedule = 0), 0) AS expense,
         (SELECT balance FROM wallet WHERE userId = ?) AS lastBalance
       FROM expense e
       JOIN walletId w ON e.walletId = w.id
       WHERE e.date >= ? 
-        AND e.date <= ?
+        AND e.date <= ? AND e.schedule = 0
   `,
       [
         userId, // for walletId subquery
