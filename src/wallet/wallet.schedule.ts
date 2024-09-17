@@ -104,12 +104,15 @@ export class WalletSchedule {
       transactions.map((t) => t.date),
     );
 
-    for (const transaction of transactions) {
-      try {
-        await this.walletService.addScheduledTransaction(transaction);
-      } catch (error) {
-        console.error(error);
-      }
-    }
+    const promises = transactions.map((transaction) =>
+      this.walletService.addScheduledTransaction(transaction),
+    );
+
+    const results = await Promise.allSettled(promises);
+
+    console.log(
+      'Scheduled transactions added',
+      results.map((r) => r.status),
+    );
   }
 }
