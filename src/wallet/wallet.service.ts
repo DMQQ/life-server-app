@@ -211,30 +211,35 @@ export class WalletService {
     );
   }
 
-  async addScheduledTransaction(transaction: ExpenseEntity) {
+  async addScheduledTransaction(transaction: {
+    walletId: string;
+    type: ExpenseType;
+    amount: number;
+    id: string;
+    date: string;
+  }) {
     await this.walletRepository.update(
       { id: transaction.walletId },
       {
         balance: () =>
           transaction.type === ExpenseType.expense
-            ? `balance + ${transaction.amount}`
-            : `balance - ${transaction.amount}`,
+            ? `balance - ${transaction.amount}`
+            : `balance + ${transaction.amount}`,
       },
     );
 
-    return this.expenseRepository.update(
-      { id: transaction.id },
-      { schedule: false },
-    );
+    return this.expenseRepository.update(transaction.id, { schedule: false });
   }
 
-  async getScheduledTransactions(date: Date) {
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+  async getScheduledTransactions(_date: Date) {
+    const date = moment(_date).format('YYYY-MM-DD');
+
+    const startOfDay = `${date} 00:00:00`;
+    const endOfDay = `${date} 23:59:59`;
 
     return this.expenseRepository.query(
-      'SELECT walletId, type, amount, date FROM expense WHERE schedule = 1 AND date >= ? AND date <= ?',
-      [date, endOfDay],
+      'SELECT id, walletId, type, amount, date FROM expense WHERE schedule = 1 AND date >= ? AND date <= ?',
+      [startOfDay, endOfDay],
     );
   }
 
