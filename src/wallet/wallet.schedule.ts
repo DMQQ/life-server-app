@@ -37,13 +37,12 @@ export class WalletSchedule {
         to: user.token,
         sound: 'default',
         title: 'Weekly spendings report',
-        body: `
-            You have spent ${stats.total} this week, ${stats.income} of which was income and ${stats.expense} was expense.
-            You have ${stats.lastBalance} left in your wallet.
-            You spent at most ${stats.max} and at least ${stats.min} in a single transaction.
-            Your average transaction was ${stats.average} with a total of ${stats.count} transactions.
-            Your most common category was ${stats.theMostCommonCategory}.
-        `,
+        body: [
+          `You have spent ${stats.total} this week, ${stats.income} of which was income and ${stats.expense} was expense.`,
+          `You have ${stats.lastBalance} left in your wallet.`,
+          `You spent at most ${stats.max} and at least ${stats.min} in a single transaction.`,
+          `Your average transaction was ${stats.average} with a total of ${stats.count} transactions.`,
+        ].join('\n'),
       });
     }
 
@@ -79,13 +78,12 @@ export class WalletSchedule {
         to: user.token,
         sound: 'default',
         title: 'Monthly spendings report',
-        body: `
-            You have spent ${stats.total} this month, ${stats.income} of which was income and ${stats.expense} was expense.
-            You have ${stats.lastBalance} left in your wallet.
-            You spent at most ${stats.max} and at least ${stats.min} in a single transaction.
-            Your average transaction was ${stats.average} with a total of ${stats.count} transactions.
-            Your most common category was ${stats.theMostCommonCategory}.
-        `,
+        body: [
+          `You have spent ${stats.total} this month, ${stats.income} of which was income and ${stats.expense} was expense.`,
+          `You have ${stats.lastBalance} left in your wallet.`,
+          `You spent at most ${stats.max} and at least ${stats.min} in a single transaction.`,
+          `Your average transaction was ${stats.average} with a total of ${stats.count} transactions.`,
+        ].join('\n'),
       });
     }
 
