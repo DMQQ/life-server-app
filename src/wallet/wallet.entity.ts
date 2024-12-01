@@ -81,10 +81,6 @@ export class ExpenseEntity {
 
   // new fields to be implemented
 
-  @Field((type) => Boolean, { nullable: false })
-  @Column({ type: 'boolean', default: false })
-  refunded: boolean;
-
   @Field(() => String, { nullable: true })
   @Column({ type: 'varchar', length: 255 })
   note: string;
