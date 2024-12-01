@@ -31,6 +31,8 @@ export class WalletEntity {
 export enum ExpenseType {
   expense = 'expense',
   income = 'income',
+
+  refunded = 'refunded',
 }
 
 @ObjectType()
@@ -76,6 +78,24 @@ export class ExpenseEntity {
   @OneToMany(() => ExpenseFileEntity, (file) => file.expenseId)
   @JoinColumn({ name: 'files' })
   files: ExpenseFileEntity[];
+
+  // new fields to be implemented
+
+  @Field((type) => Boolean, { nullable: false })
+  @Column({ type: 'boolean', default: false })
+  refunded: boolean;
+
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'varchar', length: 255 })
+  note: string;
+
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'varchar' })
+  shop: string;
+
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'varchar', length: 255 })
+  tags: string;
 }
 
 @ObjectType()
