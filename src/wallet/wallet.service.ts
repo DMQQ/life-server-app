@@ -65,7 +65,7 @@ export class WalletService {
     });
 
     if (!wallet) {
-      const walletInsert = this.walletRepository.save({
+      const walletInsert = await this.walletRepository.save({
         balance: 0,
         userId,
       });
@@ -100,7 +100,7 @@ export class WalletService {
       .andWhere('e.type IN(:...type)', {
         type: settings?.where?.type
           ? [settings.where.type]
-          : [ExpenseType.expense, ExpenseType.income],
+          : [ExpenseType.expense, ExpenseType.income, ExpenseType.refunded],
       })
       .andWhere('e.schedule = :schedule', { schedule: false });
 
@@ -185,13 +185,17 @@ export class WalletService {
 
       await this.expenseRepository.delete({ id });
 
-      const updateResult = await this._updateWalletBalance(
-        userId,
-        amount,
-        type === ExpenseType.expense ? ExpenseType.income : ExpenseType.expense,
-      );
+      if (type !== ExpenseType.refunded) {
+        const updateResult = await this._updateWalletBalance(
+          userId,
+          amount,
+          type === ExpenseType.expense
+            ? ExpenseType.income
+            : ExpenseType.expense,
+        );
 
-      return updateResult.affected > 0;
+        return updateResult.affected > 0;
+      }
     }
   }
 
@@ -232,7 +236,7 @@ export class WalletService {
   }
 
   async getScheduledTransactions(_date: Date) {
-    const date = moment(_date).format('YYYY-MM-DD');
+    const date = moment(_date || new Date()).format('YYYY-MM-DD');
 
     const startOfDay = `${date} 00:00:00`;
     const endOfDay = `${date} 23:59:59`;
@@ -243,7 +247,11 @@ export class WalletService {
     );
   }
 
-  async editExpense(expenseId: string, userId: string, incoming: any) {
+  async editExpense(
+    expenseId: string,
+    userId: string,
+    incoming: Partial<ExpenseEntity> & { amount: number; type: string },
+  ) {
     const wallet = await this.walletRepository.findOne({ where: { userId } });
     const exisitng = await this.expenseRepository.findOne({
       where: { id: expenseId },
@@ -252,20 +260,30 @@ export class WalletService {
     if (typeof wallet === 'undefined' || wallet == null)
       throw new Error('Expense doesnt exist');
 
-    const originalBalance =
-      exisitng.type === 'income'
-        ? wallet.balance - exisitng.amount
-        : wallet.balance + exisitng.amount; // restoring balance to state without this expense
+    let balance = wallet.balance;
+    let originalBalance = wallet.balance;
 
-    const newBalance =
-      incoming.type === 'income'
-        ? originalBalance + incoming.amount
-        : originalBalance - incoming.amount; // operating on old balance to create new with new expense
+    if (incoming.type === ExpenseType.refunded) {
+      balance =
+        exisitng.type === 'income'
+          ? wallet.balance - exisitng.amount
+          : wallet.balance + exisitng.amount;
+    } else {
+      originalBalance =
+        exisitng.type === 'income'
+          ? wallet.balance - exisitng.amount
+          : wallet.balance + exisitng.amount; // restoring balance to state without this expense
+
+      balance =
+        incoming.type === 'income'
+          ? originalBalance + incoming.amount
+          : originalBalance - incoming.amount; // operating on old balance to create new with new expense
+    }
 
     await this.walletRepository.update(
       { userId },
       {
-        balance: newBalance,
+        balance,
       },
     );
 
@@ -329,6 +347,7 @@ export class WalletService {
       JOIN walletId w ON e.walletId = w.id
       WHERE e.date >= ? 
         AND e.date <= ? AND e.schedule = 0
+        AND type != 'refunded'
   `,
       [
         userId, // for walletId subquery
@@ -345,5 +364,28 @@ export class WalletService {
         endDate, // for main query date range
       ],
     );
+  }
+
+  async refundExpense(userId: string, expenseId: string) {
+    if (userId === '' || expenseId === '')
+      throw new Error('Invalid args provided to refundExpense');
+
+    try {
+      // revert the balance
+      await this.expenseRepository.manager.transaction(async (entity) => {
+        const expense = await entity.findOneOrFail(ExpenseEntity, {
+          where: { id: expenseId },
+        });
+        expense.type = ExpenseType.refunded;
+        expense.note = `Refunded at ${moment().format('YYYY MM DD HH:MM')} \n ${
+          expense.note ?? ''
+        }`;
+        await this.editExpense(expenseId, userId, expense);
+      });
+
+      return this.expenseRepository.findOne({ where: { id: expenseId } });
+    } catch (error) {
+      throw new Error('Refund failed');
+    }
   }
 }
