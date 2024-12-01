@@ -8,7 +8,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -25,19 +24,12 @@ jobs:
         run: npm run build
 
       - name: Prepare SSH Key and Known Hosts
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_KEY }}
         run: |
-          # Create .ssh directory
           mkdir -p ~/.ssh
-
-          # Write the private key to a file, removing any carriage returns
-          echo "${{ secrets.VPS_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-
-          # Check the SSH key file
-          ls -l ~/.ssh/id_rsa
-          cat ~/.ssh/id_rsa
-
-          # Add the VPS's host key to known_hosts to avoid verification prompt
           ssh-keyscan -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to VPS
@@ -46,11 +38,8 @@ jobs:
           USER: ${{ secrets.VPS_USER }}
           PORT: ${{ secrets.VPS_PORT }}
         run: |
-          # Copy the build files to the VPS
-          scp -P $PORT -i ~/.ssh/id_rsa -r ./dist $USER@$HOST:/home/$USER/life-server
-
-          # SSH into the VPS and restart the application
-          ssh -p $PORT -i ~/.ssh/id_rsa $USER@$HOST << 'EOF'
+          scp -P $PORT -r ./dist/* $USER@$HOST:/home/$USER/life-server
+          ssh -p $PORT $USER@$HOST << EOF
             cd /home/$USER/life-server
             npm install --production
             pm2 restart life-server || pm2 start dist/main.js --name life-server
