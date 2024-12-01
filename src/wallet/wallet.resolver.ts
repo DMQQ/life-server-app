@@ -102,7 +102,7 @@ export class WalletResolver {
       description,
       type,
       category,
-      date,
+      date: new Date(date),
     });
 
     return result;
@@ -157,5 +157,17 @@ export class WalletResolver {
     const stats = await this.walletService.getStatistics(usrId, range);
 
     return stats[0];
+  }
+
+  @Mutation(() => ExpenseEntity)
+  async refundExpense(
+    @User() user: string,
+    @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
+  ) {
+    try {
+      return this.walletService.refundExpense(user, expenseId);
+    } catch (error) {
+      throw new BadRequestException('Refund failed');
+    }
   }
 }

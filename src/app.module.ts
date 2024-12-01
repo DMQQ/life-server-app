@@ -14,6 +14,7 @@ import { UploadModule } from './upload/upload.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { WalletModule } from './wallet/wallet.module';
 import { WorkoutModule } from './workout/workout.module';
+import { AppDataSource, dataSourceOptions } from './database';
 
 @Module({
   imports: [
@@ -31,18 +32,7 @@ import { WorkoutModule } from './workout/workout.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        type: 'mysql',
-        host: configService.get('HOST'),
-        port: +configService.get('PORT'),
-        username: configService.get('NAME'),
-        password: configService.get('PASS'),
-        database: configService.get('DATABASE'),
-
-        entities: ['dist/**/*.entity{.ts,.js}'],
-
-        synchronize:
-          configService.get('SYNC') === 'true' ||
-          configService.get('NAME') === true,
+        ...dataSourceOptions,
       }),
       inject: [ConfigService],
     }),
