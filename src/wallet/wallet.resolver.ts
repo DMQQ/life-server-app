@@ -9,7 +9,11 @@ import {
   ResolveField,
   Resolver,
 } from '@nestjs/graphql';
-import { BadRequestException, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { WalletService } from './wallet.service';
 import {
@@ -27,7 +31,9 @@ export class WalletResolver {
 
   @Query((returns) => WalletEntity)
   async wallet(@User() usrId: string) {
-    return this.walletService.getWalletByUserId(usrId);
+    const wallet = await this.walletService.getWalletByUserId(usrId);
+
+    return wallet ? wallet : new NotFoundException('Wallet may not exist');
   }
 
   @ResolveField(() => [ExpenseEntity])
@@ -116,6 +122,21 @@ export class WalletResolver {
       new Date().getMonth(),
       new Date().getFullYear(),
     );
+  }
+
+  @Mutation(() => Boolean)
+  async createWallet(
+    @User() user: string,
+    @Args('balance', { type: () => Float, nullable: false, defaultValue: 0 })
+    initialBalance: number,
+  ) {
+    try {
+      await this.walletService.createWallet(user, initialBalance);
+
+      return true;
+    } catch (error) {
+      throw new BadRequestException(error);
+    }
   }
 
   @Query(() => Float)

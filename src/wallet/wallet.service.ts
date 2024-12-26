@@ -56,24 +56,12 @@ export class WalletService {
   }
 
   async getWalletByUserId(userId: string) {
-    const wallet = await this.walletRepository.findOne({
-      relations: ['expenses'],
-      where: {
-        userId,
-        expenses: { schedule: false },
-      },
-    });
-
-    if (!wallet) {
-      const walletInsert = await this.walletRepository.save({
-        balance: 0,
-        userId,
-      });
-
-      return walletInsert;
-    }
-
-    return wallet;
+    return this.walletRepository
+      .createQueryBuilder('wallet')
+      .leftJoinAndSelect('wallet.expenses', 'expenses')
+      .where('wallet.userId = :userId', { userId })
+      .andWhere('expenses.schedule = false OR expenses.id IS NULL')
+      .getOne();
   }
 
   async getExpensesByWalletId(
@@ -130,16 +118,7 @@ export class WalletService {
   ) {
     const wallet = await this.getWalletIdByUserId(userId);
 
-    let walletId = wallet?.id as string | undefined;
-
-    if (wallet === undefined || wallet === null) {
-      const insertResult = await this.walletRepository.insert({
-        balance: 0,
-        userId,
-      });
-
-      walletId = insertResult.identifiers[0].id;
-    }
+    let walletId = wallet?.id as string;
 
     const insert = await this.expenseRepository.insert({
       amount,
@@ -326,6 +305,8 @@ export class WalletService {
   ): Promise<[WalletStatisticsRange]> {
     const [startDate, endDate] = dateRange;
 
+    console.log(userId);
+
     // Query database
     return this.expenseRepository.query(
       `
@@ -364,6 +345,29 @@ export class WalletService {
         endDate, // for main query date range
       ],
     );
+  }
+
+  async createWallet(userId: string, initialBalance: number) {
+    const wallet = await this.walletRepository.findOne({ where: { userId } });
+
+    if (wallet) throw new Error('Wallet already exists, unable to create new');
+
+    const walletInsert = await this.walletRepository.insert({
+      userId,
+      balance: initialBalance,
+    });
+
+    const walletId = walletInsert.identifiers[0].id;
+
+    return this.expenseRepository.insert({
+      walletId: walletId,
+      amount: initialBalance,
+      type: initialBalance > 0 ? ExpenseType.income : ExpenseType.expense,
+      category: 'edit',
+      date: new Date(),
+      note: '',
+      description: 'Initialized wallet with ' + initialBalance,
+    });
   }
 
   async refundExpense(userId: string, expenseId: string) {
