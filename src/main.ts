@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
-const ADDR = '192.168.0.22';
+const ADDR = '172.20.10.2';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

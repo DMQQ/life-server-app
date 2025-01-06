@@ -15,6 +15,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { WalletModule } from './wallet/wallet.module';
 import { WorkoutModule } from './workout/workout.module';
 import { AppDataSource, dataSourceOptions } from './database';
+import { FlashCardsModule } from './flashcards/flashcards.module';
 
 @Module({
   imports: [
@@ -48,6 +49,8 @@ import { AppDataSource, dataSourceOptions } from './database';
     WalletModule,
 
     WorkoutModule,
+
+    FlashCardsModule,
 
     GraphQLModule.forRoot({
       driver: ApolloDriver,
