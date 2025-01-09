@@ -54,6 +54,9 @@ export class FlashCardService {
       relations: ['group'],
       order: {
         createdAt: 'DESC',
+
+        incorrectAnswers: 'desc',
+        successRate: 'desc',
       },
     });
   }
