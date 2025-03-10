@@ -16,6 +16,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { WorkoutModule } from './workout/workout.module';
 import { AppDataSource, dataSourceOptions } from './database';
 import { FlashCardsModule } from './flashcards/flashcards.module';
+import { GoalsModule } from './goals/goals.module';
 
 @Module({
   imports: [
@@ -51,6 +52,8 @@ import { FlashCardsModule } from './flashcards/flashcards.module';
     WorkoutModule,
 
     FlashCardsModule,
+
+    GoalsModule,
 
     GraphQLModule.forRoot({
       driver: ApolloDriver,
