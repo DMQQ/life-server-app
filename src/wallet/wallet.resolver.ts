@@ -23,11 +23,16 @@ import {
 } from 'src/wallet/wallet.entity';
 import { User } from 'src/utils/decorators/User';
 import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
+import { SubscriptionService } from './subscriptions.service';
+import { BillingCycleEnum } from './subscription.entity';
 
 @UseGuards(AuthGuard)
 @Resolver(() => WalletEntity)
 export class WalletResolver {
-  constructor(private walletService: WalletService) {}
+  constructor(
+    private walletService: WalletService,
+    private subscriptionService: SubscriptionService,
+  ) {}
 
   @Query((returns) => WalletEntity)
   async wallet(@User() usrId: string) {
@@ -59,8 +64,33 @@ export class WalletResolver {
     @Args('category', { type: () => String }) category: string,
     @Args('date') date: string,
     @Args('schedule', { type: () => Boolean, nullable: true }) schedule = false,
+    @Args('isSubscription', {
+      type: () => Boolean,
+      nullable: true,
+      defaultValue: false,
+    })
+    isSubscription: boolean,
   ) {
     const parsedDate = new Date(date || new Date());
+
+    const walletId = await this.walletService.findWalletId(usrId);
+
+    let subscription = null;
+
+    if (isSubscription)
+      subscription = await this.subscriptionService.createSubscription({
+        amount: amount,
+        dateStart: parsedDate,
+        dateEnd: null,
+        description: description,
+        isActive: true,
+        billingCycle: BillingCycleEnum.MONTHLY,
+        nextBillingDate: this.subscriptionService.getNextBillingDate({
+          billingCycle: BillingCycleEnum.MONTHLY,
+          nextBillingDate: parsedDate,
+        }),
+        walletId: walletId.id,
+      });
 
     const expense = await this.walletService.createExpense(
       usrId,
@@ -70,6 +100,7 @@ export class WalletResolver {
       category,
       parsedDate,
       schedule,
+      subscription ? subscription.id : null,
     );
 
     return expense;

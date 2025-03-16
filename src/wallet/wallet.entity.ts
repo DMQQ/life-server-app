@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ObjectType, Field, Int, ID, Float } from '@nestjs/graphql';
+import { SubscriptionEntity } from './subscription.entity';
 
 @ObjectType()
 @Entity('wallet')
@@ -79,7 +80,14 @@ export class ExpenseEntity {
   @JoinColumn({ name: 'files' })
   files: ExpenseFileEntity[];
 
-  // new fields to be implemented
+  @ManyToOne(() => SubscriptionEntity, (subscription) => subscription.expenses)
+  @JoinColumn({ name: 'subscriptionId' })
+  @Field(() => SubscriptionEntity, { nullable: true })
+  subscription: SubscriptionEntity;
+
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'subscriptionId', type: 'uuid', nullable: true })
+  subscriptionId: string;
 
   @Field(() => String, { nullable: true })
   @Column({ type: 'varchar', length: 255 })

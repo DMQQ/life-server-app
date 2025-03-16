@@ -20,12 +20,10 @@ export class WalletService {
   ) {}
 
   async getWalletIdByUserId(userId: string) {
-    const wallet = await this.walletRepository.findOne({
-      where: { userId, expenses: { schedule: false } },
-      relations: ['expenses'],
+    return this.walletRepository.findOne({
+      where: { userId },
+      relations: ['expenses', 'expenses.subscription'],
     });
-
-    return wallet;
   }
 
   async editUserWalletBalance(userId: string, amount: number) {
@@ -62,6 +60,10 @@ export class WalletService {
       .where('wallet.userId = :userId', { userId })
       .andWhere('expenses.schedule = false OR expenses.id IS NULL')
       .getOne();
+  }
+
+  async findWalletId(userId: string) {
+    return this.walletRepository.findOne({ where: { userId } });
   }
 
   async getExpensesByWalletId(
@@ -115,6 +117,7 @@ export class WalletService {
     category: string,
     date: Date,
     schedule: boolean = false,
+    subscription: string | null,
   ) {
     const wallet = await this.getWalletIdByUserId(userId);
 
@@ -129,6 +132,7 @@ export class WalletService {
       category,
       date,
       schedule,
+      ...(subscription && { subscriptionId: subscription }),
     });
 
     if (schedule && date > new Date())
@@ -140,6 +144,45 @@ export class WalletService {
       userId,
       amount,
       type === ExpenseType.expense ? ExpenseType.expense : ExpenseType.income,
+    );
+
+    const expense = await this.expenseRepository.findOne({
+      where: { id: insert.identifiers[0].id },
+    });
+
+    return { ...expense, walletId };
+  }
+
+  async getSubscriptionLastExpense(subscriptionId: string) {
+    return await this.expenseRepository.findOne({
+      where: {
+        subscriptionId: subscriptionId,
+      },
+      order: { date: 'DESC' },
+    });
+  }
+
+  // Update the createSubscriptionExpense method to use subscriptionId
+  async createSubscriptionExpense(
+    walletId: string,
+    expense: Partial<ExpenseEntity>,
+  ) {
+    const wallet = await this.walletRepository.findOne({
+      where: { id: walletId },
+    });
+
+    const insert = await this.expenseRepository.insert({
+      ...expense,
+      walletId: walletId,
+      //@ts-ignore
+      subscriptionId: expense.subscription,
+      balanceBeforeInteraction: wallet?.balance as number,
+    });
+
+    await this._updateWalletBalance(
+      wallet.userId,
+      expense.amount,
+      ExpenseType.expense,
     );
 
     return this.expenseRepository.findOne({
