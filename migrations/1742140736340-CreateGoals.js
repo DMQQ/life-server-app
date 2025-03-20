@@ -10,19 +10,22 @@ module.exports = class CreateUserGoalsTables1742140736340 {
         columns: [
           {
             name: 'id',
-            type: 'uuid',
+            type: 'varchar',
+            length: '36',
             isPrimary: true,
-            isGenerated: true,
-            generationStrategy: 'uuid',
+            isGenerated: false,
           },
           {
             name: 'userId',
             type: 'varchar',
+            length: '255',
+            isNullable: false,
           },
           {
             name: 'createdAt',
             type: 'timestamp',
             default: 'now()',
+            isNullable: false,
           },
         ],
       }),
@@ -35,22 +38,25 @@ module.exports = class CreateUserGoalsTables1742140736340 {
         columns: [
           {
             name: 'id',
-            type: 'uuid',
+            type: 'varchar',
+            length: '36',
             isPrimary: true,
-            isGenerated: true,
-            generationStrategy: 'uuid',
+            isGenerated: false,
           },
           {
             name: 'name',
             type: 'varchar',
+            length: '255',
           },
           {
             name: 'icon',
             type: 'varchar',
+            length: '255',
           },
           {
             name: 'description',
             type: 'varchar',
+            length: '255',
           },
           {
             name: 'target',
@@ -70,11 +76,13 @@ module.exports = class CreateUserGoalsTables1742140736340 {
           {
             name: 'unit',
             type: 'varchar',
+            length: '50',
             isNullable: true,
           },
           {
             name: 'goalId',
-            type: 'uuid',
+            type: 'varchar',
+            length: '36',
           },
         ],
       }),
@@ -87,10 +95,10 @@ module.exports = class CreateUserGoalsTables1742140736340 {
         columns: [
           {
             name: 'id',
-            type: 'uuid',
+            type: 'varchar',
+            length: '36',
             isPrimary: true,
-            isGenerated: true,
-            generationStrategy: 'uuid',
+            isGenerated: false,
           },
           {
             name: 'value',
@@ -102,7 +110,8 @@ module.exports = class CreateUserGoalsTables1742140736340 {
           },
           {
             name: 'goalsId',
-            type: 'uuid',
+            type: 'varchar',
+            length: '36',
           },
         ],
       }),
