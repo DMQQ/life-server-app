@@ -222,4 +222,57 @@ export class WalletResolver {
       throw new BadRequestException('Refund failed');
     }
   }
+
+  @Mutation(() => ExpenseEntity)
+  async createSubscription(
+    @User() user: string,
+    @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
+  ) {
+    try {
+      const expense = await this.walletService.getExpense(expenseId);
+
+      const walletId = await this.walletService.findWalletId(user);
+
+      let sub = null;
+
+      if (!expense.subscriptionId) {
+        sub = await this.subscriptionService.createSubscription({
+          amount: expense.amount,
+          dateStart: expense.date,
+          dateEnd: null,
+          description: expense.description,
+          isActive: true,
+          billingCycle: BillingCycleEnum.MONTHLY,
+          nextBillingDate: this.subscriptionService.getNextBillingDate({
+            billingCycle: BillingCycleEnum.MONTHLY,
+            nextBillingDate: expense.date,
+          }),
+          walletId: walletId.id,
+        });
+        await this.walletService.assignSubscription(expenseId, sub.id);
+      } else {
+        await this.subscriptionService.enableSubscription(
+          expense.subscriptionId,
+        );
+      }
+
+      return this.walletService.getExpense(expenseId);
+    } catch (error) {
+      console.log(error);
+      throw new BadRequestException('Subscription creation failed');
+    }
+  }
+
+  @Mutation(() => ExpenseEntity)
+  async cancelSubscription(
+    @Args('subscriptionId', { type: () => ID }) subscriptionId: string,
+  ) {
+    try {
+      await this.subscriptionService.cancelSubscription(subscriptionId);
+
+      return this.walletService.getExpenseBySubscriptionId(subscriptionId);
+    } catch (error) {
+      throw new BadRequestException('Subscription cancelation failed');
+    }
+  }
 }

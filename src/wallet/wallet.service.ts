@@ -75,6 +75,7 @@ export class WalletService {
   ) {
     const expensesQuery = this.expenseRepository
       .createQueryBuilder('e')
+      .leftJoinAndSelect('e.subscription', 'subscription')
       .where('e.walletId = :walletId', { walletId: walletId })
       .andWhere('e.description LIKE :d', {
         d: `%${settings?.where?.title || ''}%`,
@@ -434,5 +435,35 @@ export class WalletService {
     } catch (error) {
       throw new Error('Refund failed');
     }
+  }
+
+  async getExpense(id: string) {
+    return this.expenseRepository.findOneOrFail({
+      where: { id },
+      relations: ['subscription'],
+    });
+  }
+
+  async getExpenseBySubscriptionId(subscriptionId: string) {
+    return this.expenseRepository.findOne({
+      where: { subscriptionId },
+      order: { date: 'DESC' },
+      relations: ['subscription'],
+    });
+  }
+
+  assignSubscription(expenseId: string, subscriptionId: string) {
+    return this.expenseRepository.update(
+      { id: expenseId },
+      { subscriptionId: subscriptionId },
+    );
+  }
+
+  hasSubscription(expenseId: string) {
+    return this.expenseRepository
+      .createQueryBuilder('e')
+      .where('e.id = :id', { id: expenseId })
+      .andWhere('e.subscriptionId IS NOT NULL')
+      .getOne();
   }
 }
