@@ -139,4 +139,9 @@ export class GoalResolver {
     const userGoal = await this.goalService.getUserGoalWithEntries(userId);
     return userGoal.categories;
   }
+
+  @Query(() => Goals)
+  async goal(@Args('id', { type: () => ID }) id: string) {
+    return this.goalService.getGoal(id);
+  }
 }

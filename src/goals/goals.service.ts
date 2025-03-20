@@ -74,7 +74,7 @@ export class GoalService {
 
     if (entry) {
       // Update existing entry
-      entry.value = value;
+      entry.value += value;
       return this.entryRepo.save(entry);
     }
 
@@ -136,5 +136,15 @@ export class GoalService {
 
     await this.entryRepo.delete({ categoryId: id });
     await this.categoryRepo.remove(category);
+  }
+
+  async getGoal(id: string) {
+    return this.categoryRepo.findOne({
+      where: { id },
+      relations: ['entries'],
+      order: {
+        entries: { date: 'desc' },
+      },
+    });
   }
 }
