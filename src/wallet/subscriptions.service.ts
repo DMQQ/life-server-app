@@ -118,4 +118,20 @@ export class SubscriptionService {
         throw new Error('Invalid billing cycle');
     }
   }
+
+  async cancelSubscription(subscriptionId: string) {
+    const subscription = await this.getSubscriptionById(subscriptionId);
+    subscription.isActive = false;
+    return await this.subscriptionRepository.save(subscription);
+  }
+
+  async enableSubscription(subscriptionId: string) {
+    await this.subscriptionRepository.update(
+      { id: subscriptionId },
+      { isActive: true },
+    );
+    return this.subscriptionRepository.findOne({
+      where: { id: subscriptionId },
+    });
+  }
 }
