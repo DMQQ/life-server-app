@@ -78,7 +78,7 @@ export class WalletResolver {
     let subscription = null;
 
     if (isSubscription)
-      subscription = await this.subscriptionService.createSubscription({
+      subscription = await this.subscriptionService.insert({
         amount: amount,
         dateStart: parsedDate,
         dateEnd: null,
@@ -229,32 +229,8 @@ export class WalletResolver {
     @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
   ) {
     try {
-      const expense = await this.walletService.getExpense(expenseId);
-
-      const walletId = await this.walletService.findWalletId(user);
-
-      let sub = null;
-
-      if (!expense.subscriptionId) {
-        sub = await this.subscriptionService.createSubscription({
-          amount: expense.amount,
-          dateStart: expense.date,
-          dateEnd: null,
-          description: expense.description,
-          isActive: true,
-          billingCycle: BillingCycleEnum.MONTHLY,
-          nextBillingDate: this.subscriptionService.getNextBillingDate({
-            billingCycle: BillingCycleEnum.MONTHLY,
-            nextBillingDate: expense.date,
-          }),
-          walletId: walletId.id,
-        });
-        await this.walletService.assignSubscription(expenseId, sub.id);
-      } else {
-        await this.subscriptionService.enableSubscription(
-          expense.subscriptionId,
-        );
-      }
+      const wallet = await this.walletService.findWalletId(user);
+      await this.subscriptionService.createSubscription(expenseId, wallet);
 
       return this.walletService.getExpense(expenseId);
     } catch (error) {
@@ -270,7 +246,9 @@ export class WalletResolver {
     try {
       await this.subscriptionService.cancelSubscription(subscriptionId);
 
-      return this.walletService.getExpenseBySubscriptionId(subscriptionId);
+      return this.subscriptionService.getExpenseBySubscriptionId(
+        subscriptionId,
+      );
     } catch (error) {
       throw new BadRequestException('Subscription cancelation failed');
     }

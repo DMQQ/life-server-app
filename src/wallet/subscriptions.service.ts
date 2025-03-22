@@ -3,15 +3,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BillingCycleEnum, SubscriptionEntity } from './subscription.entity';
 import * as moment from 'moment';
+import { ExpenseEntity, WalletEntity } from './wallet.entity';
 
 @Injectable()
 export class SubscriptionService {
   constructor(
     @InjectRepository(SubscriptionEntity)
     private subscriptionRepository: Repository<SubscriptionEntity>,
+
+    @InjectRepository(ExpenseEntity)
+    private expenseRepository: Repository<ExpenseEntity>,
   ) {}
 
-  async createSubscription(subscription: Partial<SubscriptionEntity>) {
+  async insert(subscription: Partial<SubscriptionEntity>) {
     subscription.nextBillingDate = this.formatDate(
       subscription.nextBillingDate,
     );
@@ -133,5 +137,60 @@ export class SubscriptionService {
     return this.subscriptionRepository.findOne({
       where: { id: subscriptionId },
     });
+  }
+
+  async getExpenseBySubscriptionId(subscriptionId: string) {
+    return this.expenseRepository.findOne({
+      where: { subscriptionId },
+      order: { date: 'DESC' },
+      relations: ['subscription'],
+    });
+  }
+
+  assignSubscription(expenseId: string, subscriptionId: string) {
+    return this.expenseRepository.update(
+      { id: expenseId },
+      { subscriptionId: subscriptionId },
+    );
+  }
+
+  hasSubscription(expenseId: string) {
+    return this.expenseRepository
+      .createQueryBuilder('e')
+      .where('e.id = :id', { id: expenseId })
+      .andWhere('e.subscriptionId IS NOT NULL')
+      .getOne();
+  }
+
+  async getExpense(id: string) {
+    return this.expenseRepository.findOneOrFail({
+      where: { id },
+      relations: ['subscription'],
+    });
+  }
+
+  async createSubscription(expenseId: string, wallet: WalletEntity) {
+    const expense = await this.getExpense(expenseId);
+
+    let sub = null;
+
+    if (!expense.subscriptionId) {
+      sub = await this.insert({
+        amount: expense.amount,
+        dateStart: expense.date,
+        dateEnd: null,
+        description: expense.description,
+        isActive: true,
+        billingCycle: BillingCycleEnum.MONTHLY,
+        nextBillingDate: this.getNextBillingDate({
+          billingCycle: BillingCycleEnum.MONTHLY,
+          nextBillingDate: expense.date,
+        }),
+        walletId: wallet.id,
+      });
+      await this.assignSubscription(expenseId, sub.id);
+    } else {
+      await this.enableSubscription(expense.subscriptionId);
+    }
   }
 }
