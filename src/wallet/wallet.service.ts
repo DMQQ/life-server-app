@@ -443,27 +443,4 @@ export class WalletService {
       relations: ['subscription'],
     });
   }
-
-  async getExpenseBySubscriptionId(subscriptionId: string) {
-    return this.expenseRepository.findOne({
-      where: { subscriptionId },
-      order: { date: 'DESC' },
-      relations: ['subscription'],
-    });
-  }
-
-  assignSubscription(expenseId: string, subscriptionId: string) {
-    return this.expenseRepository.update(
-      { id: expenseId },
-      { subscriptionId: subscriptionId },
-    );
-  }
-
-  hasSubscription(expenseId: string) {
-    return this.expenseRepository
-      .createQueryBuilder('e')
-      .where('e.id = :id', { id: expenseId })
-      .andWhere('e.subscriptionId IS NOT NULL')
-      .getOne();
-  }
 }
