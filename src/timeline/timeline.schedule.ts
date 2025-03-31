@@ -26,8 +26,8 @@ export class TimelineSchedule {
         to: event.token,
         subtitle: 'Daily reminder',
         sound: 'default',
-        title: event.title.substring(0, 50) + '...',
-        body: event.description.substring(0, 50) + '...',
+        title: event.title.substring(0, 50),
+        body: event.description.substring(0, 50),
         data: {
           data: 'Your schedulded event is now running!',
           eventId: event.id,
@@ -53,8 +53,8 @@ export class TimelineSchedule {
         to: event.token,
         subtitle: 'Daily reminder',
         sound: 'default',
-        title: event.title.substring(0, 50) + '...',
-        body: event.description.substring(0, 50) + '...',
+        title: event.title.substring(0, 50),
+        body: event.description.substring(0, 50),
         data: {
           data: 'Your schedulded event is now running!',
           eventId: event.id,

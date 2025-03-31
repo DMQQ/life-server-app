@@ -12,7 +12,6 @@ export class WalletSchedule {
   constructor(
     private notificationService: NotificationsService,
     private walletService: WalletService,
-
     private subscriptionService: SubscriptionService,
   ) {}
 
@@ -32,19 +31,22 @@ export class WalletSchedule {
     for (const user of users) {
       if (!user.token || user.isEnable === false) continue;
 
-      const [stats] = await this.walletService.getStatistics(user.id, range);
+      const [stats] = await this.walletService.getStatistics(
+        user.userId,
+        range,
+      );
 
       if (!stats) continue;
 
       notifications.push({
         to: user.token,
         sound: 'default',
-        title: 'Weekly spendings report',
+        title: '📊 Weekly Spendings Report',
         body: [
-          `You have spent ${stats.total} this week, ${stats.income} of which was income and ${stats.expense} was expense.`,
-          `You have ${stats.lastBalance} left in your wallet.`,
-          `You spent at most ${stats.max} and at least ${stats.min} in a single transaction.`,
-          `Your average transaction was ${stats.average} with a total of ${stats.count} transactions.`,
+          `💰 You have spent ${stats.total} this week, ${stats.income} of which was income ⬆️ and ${stats.expense} was expense ⬇️.`,
+          `💵 You have ${stats.lastBalance} left in your wallet.`,
+          `🔼 You spent at most ${stats.max} and at least ${stats.min} in a single transaction 🔽.`,
+          `📈 Your average transaction was ${stats.average} with a total of ${stats.count} transactions.`,
         ].join('\n'),
       });
     }
@@ -56,7 +58,6 @@ export class WalletSchedule {
     timeZone: 'Europe/Warsaw',
   })
   async monthlyReport() {
-    // Check if today is the last day of the month
     if (!moment().isSame(moment().endOf('month'), 'day')) {
       return;
     }
@@ -73,19 +74,22 @@ export class WalletSchedule {
     for (const user of users) {
       if (!user.token || user.isEnable === false) continue;
 
-      const [stats] = await this.walletService.getStatistics(user.id, range);
+      const [stats] = await this.walletService.getStatistics(
+        user.userId,
+        range,
+      );
 
       if (!stats) continue;
 
       notifications.push({
         to: user.token,
         sound: 'default',
-        title: 'Monthly spendings report',
+        title: '📆 Monthly Spendings Report',
         body: [
-          `You have spent ${stats.total} this month, ${stats.income} of which was income and ${stats.expense} was expense.`,
-          `You have ${stats.lastBalance} left in your wallet.`,
-          `You spent at most ${stats.max} and at least ${stats.min} in a single transaction.`,
-          `Your average transaction was ${stats.average} with a total of ${stats.count} transactions.`,
+          `💰 You have spent ${stats.total} this month, ${stats.income} of which was income ⬆️ and ${stats.expense} was expense ⬇️.`,
+          `💵 You have ${stats.lastBalance} left in your wallet.`,
+          `🔼 You spent at most ${stats.max} and at least ${stats.min} in a single transaction 🔽.`,
+          `📈 Your average transaction was ${stats.average} with a total of ${stats.count} transactions.`,
         ].join('\n'),
       });
     }
