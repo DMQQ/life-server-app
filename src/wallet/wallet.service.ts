@@ -73,13 +73,31 @@ export class WalletService {
       pagination: { skip: number; take: number };
     },
   ) {
+    const titleWords = (settings?.where?.title || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
     const expensesQuery = this.expenseRepository
       .createQueryBuilder('e')
       .leftJoinAndSelect('e.subscription', 'subscription')
-      .where('e.walletId = :walletId', { walletId: walletId })
-      .andWhere('e.description LIKE :d', {
-        d: `%${settings?.where?.title || ''}%`,
-      })
+      .where('e.walletId = :walletId', { walletId: walletId });
+
+    if (titleWords.length > 0) {
+      const titleConditions = titleWords
+        .map((word, index) => `e.description LIKE :word${index}`)
+        .join(' OR ');
+
+      expensesQuery.andWhere(
+        `(${titleConditions})`,
+        titleWords.reduce((acc, word, index) => {
+          acc[`word${index}`] = `%${word}%`;
+          return acc;
+        }, {}),
+      );
+    }
+
+    expensesQuery
       .andWhere('e.date >= :from AND e.date <= :to', {
         from: settings?.where?.date?.from || '1900-01-01',
         to: settings?.where?.date?.to || '2100-01-01',
