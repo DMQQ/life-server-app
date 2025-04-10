@@ -75,7 +75,7 @@ export class ExpenseEntity {
   @Column({ type: 'boolean', nullable: false, default: false })
   schedule: boolean;
 
-  @Field(() => [ExpenseFileEntity])
+  @Field(() => [ExpenseFileEntity], { defaultValue: [] })
   @OneToMany(() => ExpenseFileEntity, (file) => file.expenseId)
   @JoinColumn({ name: 'files' })
   files: ExpenseFileEntity[];
@@ -113,7 +113,7 @@ export class ExpenseFileEntity {
   @Field((type) => String)
   url: string;
 
-  @Column({ type: 'uuid', nullable: false })
-  @Field((type) => ID)
-  expenseId: string;
+  @ManyToOne(() => ExpenseEntity, (expense) => expense.files)
+  @JoinColumn({ name: 'expenseId' })
+  expenseId: ExpenseEntity;
 }
