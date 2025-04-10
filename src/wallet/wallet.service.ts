@@ -22,7 +22,7 @@ export class WalletService {
   async getWalletIdByUserId(userId: string) {
     return this.walletRepository.findOne({
       where: { userId },
-      relations: ['expenses', 'expenses.subscription'],
+      relations: ['expenses', 'expenses.subscription', 'expenses.files'],
     });
   }
 
@@ -57,6 +57,7 @@ export class WalletService {
     return this.walletRepository
       .createQueryBuilder('wallet')
       .leftJoinAndSelect('wallet.expenses', 'expenses')
+      .leftJoinAndSelect('expenses.files', 'files')
       .where('wallet.userId = :userId', { userId })
       .andWhere('expenses.schedule = false OR expenses.id IS NULL')
       .getOne();
@@ -81,6 +82,7 @@ export class WalletService {
     const expensesQuery = this.expenseRepository
       .createQueryBuilder('e')
       .leftJoinAndSelect('e.subscription', 'subscription')
+      .leftJoinAndSelect('e.files', 'files')
       .where('e.walletId = :walletId', { walletId: walletId });
 
     if (titleWords.length > 0) {
@@ -458,7 +460,7 @@ export class WalletService {
   async getExpense(id: string) {
     return this.expenseRepository.findOneOrFail({
       where: { id },
-      relations: ['subscription'],
+      relations: ['subscription', 'files'],
     });
   }
 }
