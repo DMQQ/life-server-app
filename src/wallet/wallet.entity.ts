@@ -29,10 +29,37 @@ export class WalletEntity {
   expenses: ExpenseEntity[];
 }
 
+@ObjectType()
+@Entity('expense_locations')
+export class ExpenseLocationEntity {
+  @Field(() => ID)
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Field(() => Float)
+  @Column({ type: 'decimal', nullable: true })
+  longitude: number;
+
+  @Field(() => Float)
+  @Column({ type: 'decimal', nullable: true })
+  latitude: number;
+
+  @Field()
+  @Column()
+  name: string;
+
+  @Field()
+  @Column()
+  kind: string;
+
+  @Field(() => [ExpenseEntity])
+  @OneToMany(() => ExpenseEntity, (expense) => expense.location)
+  expenses: ExpenseEntity[];
+}
+
 export enum ExpenseType {
   expense = 'expense',
   income = 'income',
-
   refunded = 'refunded',
 }
 
@@ -100,6 +127,11 @@ export class ExpenseEntity {
   @Field(() => String, { nullable: true })
   @Column({ type: 'varchar', length: 255 })
   tags: string;
+
+  @ManyToOne(() => ExpenseLocationEntity, (location) => location.expenses)
+  @JoinColumn({ name: 'locationId' })
+  @Field(() => ExpenseLocationEntity, { nullable: true })
+  location: ExpenseLocationEntity;
 }
 
 @ObjectType()
