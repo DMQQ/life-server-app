@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ExpenseEntity, ExpenseLocationEntity } from './wallet.entity';
+import {
+  ExpenseEntity,
+  ExpenseLocationEntity,
+  ExpenseSubExpense,
+} from './wallet.entity';
 import { Between, Like, Repository } from 'typeorm';
 
 @Injectable()
@@ -11,6 +15,9 @@ export class ExpenseService {
 
     @InjectRepository(ExpenseEntity)
     private expenseEntity: Repository<ExpenseEntity>,
+
+    @InjectRepository(ExpenseSubExpense)
+    private subExpenseRepository: Repository<ExpenseSubExpense>,
   ) {}
 
   async queryLocations(query: string, longitude?: number, latitude?: number) {
@@ -42,5 +49,67 @@ export class ExpenseService {
         location: locationId as any,
       },
     );
+  }
+
+  async createSubExpense(
+    expenseId: string,
+    subExpenseData: Partial<ExpenseSubExpense>,
+  ) {
+    const newSubExpense = this.subExpenseRepository.create({
+      ...subExpenseData,
+      expenseId,
+    });
+    return await this.subExpenseRepository.save(newSubExpense);
+  }
+
+  async getSubExpenses(expenseId: string) {
+    return this.subExpenseRepository.find({
+      where: { expenseId },
+    });
+  }
+
+  async getSubExpenseById(id: string) {
+    return this.subExpenseRepository.findOne({
+      where: { id },
+    });
+  }
+
+  async updateSubExpense(
+    id: string,
+    subExpenseData: Partial<ExpenseSubExpense>,
+  ) {
+    await this.subExpenseRepository.update(id, subExpenseData);
+    return this.getSubExpenseById(id);
+  }
+
+  async deleteSubExpense(id: string) {
+    const subExpense = await this.getSubExpenseById(id);
+    if (!subExpense) {
+      return { success: false, message: 'Sub-expense not found' };
+    }
+
+    await this.subExpenseRepository.delete(id);
+    return { success: true, message: 'Sub-expense deleted successfully' };
+  }
+
+  async getExpenseWithSubExpenses(expenseId: string) {
+    return this.expenseEntity.findOne({
+      where: { id: expenseId },
+      relations: ['subexpenses'],
+    });
+  }
+
+  async addMultipleSubExpenses(
+    expenseId: string,
+    subExpenses: Partial<ExpenseSubExpense>[],
+  ) {
+    const subExpensesToSave = subExpenses.map((subExpense) =>
+      this.subExpenseRepository.create({
+        ...subExpense,
+        expenseId,
+      }),
+    );
+
+    return await this.subExpenseRepository.save(subExpensesToSave);
   }
 }
