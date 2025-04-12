@@ -26,6 +26,21 @@ import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
 import { SubscriptionService } from './subscriptions.service';
 import { BillingCycleEnum } from './subscription.entity';
 
+const parseDate = (dateString: string) => {
+  const currentTime = new Date();
+  const inputDate = new Date(dateString);
+
+  return new Date(
+    inputDate.getFullYear(),
+    inputDate.getMonth(),
+    inputDate.getDate(),
+    currentTime.getHours(),
+    currentTime.getMinutes(),
+    currentTime.getSeconds(),
+    currentTime.getMilliseconds(),
+  );
+};
+
 @UseGuards(AuthGuard)
 @Resolver(() => WalletEntity)
 export class WalletResolver {
@@ -71,7 +86,9 @@ export class WalletResolver {
     })
     isSubscription: boolean,
   ) {
-    const parsedDate = new Date(date || new Date());
+    const parsedDate = parseDate(
+      date || new Date().toISOString().split('T')[0],
+    );
 
     const walletId = await this.walletService.findWalletId(usrId);
 

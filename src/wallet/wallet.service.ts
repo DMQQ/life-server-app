@@ -179,6 +179,7 @@ export class WalletService {
 
     const expense = await this.expenseRepository.findOne({
       where: { id: insert.identifiers[0].id },
+      relations: ['subexpenses', 'subscription'],
     });
 
     return { ...expense, walletId };
