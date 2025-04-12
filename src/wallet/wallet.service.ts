@@ -27,6 +27,7 @@ export class WalletService {
         'expenses.subscription',
         'expenses.files',
         'expenses.location',
+        'expenses.subexpenses',
       ],
     });
   }
@@ -64,6 +65,7 @@ export class WalletService {
       .leftJoinAndSelect('wallet.expenses', 'expenses')
       .leftJoinAndSelect('expenses.files', 'files')
       .leftJoinAndSelect('expenses.location', 'location')
+      .leftJoinAndSelect('expenses.subexpenses', 'subexpenses')
       .where('wallet.userId = :userId', { userId })
       .andWhere('expenses.schedule = false OR expenses.id IS NULL')
       .getOne();
@@ -90,6 +92,7 @@ export class WalletService {
       .leftJoinAndSelect('e.subscription', 'subscription')
       .leftJoinAndSelect('e.files', 'files')
       .leftJoinAndSelect('e.location', 'location')
+      .leftJoinAndSelect('e.subexpenses', 'subexpenses')
       .where('e.walletId = :walletId', { walletId: walletId });
 
     if (titleWords.length > 0) {
@@ -467,7 +470,7 @@ export class WalletService {
   async getExpense(id: string) {
     return this.expenseRepository.findOneOrFail({
       where: { id },
-      relations: ['subscription', 'files', 'location'],
+      relations: ['subscription', 'files', 'location', 'subexpenses'],
     });
   }
 }

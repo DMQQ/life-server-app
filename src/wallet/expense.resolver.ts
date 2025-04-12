@@ -10,7 +10,11 @@ import {
   Query,
   ID,
 } from '@nestjs/graphql';
-import { ExpenseEntity, ExpenseLocationEntity } from './wallet.entity';
+import {
+  ExpenseEntity,
+  ExpenseLocationEntity,
+  ExpenseSubExpense,
+} from './wallet.entity';
 import { SubscriptionService } from './subscriptions.service';
 import { SubscriptionEntity } from './subscription.entity';
 import { ExpenseService } from './expense.service';
@@ -28,6 +32,30 @@ class CreateLocationDto {
 
   @Field()
   kind: string;
+}
+
+@InputType()
+class CreateSubExpenseDto {
+  @Field()
+  description: string;
+
+  @Field(() => Float)
+  amount: number;
+
+  @Field()
+  category: string;
+}
+
+@InputType()
+class UpdateSubExpenseDto {
+  @Field({ nullable: true })
+  description?: string;
+
+  @Field(() => Float, { nullable: true })
+  amount?: number;
+
+  @Field({ nullable: true })
+  category?: string;
 }
 
 @Resolver(() => ExpenseEntity)
@@ -56,6 +84,11 @@ export class ExpenseResolver {
     }
   }
 
+  @ResolveField('subexpenses', () => [ExpenseSubExpense])
+  async getSubExpenses(@Parent() expense: ExpenseEntity) {
+    return this.expenseService.getSubExpenses(expense.id);
+  }
+
   @Mutation(() => ExpenseLocationEntity)
   createLocation(
     @Args('input', { type: () => CreateLocationDto }) input: CreateLocationDto,
@@ -81,5 +114,56 @@ export class ExpenseResolver {
       (await this.expenseService.addExpenseLocation(expenseId, locationId))
         .affected > 0
     );
+  }
+
+  @Mutation(() => ExpenseSubExpense)
+  createSubExpense(
+    @Args('expenseId', { type: () => ID }) expenseId: string,
+    @Args('input', { type: () => CreateSubExpenseDto })
+    input: CreateSubExpenseDto,
+  ) {
+    return this.expenseService.createSubExpense(expenseId, input);
+  }
+
+  @Mutation(() => [ExpenseSubExpense])
+  addMultipleSubExpenses(
+    @Args('expenseId', { type: () => ID }) expenseId: string,
+    @Args('inputs', { type: () => [CreateSubExpenseDto] })
+    inputs: CreateSubExpenseDto[],
+  ) {
+    console.log('expenseId', expenseId);
+    return this.expenseService.addMultipleSubExpenses(expenseId, inputs);
+  }
+
+  @Mutation(() => ExpenseSubExpense)
+  updateSubExpense(
+    @Args('id', { type: () => ID }) id: string,
+    @Args('input', { type: () => UpdateSubExpenseDto })
+    input: UpdateSubExpenseDto,
+  ) {
+    return this.expenseService.updateSubExpense(id, input);
+  }
+
+  @Mutation(() => Boolean)
+  async deleteSubExpense(@Args('id', { type: () => ID }) id: string) {
+    const result = await this.expenseService.deleteSubExpense(id);
+    return result.success;
+  }
+
+  @Query(() => [ExpenseSubExpense])
+  subExpenses(@Args('expenseId', { type: () => ID }) expenseId: string) {
+    return this.expenseService.getSubExpenses(expenseId);
+  }
+
+  @Query(() => ExpenseSubExpense, { nullable: true })
+  subExpense(@Args('id', { type: () => ID }) id: string) {
+    return this.expenseService.getSubExpenseById(id);
+  }
+
+  @Query(() => ExpenseEntity)
+  expenseWithSubExpenses(
+    @Args('expenseId', { type: () => ID }) expenseId: string,
+  ) {
+    return this.expenseService.getExpenseWithSubExpenses(expenseId);
   }
 }

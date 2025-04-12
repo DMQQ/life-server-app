@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   ExpenseEntity,
   ExpenseLocationEntity,
+  ExpenseSubExpense,
   WalletEntity,
 } from 'src/wallet/wallet.entity';
 import { WalletResolver } from './wallet.resolver';
@@ -21,6 +22,7 @@ import { ExpenseService } from './expense.service';
       ExpenseEntity,
       SubscriptionEntity,
       ExpenseLocationEntity,
+      ExpenseSubExpense,
     ]),
     NotificationsModule,
   ],

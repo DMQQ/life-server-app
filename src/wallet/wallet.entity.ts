@@ -5,6 +5,7 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  RelationId,
 } from 'typeorm';
 import { ObjectType, Field, Int, ID, Float } from '@nestjs/graphql';
 import { SubscriptionEntity } from './subscription.entity';
@@ -132,6 +133,39 @@ export class ExpenseEntity {
   @JoinColumn({ name: 'locationId' })
   @Field(() => ExpenseLocationEntity, { nullable: true })
   location: ExpenseLocationEntity;
+
+  @OneToMany(() => ExpenseSubExpense, (sub) => sub.expense)
+  @Field(() => [ExpenseSubExpense])
+  subexpenses: ExpenseSubExpense[];
+}
+
+@ObjectType()
+@Entity('expense_subexpenses')
+export class ExpenseSubExpense {
+  @Field(() => ID)
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Field()
+  @Column({ type: 'varchar' })
+  description: string;
+
+  @Field(() => Float)
+  @Column({ type: 'float' })
+  amount: number;
+
+  @Field(() => String)
+  @Column({ type: 'varchar' })
+  category: string;
+
+  @ManyToOne(() => ExpenseEntity, (expense) => expense.subexpenses)
+  @JoinColumn({ name: 'expenseId' })
+  expense: ExpenseEntity;
+
+  @RelationId((sub: ExpenseSubExpense) => sub.expense)
+  @Field(() => ID)
+  @Column({ type: 'uuid' })
+  expenseId: string;
 }
 
 @ObjectType()
