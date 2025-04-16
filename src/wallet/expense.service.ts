@@ -25,7 +25,7 @@ export class ExpenseService {
       where: {
         id,
       },
-      relations: ['location', 'subscription', 'subexpenses'],
+      relations: ['location', 'subscription', 'subexpenses', 'files'],
     });
   }
 
