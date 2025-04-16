@@ -20,6 +20,15 @@ export class ExpenseService {
     private subExpenseRepository: Repository<ExpenseSubExpense>,
   ) {}
 
+  async getOne(id: string) {
+    return this.expenseEntity.findOne({
+      where: {
+        id,
+      },
+      relations: ['location', 'subscription', 'subexpenses'],
+    });
+  }
+
   async queryLocations(query: string, longitude?: number, latitude?: number) {
     return this.locationEntity.find({
       where: {

@@ -65,6 +65,13 @@ export class ExpenseResolver {
     private expenseService: ExpenseService,
   ) {}
 
+  @Query(() => ExpenseEntity)
+  expense(
+    @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
+  ) {
+    return this.expenseService.getOne(expenseId);
+  }
+
   @ResolveField('subscription', () => SubscriptionEntity, { nullable: true })
   async getSubscription(@Parent() expense: ExpenseEntity) {
     const { subscriptionId } = expense;
