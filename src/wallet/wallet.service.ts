@@ -20,12 +20,16 @@ export class WalletService {
   ) {}
 
   async getWalletIdByUserId(userId: string) {
-    const wallet = await this.walletRepository.findOne({
-      where: { userId, expenses: { schedule: false } },
-      relations: ['expenses'],
+    return this.walletRepository.findOne({
+      where: { userId },
+      relations: [
+        'expenses',
+        'expenses.subscription',
+        'expenses.files',
+        'expenses.location',
+        'expenses.subexpenses',
+      ],
     });
-
-    return wallet;
   }
 
   async editUserWalletBalance(userId: string, amount: number) {
@@ -59,9 +63,16 @@ export class WalletService {
     return this.walletRepository
       .createQueryBuilder('wallet')
       .leftJoinAndSelect('wallet.expenses', 'expenses')
+      .leftJoinAndSelect('expenses.files', 'files')
+      .leftJoinAndSelect('expenses.location', 'location')
+      .leftJoinAndSelect('expenses.subexpenses', 'subexpenses')
       .where('wallet.userId = :userId', { userId })
       .andWhere('expenses.schedule = false OR expenses.id IS NULL')
       .getOne();
+  }
+
+  async findWalletId(userId: string) {
+    return this.walletRepository.findOne({ where: { userId } });
   }
 
   async getExpensesByWalletId(
@@ -71,12 +82,34 @@ export class WalletService {
       pagination: { skip: number; take: number };
     },
   ) {
+    const titleWords = (settings?.where?.title || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
     const expensesQuery = this.expenseRepository
       .createQueryBuilder('e')
-      .where('e.walletId = :walletId', { walletId: walletId })
-      .andWhere('e.description LIKE :d', {
-        d: `%${settings?.where?.title || ''}%`,
-      })
+      .leftJoinAndSelect('e.subscription', 'subscription')
+      .leftJoinAndSelect('e.files', 'files')
+      .leftJoinAndSelect('e.location', 'location')
+      .leftJoinAndSelect('e.subexpenses', 'subexpenses')
+      .where('e.walletId = :walletId', { walletId: walletId });
+
+    if (titleWords.length > 0) {
+      const titleConditions = titleWords
+        .map((word, index) => `e.description LIKE :word${index}`)
+        .join(' OR ');
+
+      expensesQuery.andWhere(
+        `(${titleConditions})`,
+        titleWords.reduce((acc, word, index) => {
+          acc[`word${index}`] = `%${word}%`;
+          return acc;
+        }, {}),
+      );
+    }
+
+    expensesQuery
       .andWhere('e.date >= :from AND e.date <= :to', {
         from: settings?.where?.date?.from || '1900-01-01',
         to: settings?.where?.date?.to || '2100-01-01',
@@ -115,6 +148,7 @@ export class WalletService {
     category: string,
     date: Date,
     schedule: boolean = false,
+    subscription: string | null,
   ) {
     const wallet = await this.getWalletIdByUserId(userId);
 
@@ -129,6 +163,7 @@ export class WalletService {
       category,
       date,
       schedule,
+      ...(subscription && { subscriptionId: subscription }),
     });
 
     if (schedule && date > new Date())
@@ -140,6 +175,46 @@ export class WalletService {
       userId,
       amount,
       type === ExpenseType.expense ? ExpenseType.expense : ExpenseType.income,
+    );
+
+    const expense = await this.expenseRepository.findOne({
+      where: { id: insert.identifiers[0].id },
+      relations: ['subexpenses', 'subscription'],
+    });
+
+    return { ...expense, walletId };
+  }
+
+  async getSubscriptionLastExpense(subscriptionId: string) {
+    return await this.expenseRepository.findOne({
+      where: {
+        subscriptionId: subscriptionId,
+      },
+      order: { date: 'DESC' },
+    });
+  }
+
+  // Update the createSubscriptionExpense method to use subscriptionId
+  async createSubscriptionExpense(
+    walletId: string,
+    expense: Partial<ExpenseEntity>,
+  ) {
+    const wallet = await this.walletRepository.findOne({
+      where: { id: walletId },
+    });
+
+    const insert = await this.expenseRepository.insert({
+      ...expense,
+      walletId: walletId,
+      //@ts-ignore
+      subscriptionId: expense.subscription,
+      balanceBeforeInteraction: wallet?.balance as number,
+    });
+
+    await this._updateWalletBalance(
+      wallet.userId,
+      expense.amount,
+      ExpenseType.expense,
     );
 
     return this.expenseRepository.findOne({
@@ -391,5 +466,12 @@ export class WalletService {
     } catch (error) {
       throw new Error('Refund failed');
     }
+  }
+
+  async getExpense(id: string) {
+    return this.expenseRepository.findOneOrFail({
+      where: { id },
+      relations: ['subscription', 'files', 'location', 'subexpenses'],
+    });
   }
 }

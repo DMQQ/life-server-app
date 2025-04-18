@@ -82,6 +82,7 @@ export class TimelineService {
       order: {
         beginTime: 'DESC',
       },
+      relations: ['images', 'todos'],
     });
   }
 

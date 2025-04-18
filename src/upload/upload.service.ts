@@ -15,6 +15,17 @@ export class UploadService {
     private expenseFilesRepository: Repository<ExpenseFileEntity>,
   ) {}
 
+  async insertExpenseFile(file: File, expenseId: string) {
+    const result = await this.expenseFilesRepository.insert({
+      url: file.path,
+      expenseId: expenseId as any,
+    });
+
+    return this.expenseFilesRepository.findOne({
+      where: { id: result.identifiers[0].id },
+    });
+  }
+
   async uploadFiles(file: File[], timelineId: any) {
     const results = await this.timelineFilesRepository.insert(
       file.map((f) => ({
