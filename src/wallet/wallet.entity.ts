@@ -5,8 +5,10 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  RelationId,
 } from 'typeorm';
 import { ObjectType, Field, Int, ID, Float } from '@nestjs/graphql';
+import { SubscriptionEntity } from './subscription.entity';
 
 @ObjectType()
 @Entity('wallet')
@@ -28,10 +30,37 @@ export class WalletEntity {
   expenses: ExpenseEntity[];
 }
 
+@ObjectType()
+@Entity('expense_locations')
+export class ExpenseLocationEntity {
+  @Field(() => ID)
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Field(() => Float)
+  @Column({ type: 'decimal', nullable: true })
+  longitude: number;
+
+  @Field(() => Float)
+  @Column({ type: 'decimal', nullable: true })
+  latitude: number;
+
+  @Field()
+  @Column()
+  name: string;
+
+  @Field()
+  @Column()
+  kind: string;
+
+  @Field(() => [ExpenseEntity])
+  @OneToMany(() => ExpenseEntity, (expense) => expense.location)
+  expenses: ExpenseEntity[];
+}
+
 export enum ExpenseType {
   expense = 'expense',
   income = 'income',
-
   refunded = 'refunded',
 }
 
@@ -74,12 +103,19 @@ export class ExpenseEntity {
   @Column({ type: 'boolean', nullable: false, default: false })
   schedule: boolean;
 
-  @Field(() => [ExpenseFileEntity])
+  @Field(() => [ExpenseFileEntity], { defaultValue: [] })
   @OneToMany(() => ExpenseFileEntity, (file) => file.expenseId)
   @JoinColumn({ name: 'files' })
   files: ExpenseFileEntity[];
 
-  // new fields to be implemented
+  @ManyToOne(() => SubscriptionEntity, (subscription) => subscription.expenses)
+  @JoinColumn({ name: 'subscriptionId' })
+  @Field(() => SubscriptionEntity, { nullable: true })
+  subscription: SubscriptionEntity;
+
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'subscriptionId', type: 'uuid', nullable: true })
+  subscriptionId: string;
 
   @Field(() => String, { nullable: true })
   @Column({ type: 'varchar', length: 255 })
@@ -92,6 +128,44 @@ export class ExpenseEntity {
   @Field(() => String, { nullable: true })
   @Column({ type: 'varchar', length: 255 })
   tags: string;
+
+  @ManyToOne(() => ExpenseLocationEntity, (location) => location.expenses)
+  @JoinColumn({ name: 'locationId' })
+  @Field(() => ExpenseLocationEntity, { nullable: true })
+  location: ExpenseLocationEntity;
+
+  @OneToMany(() => ExpenseSubExpense, (sub) => sub.expense)
+  @Field(() => [ExpenseSubExpense])
+  subexpenses: ExpenseSubExpense[];
+}
+
+@ObjectType()
+@Entity('expense_subexpenses')
+export class ExpenseSubExpense {
+  @Field(() => ID)
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Field()
+  @Column({ type: 'varchar' })
+  description: string;
+
+  @Field(() => Float)
+  @Column({ type: 'float' })
+  amount: number;
+
+  @Field(() => String)
+  @Column({ type: 'varchar' })
+  category: string;
+
+  @ManyToOne(() => ExpenseEntity, (expense) => expense.subexpenses)
+  @JoinColumn({ name: 'expenseId' })
+  expense: ExpenseEntity;
+
+  @RelationId((sub: ExpenseSubExpense) => sub.expense)
+  @Field(() => ID)
+  @Column({ type: 'uuid' })
+  expenseId: string;
 }
 
 @ObjectType()
@@ -105,7 +179,7 @@ export class ExpenseFileEntity {
   @Field((type) => String)
   url: string;
 
-  @Column({ type: 'uuid', nullable: false })
-  @Field((type) => ID)
-  expenseId: string;
+  @ManyToOne(() => ExpenseEntity, (expense) => expense.files)
+  @JoinColumn({ name: 'expenseId' })
+  expenseId: ExpenseEntity;
 }

@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
-const ADDR = '172.20.10.2';
+const ADDR = '192.168.0.30';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -13,7 +13,7 @@ async function bootstrap() {
       console.log(`GraphQL is running on http://${ADDR}/graphql`);
     });
   } else {
-    await app.listen(process.env.APP_PORT || 3000, () => {
+    await app.listen(process.env.APP_PORT || 3000, process.env.IPV6, () => {
       console.log('Server is running on http://localhost:3000/');
       console.log('GraphQL is running on http://localhost:3000/graphql');
     });

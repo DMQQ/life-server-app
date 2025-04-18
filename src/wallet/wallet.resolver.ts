@@ -23,11 +23,31 @@ import {
 } from 'src/wallet/wallet.entity';
 import { User } from 'src/utils/decorators/User';
 import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
+import { SubscriptionService } from './subscriptions.service';
+import { BillingCycleEnum } from './subscription.entity';
+
+const parseDate = (dateString: string) => {
+  const currentTime = new Date();
+  const inputDate = new Date(dateString);
+
+  return new Date(
+    inputDate.getFullYear(),
+    inputDate.getMonth(),
+    inputDate.getDate(),
+    currentTime.getHours(),
+    currentTime.getMinutes(),
+    currentTime.getSeconds(),
+    currentTime.getMilliseconds(),
+  );
+};
 
 @UseGuards(AuthGuard)
 @Resolver(() => WalletEntity)
 export class WalletResolver {
-  constructor(private walletService: WalletService) {}
+  constructor(
+    private walletService: WalletService,
+    private subscriptionService: SubscriptionService,
+  ) {}
 
   @Query((returns) => WalletEntity)
   async wallet(@User() usrId: string) {
@@ -59,8 +79,35 @@ export class WalletResolver {
     @Args('category', { type: () => String }) category: string,
     @Args('date') date: string,
     @Args('schedule', { type: () => Boolean, nullable: true }) schedule = false,
+    @Args('isSubscription', {
+      type: () => Boolean,
+      nullable: true,
+      defaultValue: false,
+    })
+    isSubscription: boolean,
   ) {
-    const parsedDate = new Date(date || new Date());
+    const parsedDate = parseDate(
+      date || new Date().toISOString().split('T')[0],
+    );
+
+    const walletId = await this.walletService.findWalletId(usrId);
+
+    let subscription = null;
+
+    if (isSubscription)
+      subscription = await this.subscriptionService.insert({
+        amount: amount,
+        dateStart: parsedDate,
+        dateEnd: null,
+        description: description,
+        isActive: true,
+        billingCycle: BillingCycleEnum.MONTHLY,
+        nextBillingDate: this.subscriptionService.getNextBillingDate({
+          billingCycle: BillingCycleEnum.MONTHLY,
+          nextBillingDate: parsedDate,
+        }),
+        walletId: walletId.id,
+      });
 
     const expense = await this.walletService.createExpense(
       usrId,
@@ -70,6 +117,7 @@ export class WalletResolver {
       category,
       parsedDate,
       schedule,
+      subscription ? subscription.id : null,
     );
 
     return expense;
@@ -189,6 +237,37 @@ export class WalletResolver {
       return this.walletService.refundExpense(user, expenseId);
     } catch (error) {
       throw new BadRequestException('Refund failed');
+    }
+  }
+
+  @Mutation(() => ExpenseEntity)
+  async createSubscription(
+    @User() user: string,
+    @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
+  ) {
+    try {
+      const wallet = await this.walletService.findWalletId(user);
+      await this.subscriptionService.createSubscription(expenseId, wallet);
+
+      return this.walletService.getExpense(expenseId);
+    } catch (error) {
+      console.log(error);
+      throw new BadRequestException('Subscription creation failed');
+    }
+  }
+
+  @Mutation(() => ExpenseEntity)
+  async cancelSubscription(
+    @Args('subscriptionId', { type: () => ID }) subscriptionId: string,
+  ) {
+    try {
+      await this.subscriptionService.cancelSubscription(subscriptionId);
+
+      return this.subscriptionService.getExpenseBySubscriptionId(
+        subscriptionId,
+      );
+    } catch (error) {
+      throw new BadRequestException('Subscription cancelation failed');
     }
   }
 }

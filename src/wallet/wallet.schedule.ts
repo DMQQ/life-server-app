@@ -5,12 +5,14 @@ import { WalletService } from './wallet.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
 
 import * as moment from 'moment';
+import { SubscriptionService } from './subscriptions.service';
 
 @Injectable()
 export class WalletSchedule {
   constructor(
     private notificationService: NotificationsService,
     private walletService: WalletService,
+    private subscriptionService: SubscriptionService,
   ) {}
 
   @Cron('0 14 * * 0', {
@@ -29,19 +31,22 @@ export class WalletSchedule {
     for (const user of users) {
       if (!user.token || user.isEnable === false) continue;
 
-      const [stats] = await this.walletService.getStatistics(user.id, range);
+      const [stats] = await this.walletService.getStatistics(
+        user.userId,
+        range,
+      );
 
       if (!stats) continue;
 
       notifications.push({
         to: user.token,
         sound: 'default',
-        title: 'Weekly spendings report',
+        title: '📊 Weekly Spendings Report',
         body: [
-          `You have spent ${stats.total} this week, ${stats.income} of which was income and ${stats.expense} was expense.`,
-          `You have ${stats.lastBalance} left in your wallet.`,
-          `You spent at most ${stats.max} and at least ${stats.min} in a single transaction.`,
-          `Your average transaction was ${stats.average} with a total of ${stats.count} transactions.`,
+          `💰 You have spent ${stats.total} this week, ${stats.income} of which was income ⬆️ and ${stats.expense} was expense ⬇️.`,
+          `💵 You have ${stats.lastBalance} left in your wallet.`,
+          `🔼 You spent at most ${stats.max} and at least ${stats.min} in a single transaction 🔽.`,
+          `📈 Your average transaction was ${stats.average} with a total of ${stats.count} transactions.`,
         ].join('\n'),
       });
     }
@@ -53,7 +58,6 @@ export class WalletSchedule {
     timeZone: 'Europe/Warsaw',
   })
   async monthlyReport() {
-    // Check if today is the last day of the month
     if (!moment().isSame(moment().endOf('month'), 'day')) {
       return;
     }
@@ -70,19 +74,22 @@ export class WalletSchedule {
     for (const user of users) {
       if (!user.token || user.isEnable === false) continue;
 
-      const [stats] = await this.walletService.getStatistics(user.id, range);
+      const [stats] = await this.walletService.getStatistics(
+        user.userId,
+        range,
+      );
 
       if (!stats) continue;
 
       notifications.push({
         to: user.token,
         sound: 'default',
-        title: 'Monthly spendings report',
+        title: '📆 Monthly Spendings Report',
         body: [
-          `You have spent ${stats.total} this month, ${stats.income} of which was income and ${stats.expense} was expense.`,
-          `You have ${stats.lastBalance} left in your wallet.`,
-          `You spent at most ${stats.max} and at least ${stats.min} in a single transaction.`,
-          `Your average transaction was ${stats.average} with a total of ${stats.count} transactions.`,
+          `💰 You have spent ${stats.total} this month, ${stats.income} of which was income ⬆️ and ${stats.expense} was expense ⬇️.`,
+          `💵 You have ${stats.lastBalance} left in your wallet.`,
+          `🔼 You spent at most ${stats.max} and at least ${stats.min} in a single transaction 🔽.`,
+          `📈 Your average transaction was ${stats.average} with a total of ${stats.count} transactions.`,
         ].join('\n'),
       });
     }
@@ -112,5 +119,44 @@ export class WalletSchedule {
       'Scheduled transactions added',
       results.map((r) => r.status),
     );
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async insertSubscriptions() {
+    const subscriptions =
+      await this.subscriptionService.getTodaySubscriptions();
+
+    for (const subscription of subscriptions) {
+      if (!subscription.isActive) continue;
+
+      (async () => {
+        const walletId = subscription.walletId;
+        const expense = await this.walletService.getSubscriptionLastExpense(
+          subscription.id,
+        );
+
+        if (!expense) {
+          console.log('No expense found for subscription', subscription.id);
+          return;
+        }
+
+        delete expense.id;
+
+        await this.walletService.createSubscriptionExpense(walletId, {
+          ...expense,
+          date: new Date(),
+          subscriptionId: subscription.id,
+          description:
+            expense.description +
+            ' ' +
+            this.subscriptionService.getBillingCycleString(
+              subscription.nextBillingDate,
+              subscription.billingCycle,
+            ),
+        });
+
+        await this.subscriptionService.setNextBillingDate(subscription);
+      })();
+    }
   }
 }
