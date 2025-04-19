@@ -5,6 +5,7 @@ import {
   ExpenseLocationEntity,
   ExpenseSubExpense,
   WalletEntity,
+  WalletLimits,
 } from 'src/wallet/wallet.entity';
 import { WalletResolver } from './wallet.resolver';
 import { WalletService } from './wallet.service';
@@ -14,6 +15,8 @@ import { SubscriptionService } from './subscriptions.service';
 import { SubscriptionEntity } from './subscription.entity';
 import { ExpenseResolver } from './expense.resolver';
 import { ExpenseService } from './expense.service';
+import { LimitsService } from './limits.service';
+import { LimitsResolver } from './limits.resolver';
 
 @Module({
   imports: [
@@ -23,6 +26,7 @@ import { ExpenseService } from './expense.service';
       SubscriptionEntity,
       ExpenseLocationEntity,
       ExpenseSubExpense,
+      WalletLimits,
     ]),
     NotificationsModule,
   ],
@@ -33,6 +37,8 @@ import { ExpenseService } from './expense.service';
     SubscriptionService,
     ExpenseResolver,
     ExpenseService,
+    LimitsService,
+    LimitsResolver,
   ],
 })
 export class WalletModule {}
