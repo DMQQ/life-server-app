@@ -4,8 +4,10 @@ import {
   ExpenseEntity,
   ExpenseLocationEntity,
   ExpenseSubExpense,
+  WalletEntity,
 } from './wallet.entity';
 import { Between, Like, Repository } from 'typeorm';
+import * as moment from 'moment';
 
 @Injectable()
 export class ExpenseService {
@@ -18,6 +20,9 @@ export class ExpenseService {
 
     @InjectRepository(ExpenseSubExpense)
     private subExpenseRepository: Repository<ExpenseSubExpense>,
+
+    @InjectRepository(WalletEntity)
+    private walletRepository: Repository<WalletEntity>,
   ) {}
 
   async getOne(id: string) {
@@ -120,5 +125,72 @@ export class ExpenseService {
     );
 
     return await this.subExpenseRepository.save(subExpensesToSave);
+  }
+
+  async monthlyCategoryComparison(userId: string, months: string[]) {
+    const walletId = (
+      await this.walletRepository.findOne({ where: { userId } })
+    ).id;
+    const query = `
+      SELECT category, SUM(amount) as total, AVG(amount) as avg, COUNT(amount) as count FROM expense WHERE walletId = ? AND date BETWEEN ? AND ? GROUP BY category
+    `;
+
+    const queryMonth = (month: string) => {
+      const start = moment(month).startOf('month').format('YYYY-MM-DD');
+      const end = moment(month).endOf('month').format('YYYY-MM-DD');
+      return this.expenseEntity.query(query.trim(), [walletId, start, end]);
+    };
+
+    const monthsResponse = await Promise.all(months.map((m) => queryMonth(m)));
+
+    return monthsResponse.map((arr, index) => ({
+      month: moment.months()[moment(months[index]).get('month')],
+      categories: arr.map((i) => ({ ...i, count: +i.count })),
+    }));
+  }
+
+  async monthlyHeatMapSpendings(userId: string, months: string[]) {
+    const walletId = (
+      await this.walletRepository.findOne({ where: { userId } })
+    ).id;
+
+    const query = `
+      SELECT DAY(date) AS day_of_month, SUM(amount) AS total_amount, COUNT(amount) as count, AVG(amount) as avg
+      FROM expense
+      WHERE walletId = ?
+        AND date BETWEEN ? AND ?
+      GROUP BY DAY(date)
+      ORDER BY day_of_month
+    `.trim();
+
+    const response = await this.expenseEntity.query(query, [
+      walletId,
+      months[0],
+      months[months.length - 1],
+    ]);
+
+    const daysMap = {};
+
+    response.forEach((item) => {
+      daysMap[item.day_of_month] = {
+        dayOfMonth: item.day_of_month,
+        totalCount: +item.count,
+        totalAmount: item.total_amount,
+        averageAmount: +item.avg,
+      };
+    });
+
+    for (let i = 1; i < 32; i++) {
+      if (!daysMap[i]) {
+        daysMap[i] = {
+          dayOfMonth: i,
+          totalCount: 0,
+          totalAmount: 0,
+          averageAmount: 0,
+        };
+      }
+    }
+
+    return Object.entries(daysMap).map(([_, item]) => item);
   }
 }
