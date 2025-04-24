@@ -9,6 +9,8 @@ import {
   Resolver,
   Query,
   ID,
+  ObjectType,
+  Int,
 } from '@nestjs/graphql';
 import {
   ExpenseEntity,
@@ -18,6 +20,7 @@ import {
 import { SubscriptionService } from './subscriptions.service';
 import { SubscriptionEntity } from './subscription.entity';
 import { ExpenseService } from './expense.service';
+import { User } from 'src/utils/decorators/User';
 
 @InputType()
 class CreateLocationDto {
@@ -56,6 +59,45 @@ class UpdateSubExpenseDto {
 
   @Field({ nullable: true })
   category?: string;
+}
+
+@ObjectType()
+class MonthlyCategoryComparisonItem {
+  @Field(() => String)
+  category: string;
+
+  @Field(() => Float)
+  total: number;
+
+  @Field(() => Float)
+  avg: number;
+
+  @Field(() => Float)
+  count: number;
+}
+
+@ObjectType()
+class MonthlyCategoryComparisonOutput {
+  @Field({ nullable: true })
+  month: string;
+
+  @Field(() => [MonthlyCategoryComparisonItem], { nullable: true })
+  categories: MonthlyCategoryComparisonItem[];
+}
+
+@ObjectType()
+class MonthlyHeatMap {
+  @Field(() => Int)
+  dayOfMonth: number;
+
+  @Field(() => Int)
+  totalCount: number;
+
+  @Field(() => Float)
+  totalAmount: number;
+
+  @Field(() => Float)
+  averageAmount: number;
 }
 
 @Resolver(() => ExpenseEntity)
@@ -172,5 +214,33 @@ export class ExpenseResolver {
     @Args('expenseId', { type: () => ID }) expenseId: string,
   ) {
     return this.expenseService.getExpenseWithSubExpenses(expenseId);
+  }
+
+  @Query(() => [MonthlyCategoryComparisonOutput])
+  async monthlyCategoryComparison(
+    @User() userId: string,
+    // months in date format YYYY-MM-DD
+    @Args('months', { type: () => [String], nullable: false }) months: string[],
+  ) {
+    const response = await this.expenseService.monthlyCategoryComparison(
+      userId,
+      months,
+    );
+
+    return response;
+  }
+
+  @Query(() => [MonthlyHeatMap])
+  async monthlyDateSpendings(
+    @User() userId: string,
+    // months in date format YYYY-MM-DD
+    @Args('months', { type: () => [String], nullable: false }) months: string[],
+  ) {
+    const response = await this.expenseService.monthlyHeatMapSpendings(
+      userId,
+      months,
+    );
+
+    return response;
   }
 }
