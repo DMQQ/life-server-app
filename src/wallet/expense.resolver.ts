@@ -243,4 +243,19 @@ export class ExpenseResolver {
 
     return response;
   }
+
+  @Query(() => Boolean)
+  async hourlySpendingsHeatMap(
+    @User() userId: string,
+    @Args('months', { type: () => [String], nullable: false }) months: string[],
+  ) {
+    const response = await this.expenseService.hourlyHeadMapSpendings(
+      userId,
+      months,
+    );
+
+    console.log(response);
+
+    return true;
+  }
 }

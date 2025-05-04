@@ -149,6 +149,7 @@ export class WalletService {
     date: Date,
     schedule: boolean = false,
     subscription: string | null,
+    spontaneousRate: number,
   ) {
     const wallet = await this.getWalletIdByUserId(userId);
 
@@ -163,6 +164,7 @@ export class WalletService {
       category,
       date,
       schedule,
+      spontaneousRate: spontaneousRate ?? 0,
       ...(subscription && { subscriptionId: subscription }),
     });
 

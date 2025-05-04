@@ -24,6 +24,14 @@ export class WalletEntity {
   @Column({ type: 'uuid', nullable: false })
   userId: string;
 
+  @Field(() => Float)
+  @Column({ type: 'float' })
+  income: number;
+
+  @Field(() => Float)
+  @Column({ type: 'float' })
+  monthlyPercentageTarget: number;
+
   @Field((type) => [ExpenseEntity])
   @OneToMany((type) => ExpenseEntity, (expense) => expense.walletId)
   @JoinColumn({ name: 'expenses' })
@@ -133,6 +141,10 @@ export class ExpenseEntity {
   @Field(() => String, { nullable: true })
   @Column({ type: 'varchar', length: 255 })
   tags: string;
+
+  @Field(() => Float, { nullable: true, defaultValue: 0 })
+  @Column({ type: 'float' })
+  spontaneousRate: number;
 
   @ManyToOne(() => ExpenseLocationEntity, (location) => location.expenses)
   @JoinColumn({ name: 'locationId' })

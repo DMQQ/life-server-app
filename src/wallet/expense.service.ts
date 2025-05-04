@@ -193,4 +193,30 @@ export class ExpenseService {
 
     return Object.entries(daysMap).map(([_, item]) => item);
   }
+
+  async hourlyHeadMapSpendings(userId: string, months: string[]) {
+    const walletId = (
+      await this.walletRepository.findOne({ where: { userId } })
+    ).id;
+
+    const query = `
+      SELECT HOUR(date) as hour, COUNT(*) as count, AVG(amount) as avg_amount, MIN(amount) as min_amount, MAX(amount) as max_amount,
+        STDDEV(amount) as std_deviation, 
+        VARIANCE(amount) as variance
+      FROM expense 
+      WHERE walletId = ?
+      AND date BETWEEN ? AND ?
+      GROUP BY hour
+      ORDER BY hour ASC
+      
+    `;
+
+    const response = await this.expenseEntity.query(query.trim(), [
+      walletId,
+      months[0],
+      months[months.length - 1],
+    ]);
+
+    return response.map((r) => ({ ...r, count: +r.count }));
+  }
 }

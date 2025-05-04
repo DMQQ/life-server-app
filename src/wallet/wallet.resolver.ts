@@ -85,6 +85,9 @@ export class WalletResolver {
       defaultValue: false,
     })
     isSubscription: boolean,
+
+    @Args('spontaneousRate', { type: () => Float, nullable: true })
+    spontaneousRate: number,
   ) {
     const parsedDate = parseDate(
       date || new Date().toISOString().split('T')[0],
@@ -118,6 +121,7 @@ export class WalletResolver {
       parsedDate,
       schedule,
       subscription ? subscription.id : null,
+      spontaneousRate,
     );
 
     return expense;
