@@ -482,4 +482,8 @@ export class WalletService {
       where: { id },
     });
   }
+
+  async getWalletId(userId: string) {
+    return (await this.walletRepository.findOne({ where: { userId } })).id;
+  }
 }

@@ -1,11 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  ExpenseEntity,
-  ExpenseLocationEntity,
-  ExpenseSubExpense,
-  WalletEntity,
-} from './wallet.entity';
+import { ExpenseEntity, ExpenseLocationEntity, ExpenseSubExpense, WalletEntity } from './wallet.entity';
 import { Between, Like, Repository } from 'typeorm';
 import * as moment from 'moment';
 
@@ -65,10 +60,7 @@ export class ExpenseService {
     );
   }
 
-  async createSubExpense(
-    expenseId: string,
-    subExpenseData: Partial<ExpenseSubExpense>,
-  ) {
+  async createSubExpense(expenseId: string, subExpenseData: Partial<ExpenseSubExpense>) {
     const newSubExpense = this.subExpenseRepository.create({
       ...subExpenseData,
       expenseId,
@@ -88,10 +80,7 @@ export class ExpenseService {
     });
   }
 
-  async updateSubExpense(
-    id: string,
-    subExpenseData: Partial<ExpenseSubExpense>,
-  ) {
+  async updateSubExpense(id: string, subExpenseData: Partial<ExpenseSubExpense>) {
     await this.subExpenseRepository.update(id, subExpenseData);
     return this.getSubExpenseById(id);
   }
@@ -113,10 +102,7 @@ export class ExpenseService {
     });
   }
 
-  async addMultipleSubExpenses(
-    expenseId: string,
-    subExpenses: Partial<ExpenseSubExpense>[],
-  ) {
+  async addMultipleSubExpenses(expenseId: string, subExpenses: Partial<ExpenseSubExpense>[]) {
     const subExpensesToSave = subExpenses.map((subExpense) =>
       this.subExpenseRepository.create({
         ...subExpense,
@@ -128,9 +114,7 @@ export class ExpenseService {
   }
 
   async monthlyCategoryComparison(userId: string, months: string[]) {
-    const walletId = (
-      await this.walletRepository.findOne({ where: { userId } })
-    ).id;
+    const walletId = (await this.walletRepository.findOne({ where: { userId } })).id;
     const query = `
       SELECT category, SUM(amount) as total, AVG(amount) as avg, COUNT(amount) as count FROM expense WHERE walletId = ? AND date BETWEEN ? AND ? GROUP BY category
     `;
@@ -150,9 +134,7 @@ export class ExpenseService {
   }
 
   async monthlyHeatMapSpendings(userId: string, months: string[]) {
-    const walletId = (
-      await this.walletRepository.findOne({ where: { userId } })
-    ).id;
+    const walletId = (await this.walletRepository.findOne({ where: { userId } })).id;
 
     const query = `
       SELECT DAY(date) AS day_of_month, SUM(amount) AS total_amount, COUNT(amount) as count, AVG(amount) as avg
@@ -163,11 +145,7 @@ export class ExpenseService {
       ORDER BY day_of_month
     `.trim();
 
-    const response = await this.expenseEntity.query(query, [
-      walletId,
-      months[0],
-      months[months.length - 1],
-    ]);
+    const response = await this.expenseEntity.query(query, [walletId, months[0], months[months.length - 1]]);
 
     const daysMap = {};
 
@@ -195,9 +173,7 @@ export class ExpenseService {
   }
 
   async hourlyHeadMapSpendings(userId: string, months: string[]) {
-    const walletId = (
-      await this.walletRepository.findOne({ where: { userId } })
-    ).id;
+    const walletId = (await this.walletRepository.findOne({ where: { userId } })).id;
 
     const query = `
       SELECT HOUR(date) as hour, COUNT(*) as count, AVG(amount) as avg_amount, MIN(amount) as min_amount, MAX(amount) as max_amount,
@@ -211,19 +187,13 @@ export class ExpenseService {
       
     `;
 
-    const response = await this.expenseEntity.query(query.trim(), [
-      walletId,
-      months[0],
-      months[months.length - 1],
-    ]);
+    const response = await this.expenseEntity.query(query.trim(), [walletId, months[0], months[months.length - 1]]);
 
     return response.map((r) => ({ ...r, count: +r.count }));
   }
 
   async getExpenses(userId: string, range: { from: string; to: string }) {
-    const walletId = (
-      await this.walletRepository.findOne({ where: { userId } })
-    ).id;
+    const walletId = (await this.walletRepository.findOne({ where: { userId } })).id;
 
     return this.expenseEntity.find({
       where: {
@@ -231,5 +201,100 @@ export class ExpenseService {
         date: Between(moment(range.from).toDate(), moment(range.to).toDate()),
       },
     });
+  }
+
+  async getDailyInsights(walletId: string, dates: [string, string]) {
+    const query = `
+      SELECT SUM(amount) as expense_sum, COUNT(*) as transaction_count FROM expense
+      WHERE walletId = ?
+        AND date >= ? AND date <= ?
+        AND type = 'expense'
+        AND schedule = 0
+    `.trim();
+
+    const response = await this.expenseEntity.query(query, [walletId, ...dates]);
+
+    return response.length > 0 ? response[0] : null;
+  }
+
+  async getHourlySpendingPatterns(walletId: string, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+      SELECT 
+        HOUR(date) as hour, 
+        COUNT(*) as count, 
+        SUM(amount) as total_amount, 
+        AVG(amount) as avg_amount
+      FROM expense 
+      WHERE walletId = ?
+      AND date BETWEEN ? AND ?
+      AND type = 'expense'
+      AND schedule = 0
+      GROUP BY hour
+      ORDER BY hour ASC
+    `;
+
+      // Execute the query
+      const hourlyData = await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+
+      return hourlyData;
+    } catch (error) {
+      console.error('Error getting hourly spending patterns:', error);
+      return [];
+    }
+  }
+
+  async getTopCategoryForHour(walletId: string, hour: number, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+      SELECT 
+        category, 
+        COUNT(*) as category_count
+      FROM expense
+      WHERE walletId = ?
+      AND HOUR(date) = ?
+      AND date BETWEEN ? AND ?
+      AND type = 'expense'
+      AND schedule = 0
+      GROUP BY category
+      ORDER BY category_count DESC
+      LIMIT 1
+    `;
+
+      const result = await this.expenseEntity.query(query, [walletId, hour, startDate, endDate]);
+
+      return result && result.length > 0 ? result[0].category : null;
+    } catch (error) {
+      console.error('Error getting top category for hour:', error);
+      return null;
+    }
+  }
+
+  async getTotalExpensesForPeriod(walletId: string, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+      SELECT 
+        SUM(amount) as expense_sum, 
+        COUNT(*) as transaction_count
+      FROM expense
+      WHERE walletId = ?
+      AND date BETWEEN ? AND ?
+      AND type = 'expense'
+      AND schedule = 0
+    `;
+
+      const result = await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+
+      return result && result.length > 0 ? result[0] : { expense_sum: 0, transaction_count: 0 };
+    } catch (error) {
+      console.error('Error getting total expenses for period:', error);
+      return { expense_sum: 0, transaction_count: 0 };
+    }
   }
 }
