@@ -100,6 +100,30 @@ class MonthlyHeatMap {
   averageAmount: number;
 }
 
+@ObjectType()
+class HourlyStats {
+  @Field(() => Number)
+  hour: number;
+
+  @Field(() => Number)
+  count: number;
+
+  @Field(() => Float)
+  avg_amount: number;
+
+  @Field(() => Float)
+  min_amount: number;
+
+  @Field(() => Float)
+  max_amount: number;
+
+  @Field(() => Float)
+  std_deviation: number;
+
+  @Field(() => Float)
+  variance: number;
+}
+
 @Resolver(() => ExpenseEntity)
 export class ExpenseResolver {
   constructor(
@@ -244,7 +268,7 @@ export class ExpenseResolver {
     return response;
   }
 
-  @Query(() => Boolean)
+  @Query(() => [HourlyStats])
   async hourlySpendingsHeatMap(
     @User() userId: string,
     @Args('months', { type: () => [String], nullable: false }) months: string[],
@@ -254,8 +278,6 @@ export class ExpenseResolver {
       months,
     );
 
-    console.log(response);
-
-    return true;
+    return response;
   }
 }

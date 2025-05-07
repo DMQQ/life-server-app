@@ -476,4 +476,10 @@ export class WalletService {
       relations: ['subscription', 'files', 'location', 'subexpenses'],
     });
   }
+
+  async getWallet(id: string) {
+    return this.walletRepository.findOne({
+      where: { id },
+    });
+  }
 }

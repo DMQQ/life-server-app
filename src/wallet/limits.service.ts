@@ -148,8 +148,6 @@ export class LimitsService {
   async limits(walletId: string, type: LimitRange) {
     const [from, to] = this.range(type);
 
-    console.log({ from, to });
-
     const expensesByCategory = await this.expenseEntity
       .createQueryBuilder('exp')
       .select('exp.category', 'category')

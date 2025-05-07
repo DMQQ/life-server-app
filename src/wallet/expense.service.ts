@@ -219,4 +219,17 @@ export class ExpenseService {
 
     return response.map((r) => ({ ...r, count: +r.count }));
   }
+
+  async getExpenses(userId: string, range: { from: string; to: string }) {
+    const walletId = (
+      await this.walletRepository.findOne({ where: { userId } })
+    ).id;
+
+    return this.expenseEntity.find({
+      where: {
+        walletId,
+        date: Between(moment(range.from).toDate(), moment(range.to).toDate()),
+      },
+    });
+  }
 }
