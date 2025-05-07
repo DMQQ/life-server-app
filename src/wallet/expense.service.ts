@@ -297,4 +297,288 @@ export class ExpenseService {
       return { expense_sum: 0, transaction_count: 0 };
     }
   }
+
+  /**
+   * Methods to add to your ExpenseService class for the new insights features
+   */
+
+  /**
+   * Get expenses for a date range grouped by day of week
+   * @param walletId Wallet ID
+   * @param dateRange Array with start and end date [startDate, endDate]
+   * @returns Day of week spending data
+   */
+  async getSpendingByDayOfWeek(walletId: string, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+      SELECT 
+        WEEKDAY(date) as day_of_week, 
+        COUNT(*) as count, 
+        SUM(amount) as total_amount, 
+        AVG(amount) as avg_amount
+      FROM expense
+      WHERE walletId = ?
+        AND date BETWEEN ? AND ?
+        AND type = 'expense'
+        AND schedule = 0
+      GROUP BY day_of_week
+      ORDER BY day_of_week
+    `;
+
+      const result = await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+
+      return result;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Get expenses categorized by period (morning, afternoon, evening, night)
+   * @param walletId Wallet ID
+   * @param dateRange Array with start and end date [startDate, endDate]
+   * @returns Period spending data
+   */
+  async getSpendingByPeriod(walletId: string, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+      SELECT 
+        CASE
+          WHEN HOUR(date) BETWEEN 5 AND 11 THEN 'morning'
+          WHEN HOUR(date) BETWEEN 12 AND 16 THEN 'afternoon'
+          WHEN HOUR(date) BETWEEN 17 AND 21 THEN 'evening'
+          ELSE 'night'
+        END as period,
+        COUNT(*) as count,
+        SUM(amount) as total_amount,
+        AVG(amount) as avg_amount
+      FROM expense
+      WHERE walletId = ?
+        AND date BETWEEN ? AND ?
+        AND type = 'expense'
+        AND schedule = 0
+      GROUP BY period
+      ORDER BY 
+        CASE period
+          WHEN 'morning' THEN 1
+          WHEN 'afternoon' THEN 2
+          WHEN 'evening' THEN 3
+          WHEN 'night' THEN 4
+        END
+    `;
+
+      const result = await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+
+      return result;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getMonthlyCategories(walletId: string, months: string[]) {
+    try {
+      const result = [];
+
+      for (const month of months) {
+        const startDate = moment(month).startOf('month').format('YYYY-MM-DD');
+        const endDate = moment(month).endOf('month').format('YYYY-MM-DD');
+
+        const query = `
+        SELECT 
+          category, 
+          SUM(amount) as total, 
+          COUNT(*) as count
+        FROM expense
+        WHERE walletId = ?
+          AND date BETWEEN ? AND ?
+          AND type = 'expense'
+          AND schedule = 0
+        GROUP BY category
+        ORDER BY total DESC
+      `;
+
+        const categories = await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+
+        result.push({
+          month: moment(month).format('MMMM YYYY'),
+          categories: categories || [],
+        });
+      }
+
+      return result;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getMonthIncomesAndExpenses(walletId: string, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+      SELECT 
+        SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
+        SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
+      FROM expense
+      WHERE walletId = ?
+        AND date BETWEEN ? AND ?
+        AND schedule = 0
+    `;
+
+      const result = await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+
+      return result && result.length > 0
+        ? {
+            income: parseFloat(result[0].income) || 0,
+            expense: parseFloat(result[0].expense) || 0,
+          }
+        : {
+            income: 0,
+            expense: 0,
+          };
+    } catch (error) {
+      return {
+        income: 0,
+        expense: 0,
+      };
+    }
+  }
+
+  async getExpensesForPeriod(walletId: string, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+      SELECT 
+        id,
+        amount,
+        description, 
+        date,
+        type,
+        category
+      FROM expense
+      WHERE walletId = ?
+        AND date BETWEEN ? AND ?
+        AND schedule = 0
+      ORDER BY date DESC
+    `;
+
+      return await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getCategoryBreakdown(walletId: string, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+      SELECT 
+        category,
+        SUM(amount) as total,
+        COUNT(*) as count,
+        AVG(amount) as average,
+        MIN(date) as first_date,
+        MAX(date) as last_date
+      FROM expense
+      WHERE walletId = ?
+        AND date BETWEEN ? AND ?
+        AND type = 'expense'
+        AND schedule = 0
+      GROUP BY category
+      ORDER BY total DESC
+    `;
+
+      return await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getMerchantSpending(walletId: string, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+      SELECT 
+        shop,
+        COUNT(*) as visit_count,
+        SUM(amount) as total_spent,
+        AVG(amount) as avg_per_visit,
+        MAX(date) as last_visit
+      FROM expense
+      WHERE walletId = ?
+        AND date BETWEEN ? AND ?
+        AND type = 'expense'
+        AND schedule = 0
+        AND shop IS NOT NULL 
+        AND shop != ''
+      GROUP BY shop
+      ORDER BY total_spent DESC
+      LIMIT 10
+    `;
+
+      return await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getExpensesByLocation(walletId: string, locationId: string, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+      SELECT 
+        id,
+        amount,
+        description,
+        date,
+        type,
+        category
+      FROM expense
+      WHERE walletId = ?
+        AND locationId = ?
+        AND date BETWEEN ? AND ?
+        AND schedule = 0
+      ORDER BY date DESC
+    `;
+
+      return await this.expenseEntity.query(query, [walletId, locationId, startDate, endDate]);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getExpensesWithSpontaneousRate(walletId: string, dateRange: [string, string]) {
+    try {
+      const [startDate, endDate] = dateRange;
+
+      const query = `
+        SELECT 
+          id,
+          amount,
+          description,
+          date,
+          type,
+          category,
+          spontaneousRate
+        FROM expense
+        WHERE walletId = ?
+          AND date BETWEEN ? AND ?
+          AND schedule = 0
+          AND spontaneousRate IS NOT NULL
+        ORDER BY date DESC
+      `;
+
+      return await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+    } catch (error) {
+      return [];
+    }
+  }
 }

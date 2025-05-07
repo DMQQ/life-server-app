@@ -1,26 +1,8 @@
-import {
-  Args,
-  Float,
-  ID,
-  Int,
-  Mutation,
-  Parent,
-  Query,
-  ResolveField,
-  Resolver,
-} from '@nestjs/graphql';
-import {
-  BadRequestException,
-  NotFoundException,
-  UseGuards,
-} from '@nestjs/common';
+import { Args, Float, ID, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
+import { BadRequestException, NotFoundException, UseGuards } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { WalletService } from './wallet.service';
-import {
-  ExpenseEntity,
-  ExpenseType,
-  WalletEntity,
-} from 'src/wallet/wallet.entity';
+import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/wallet.entity';
 import { User } from 'src/utils/decorators/User';
 import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
 import { SubscriptionService } from './subscriptions.service';
@@ -44,10 +26,7 @@ const parseDate = (dateString: string) => {
 @UseGuards(AuthGuard)
 @Resolver(() => WalletEntity)
 export class WalletResolver {
-  constructor(
-    private walletService: WalletService,
-    private subscriptionService: SubscriptionService,
-  ) {}
+  constructor(private walletService: WalletService, private subscriptionService: SubscriptionService) {}
 
   @Query((returns) => WalletEntity)
   async wallet(@User() usrId: string) {
@@ -89,9 +68,7 @@ export class WalletResolver {
     @Args('spontaneousRate', { type: () => Float, nullable: true })
     spontaneousRate: number,
   ) {
-    const parsedDate = parseDate(
-      date || new Date().toISOString().split('T')[0],
-    );
+    const parsedDate = parseDate(date || new Date().toISOString().split('T')[0]);
 
     const walletId = await this.walletService.findWalletId(usrId);
 
@@ -128,20 +105,14 @@ export class WalletResolver {
   }
 
   @Mutation(() => ID)
-  async deleteExpense(
-    @Args('id', { type: () => ID }) id: string,
-    @User() userId: string,
-  ) {
+  async deleteExpense(@Args('id', { type: () => ID }) id: string, @User() userId: string) {
     await this.walletService.deleteExpense(id, userId);
 
     return id;
   }
 
   @Mutation(() => WalletEntity)
-  async editWalletBalance(
-    @User() usrId: string,
-    @Args('amount', { type: () => Int }) amount: number,
-  ) {
+  async editWalletBalance(@User() usrId: string, @Args('amount', { type: () => Int }) amount: number) {
     return await this.walletService.editUserWalletBalance(usrId, amount);
   }
 
@@ -154,6 +125,7 @@ export class WalletResolver {
     @Args('type', { type: () => String }) type: ExpenseType,
     @Args('category', { type: () => String }) category: string,
     @Args('date') date: string,
+    @Args('spontaneousRate', { type: () => Float, nullable: true }) spontaneousRate: number,
   ) {
     const result = await this.walletService.editExpense(expenseId, usrId, {
       amount,
@@ -161,6 +133,7 @@ export class WalletResolver {
       type,
       category,
       date: new Date(date),
+      spontaneousRate: spontaneousRate ?? 0,
     });
 
     return result;
@@ -215,10 +188,7 @@ export class WalletResolver {
   }
 
   @Query(() => WalletStatisticsRange)
-  async getStatistics(
-    @User() usrId: string,
-    @Args('range', { type: () => [String, String] }) range: [string, string],
-  ) {
+  async getStatistics(@User() usrId: string, @Args('range', { type: () => [String, String] }) range: [string, string]) {
     if (range.length !== 2) {
       throw new BadRequestException('Invalid range');
     }
@@ -233,10 +203,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ExpenseEntity)
-  async refundExpense(
-    @User() user: string,
-    @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
-  ) {
+  async refundExpense(@User() user: string, @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string) {
     try {
       return this.walletService.refundExpense(user, expenseId);
     } catch (error) {
@@ -261,15 +228,11 @@ export class WalletResolver {
   }
 
   @Mutation(() => ExpenseEntity)
-  async cancelSubscription(
-    @Args('subscriptionId', { type: () => ID }) subscriptionId: string,
-  ) {
+  async cancelSubscription(@Args('subscriptionId', { type: () => ID }) subscriptionId: string) {
     try {
       await this.subscriptionService.cancelSubscription(subscriptionId);
 
-      return this.subscriptionService.getExpenseBySubscriptionId(
-        subscriptionId,
-      );
+      return this.subscriptionService.getExpenseBySubscriptionId(subscriptionId);
     } catch (error) {
       throw new BadRequestException('Subscription cancelation failed');
     }
