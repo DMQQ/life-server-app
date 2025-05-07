@@ -126,9 +126,9 @@ export class InsightsSchedulerService {
         const ampm = maxHour >= 12 ? 'PM' : 'AM';
         const timeStr = `${hour12}${ampm}`;
 
-        const messageBody = `⏰ You tend to make more purchases around ${timeStr}, spending an average of $${maxAvgAmount.toFixed(
+        const messageBody = `⏰ You tend to make more purchases around ${timeStr}, spending an average of ${maxAvgAmount.toFixed(
           2,
-        )}${topCategory ? `. Most common category: ${topCategory}` : ''}.`;
+        )}zł${topCategory ? `. Most common category: ${topCategory}` : ''}.`;
 
         const truncatedBody = messageBody.length > 178 ? messageBody.substring(0, 175) + '...' : messageBody;
 
@@ -183,7 +183,7 @@ export class InsightsSchedulerService {
         if (todayExpense > averageDaily * 2 && todayExpense >= 20) {
           const ratio = todayExpense / averageDaily;
 
-          const messageBody = `📈 $${todayExpense.toFixed(2)} spent today is ${ratio.toFixed(
+          const messageBody = `📈 ${todayExpense.toFixed(2)}zł spent today is ${ratio.toFixed(
             1,
           )}x your daily average of $${averageDaily.toFixed(2)}!`;
 

@@ -38,10 +38,7 @@ export class AlertsSchedulerService {
         if (!wallet) continue;
 
         // Get all monthly limits
-        const monthlyLimits = (await this.limitsService.limits(
-          wallet.id,
-          LimitRange.monthly,
-        )) as any;
+        const monthlyLimits = (await this.limitsService.limits(wallet.id, LimitRange.monthly)) as any;
 
         // Check for limits approaching threshold
         const daysLeftInMonth = moment().endOf('month').diff(moment(), 'days');
@@ -56,11 +53,9 @@ export class AlertsSchedulerService {
               to: user.token,
               sound: 'default',
               title: '⚠️ Budget Alert',
-              body: `💸 ${limit.category} at ${percentUsed.toFixed(
-                0,
-              )}% of monthly limit. $${remaining.toFixed(
+              body: `💸 ${limit.category} at ${percentUsed.toFixed(0)}% of monthly limit. ${remaining.toFixed(
                 2,
-              )} remaining for the next ${daysLeftInMonth} days.`,
+              )}zł remaining for the next ${daysLeftInMonth} days.`,
             });
             break; // Only send one limit alert per day
           }
@@ -68,40 +63,26 @@ export class AlertsSchedulerService {
 
         if (wallet.balance < 100) {
           try {
-            const lastMonth = moment()
-              .subtract(1, 'month')
-              .format('YYYY-MM-DD');
+            const lastMonth = moment().subtract(1, 'month').format('YYYY-MM-DD');
             const today = moment().format('YYYY-MM-DD');
             const monthRange = { from: lastMonth, to: today };
 
-            const recentExpenses = await this.expenseService.getExpenses(
-              user.userId,
-              monthRange,
-            );
-            const incomes = recentExpenses.filter(
-              (exp) => exp.type === ExpenseType.income,
-            );
+            const recentExpenses = await this.expenseService.getExpenses(user.userId, monthRange);
+            const incomes = recentExpenses.filter((exp) => exp.type === ExpenseType.income);
 
             let daysToIncome = 7; // Default assumption
             if (incomes.length > 0) {
               // Sort by date, most recent first
-              incomes.sort(
-                (a, b) => moment(b.date).valueOf() - moment(a.date).valueOf(),
-              );
+              incomes.sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf());
               const lastIncomeDate = moment(incomes[0].date);
 
               // If we have a regular monthly pattern, predict next income
               if (incomes.length >= 2) {
                 const secondLastIncomeDate = moment(incomes[1].date);
-                const daysBetweenIncomes = lastIncomeDate.diff(
-                  secondLastIncomeDate,
-                  'days',
-                );
+                const daysBetweenIncomes = lastIncomeDate.diff(secondLastIncomeDate, 'days');
                 if (daysBetweenIncomes > 20 && daysBetweenIncomes < 35) {
                   // Likely monthly income
-                  const nextPredictedIncome = lastIncomeDate
-                    .clone()
-                    .add(daysBetweenIncomes, 'days');
+                  const nextPredictedIncome = lastIncomeDate.clone().add(daysBetweenIncomes, 'days');
                   daysToIncome = nextPredictedIncome.diff(moment(), 'days');
                   if (daysToIncome < 0) daysToIncome = 7; // Fallback if prediction is in the past
                 }
@@ -112,20 +93,16 @@ export class AlertsSchedulerService {
               to: user.token,
               sound: 'default',
               title: '⚠️ Low Balance Warning',
-              body: `💰 $${wallet.balance.toFixed(
+              body: `💰 ${wallet.balance.toFixed(
                 2,
-              )} remaining. ${daysToIncome} days until next predicted income. Plan your expenses carefully!`,
+              )}zł remaining. ${daysToIncome} days until next predicted income. Plan your expenses carefully!`,
             });
           } catch (error) {
-            this.logger.error(
-              `Error processing low balance alert for user ${user.userId}: ${error.message}`,
-            );
+            this.logger.error(`Error processing low balance alert for user ${user.userId}: ${error.message}`);
           }
         }
       } catch (error) {
-        this.logger.error(
-          `Error processing budget alerts for user ${user.userId}: ${error.message}`,
-        );
+        this.logger.error(`Error processing budget alerts for user ${user.userId}: ${error.message}`);
       }
     }
 
@@ -133,9 +110,7 @@ export class AlertsSchedulerService {
       try {
         await this.notificationService.sendChunkNotifications(notifications);
       } catch (error) {
-        this.logger.error(
-          `Error sending budget alerts notifications: ${error.message}`,
-        );
+        this.logger.error(`Error sending budget alerts notifications: ${error.message}`);
       }
     }
   }
@@ -161,8 +136,7 @@ export class AlertsSchedulerService {
         const threeDaysLater = moment().add(3, 'days').toDate();
 
         // Get all subscriptions
-        const allSubscriptions =
-          await this.subscriptionService.getAllSubscriptions();
+        const allSubscriptions = await this.subscriptionService.getAllSubscriptions();
 
         // Filter subscriptions for this user's wallet with upcoming billing
         const upcomingSubscriptions = allSubscriptions.filter(
@@ -175,28 +149,17 @@ export class AlertsSchedulerService {
 
         for (const subscription of upcomingSubscriptions) {
           try {
-            const daysUntilCharge = moment(subscription.nextBillingDate).diff(
-              moment(),
-              'days',
-            );
+            const daysUntilCharge = moment(subscription.nextBillingDate).diff(moment(), 'days');
             const dayText =
-              daysUntilCharge === 0
-                ? 'today'
-                : daysUntilCharge === 1
-                ? 'tomorrow'
-                : `in ${daysUntilCharge} days`;
+              daysUntilCharge === 0 ? 'today' : daysUntilCharge === 1 ? 'tomorrow' : `in ${daysUntilCharge} days`;
 
             notifications.push({
               to: user.token,
               sound: 'default',
               title: '📆 Subscription Reminder',
-              body: `🔄 ${
-                subscription.description
-              } - $${subscription.amount.toFixed(
+              body: `🔄 ${subscription.description} - $${subscription.amount.toFixed(
                 2,
-              )} will be charged ${dayText}. Current balance: $${wallet.balance.toFixed(
-                2,
-              )}.`,
+              )} will be charged ${dayText}. Current balance: ${wallet.balance.toFixed(2)}zł.`,
             });
           } catch (error) {
             this.logger.error(
@@ -205,9 +168,7 @@ export class AlertsSchedulerService {
           }
         }
       } catch (error) {
-        this.logger.error(
-          `Error processing subscription reminders for user ${user.userId}: ${error.message}`,
-        );
+        this.logger.error(`Error processing subscription reminders for user ${user.userId}: ${error.message}`);
       }
     }
 
@@ -215,9 +176,7 @@ export class AlertsSchedulerService {
       try {
         await this.notificationService.sendChunkNotifications(notifications);
       } catch (error) {
-        this.logger.error(
-          `Error sending subscription reminder notifications: ${error.message}`,
-        );
+        this.logger.error(`Error sending subscription reminder notifications: ${error.message}`);
       }
     }
   }
