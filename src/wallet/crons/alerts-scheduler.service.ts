@@ -157,9 +157,9 @@ export class AlertsSchedulerService {
               to: user.token,
               sound: 'default',
               title: '📆 Subscription Reminder',
-              body: `🔄 ${subscription.description} - $${subscription.amount.toFixed(
+              body: `🔄 ${subscription.description} - ${subscription.amount.toFixed(
                 2,
-              )} will be charged ${dayText}. Current balance: ${wallet.balance.toFixed(2)}zł.`,
+              )}zł will be charged ${dayText}. Current balance: ${wallet.balance.toFixed(2)}zł.`,
             });
           } catch (error) {
             this.logger.error(

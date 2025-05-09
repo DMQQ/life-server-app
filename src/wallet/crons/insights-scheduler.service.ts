@@ -649,14 +649,14 @@ export class InsightsSchedulerService {
 
         const useCases = [
           `That could be a weekend getaway every year!`,
-          `Invest that and it's $${Math.round(tenYearWithGrowth)} in 10 years!`,
+          `Invest that and it's ${Math.round(tenYearWithGrowth)}zł in 10 years!`,
           `That's a new smartphone every year with no budget impact!`,
           `Stash that away and you've got an emergency fund building!`,
           `Put that toward retirement and future you will be thankful!`,
           `That's a monthly subscription to something you'd really enjoy!`,
           `Save that for a year and treat yourself to something amazing!`,
           `That's a nice dinner out every month without affecting your budget!`,
-          `In 5 years, that's $${Math.round(fiveYearSavings)} for a big life upgrade!`,
+          `In 5 years, that's ${Math.round(fiveYearSavings)}zł for a big life upgrade!`,
           `Small changes, big results - that's how wealth builds!`,
         ];
 
@@ -665,7 +665,7 @@ export class InsightsSchedulerService {
 
         const messageBody = `${intros[introIndex]} Cutting ${
           targetCategory.category
-        } by ${reductionPercent}% saves $${monthlySavings.toFixed(0)}/month or $${yearlySavings.toFixed(0)}/year. ${
+        } by ${reductionPercent}% saves ${monthlySavings.toFixed(0)}zł/month or ${yearlySavings.toFixed(0)}zł/year. ${
           useCases[useCaseIndex]
         }`;
 
@@ -793,13 +793,13 @@ export class InsightsSchedulerService {
           if (isWeekend) {
             messageBody = `🎉 Weekend spending: You can spend ${canSpendToday.toFixed(
               2,
-            )}zł today. Weekly: $${remainingWeeklyBudget.toFixed(2)}, Monthly: ${remainingMonthlyBudget.toFixed(
+            )}zł today. Weekly: ${remainingWeeklyBudget.toFixed(2)}zł, Monthly: ${remainingMonthlyBudget.toFixed(
               2,
             )}zł remaining.`;
           } else {
-            messageBody = `💰 You can spend $${canSpendToday.toFixed(
+            messageBody = `💰 You can spend ${canSpendToday.toFixed(
               2,
-            )} today to stay on ${constraint} budget. Weekly: ${remainingWeeklyBudget.toFixed(
+            )}zł today to stay on ${constraint} budget. Weekly: ${remainingWeeklyBudget.toFixed(
               2,
             )}zł, Monthly: ${remainingMonthlyBudget.toFixed(2)}zł left.`;
           }
@@ -899,13 +899,13 @@ export class InsightsSchedulerService {
         if (spontaneousPercentage >= 30) {
           messageBody = `🛍️ ${spontaneousPercentage.toFixed(
             0,
-          )}% of your spending is spontaneous! Reducing impulse buys could save $${potentialYearlySavings.toFixed(
+          )}% of your spending is spontaneous! Reducing impulse buys could save ${potentialYearlySavings.toFixed(
             0,
-          )}/year. Most common: ${topCategory}.`;
+          )}zł/year. Most common: ${topCategory}.`;
         } else {
-          messageBody = `💭 Impulse purchases in ${topCategory} totaled $${topCategoryAmount.toFixed(
+          messageBody = `💭 Impulse purchases in ${topCategory} totaled ${topCategoryAmount.toFixed(
             2,
-          )} last month. Cutting back could save $${potentialYearlySavings.toFixed(0)}/year.`;
+          )}zł last month. Cutting back could save ${potentialYearlySavings.toFixed(0)}zł/year.`;
         }
 
         if (totalReduction >= 15) {
