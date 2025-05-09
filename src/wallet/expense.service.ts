@@ -581,4 +581,41 @@ export class ExpenseService {
       return [];
     }
   }
+
+  async getDailyTotal(walletId: string, date: string): Promise<number> {
+    try {
+      const startDate = moment(date).startOf('day').format('YYYY-MM-DD HH:MM:ss');
+      const endDate = moment(date).endOf('day').format('YYYY-MM-DD HH:MM:ss');
+
+      const query = `
+        SELECT 
+          SUM(amount) as daily_total
+        FROM expense
+        WHERE walletId = ?
+          AND date BETWEEN ? AND ?
+          AND type = 'expense'
+          AND schedule = 0
+      `;
+
+      const result = await this.expenseEntity.query(query, [walletId, startDate, endDate]);
+
+      return result && result.length > 0 && result[0].daily_total ? parseFloat(result[0].daily_total) : 0;
+    } catch (error) {
+      console.error(`Error getting daily total for ${date}:`, error.message);
+      return 0;
+    }
+  }
+
+  async getRoundUp(userId: string, range: { from: string; to: string }) {
+    const walletId = (await this.walletRepository.findOne({ where: { userId } })).id;
+
+    return this.expenseEntity
+      .createQueryBuilder('expense')
+      .where('expense.walletId = :walletId', { walletId })
+      .andWhere('expense.date BETWEEN :from AND :to', {
+        from: moment(range.from).startOf('day').toDate(),
+        to: moment(range.to).endOf('day').toDate(),
+      })
+      .getMany();
+  }
 }

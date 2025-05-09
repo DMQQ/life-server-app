@@ -7,6 +7,7 @@ import { ExpoPushMessage } from 'expo-server-sdk';
 import { ExpenseType, LimitRange } from '../wallet.entity';
 import * as moment from 'moment';
 import { LimitsService } from '../limits.service';
+import { SubscriptionService } from '../subscriptions.service';
 
 @Injectable()
 export class InsightsSchedulerService {
@@ -18,6 +19,8 @@ export class InsightsSchedulerService {
     private expenseService: ExpenseService,
 
     private limitsService: LimitsService,
+
+    private subscriptionSerivce: SubscriptionService,
   ) {}
 
   @Cron('0 20 * * *', {
@@ -923,6 +926,166 @@ export class InsightsSchedulerService {
           `Error processing spontaneous purchase analysis for user ${user.userId}: ${error.message}`,
           error.stack,
         );
+      }
+    }
+  }
+
+  @Cron('0 7 * * *', {
+    // Daily at 7 AM
+    timeZone: 'Europe/Warsaw',
+  })
+  async zeroSpendDayChallenge() {
+    this.logger.log('Running zero spend day challenge');
+    const users = await this.notificationService.findAll();
+
+    for (const user of users) {
+      try {
+        if (!user.token || user.isEnable === false) continue;
+
+        const walletId = await this.walletService.getWalletId(user.userId);
+        if (!walletId) continue;
+
+        const today = moment().format('YYYY-MM-DD');
+        const subscriptionsDueToday = await this.subscriptionSerivce.getSubscriptionsDueOn(walletId, today);
+
+        if (subscriptionsDueToday.length > 0) continue;
+
+        const lastFiveDays = [];
+        for (let i = 1; i <= 5; i++) {
+          const date = moment().subtract(i, 'days').format('YYYY-MM-DD');
+          const dayExpenses = await this.expenseService.getDailyTotal(walletId, date);
+          lastFiveDays.push({ date, total: dayExpenses });
+        }
+
+        let consecutiveSpendingDays = 0;
+        for (const day of lastFiveDays) {
+          if (day.total > 0) {
+            consecutiveSpendingDays++;
+          } else {
+            break;
+          }
+        }
+
+        if (consecutiveSpendingDays >= 3) {
+          const avgDailySpend =
+            lastFiveDays.slice(0, consecutiveSpendingDays).reduce((sum, day) => sum + day.total, 0) /
+            consecutiveSpendingDays;
+
+          await this.notificationService.sendChunkNotifications([
+            {
+              to: user.token,
+              sound: 'default',
+              title: '💰 Zero Spend Challenge',
+              body: `You've spent money ${consecutiveSpendingDays} days in a row. Take the zero-spend challenge today to save ~${avgDailySpend.toFixed(
+                0,
+              )}zł! Small breaks add up to big savings.`,
+              data: {
+                type: 'zeroSpendChallenge',
+                avgAmount: avgDailySpend,
+              },
+            },
+          ]);
+        }
+      } catch (error) {
+        this.logger.error(`Error processing zero spend challenge for user ${user.userId}: ${error.message}`);
+      }
+    }
+  }
+
+  @Cron('0 18 * * 5', {
+    // Every Friday at 6 PM
+    timeZone: 'Europe/Warsaw',
+  })
+  async roundUpSavingsOpportunity() {
+    this.logger.log('Running round-up savings opportunity');
+    const users = await this.notificationService.findAll();
+
+    for (const user of users) {
+      try {
+        if (!user.token || user.isEnable === false) continue;
+
+        let walletId = null;
+        try {
+          walletId = await this.walletService.getWalletId(user.userId);
+          this.logger.debug(`Retrieved walletId: ${walletId} for userId: ${user.userId}`);
+
+          if (!walletId) {
+            this.logger.warn(`No wallet found for user ${user.userId}`);
+            continue;
+          }
+        } catch (error) {
+          this.logger.error(`Error getting walletId: ${error.message}`);
+          continue;
+        }
+
+        const weekStart = moment().startOf('week').format('YYYY-MM-DD');
+        const today = moment().format('YYYY-MM-DD');
+
+        let transactions = [];
+        try {
+          const result = await this.expenseService.getRoundUp(user.userId, { from: weekStart, to: today });
+
+          if (Array.isArray(result)) {
+            transactions = result;
+          } else if (result && typeof result === 'object' && Array.isArray(result)) {
+            transactions = result;
+          } else {
+            this.logger.warn(`Unexpected transactions result format for user ${user.userId}`);
+            transactions = [];
+          }
+
+          this.logger.debug(`Retrieved ${transactions.length} transactions for user ${user.userId}`);
+        } catch (error) {
+          this.logger.error(`Error retrieving transactions: ${error.message}`);
+          transactions = [];
+        }
+
+        let roundUpTotal = 0;
+        let transactionCount = 0;
+
+        for (const transaction of transactions) {
+          if (transaction.type !== 'expense') continue;
+
+          const amount =
+            typeof transaction.amount === 'string' ? parseFloat(transaction.amount) : Number(transaction.amount);
+
+          if (isNaN(amount) || amount <= 0) continue;
+
+          const roundUpAmount = Math.ceil(amount) - amount;
+
+          if (roundUpAmount > 0) {
+            roundUpTotal += roundUpAmount;
+            transactionCount++;
+          }
+        }
+
+        if (roundUpTotal >= 5 && transactionCount >= 3) {
+          const annualSavings = roundUpTotal * 52;
+
+          try {
+            await this.notificationService.sendChunkNotifications([
+              {
+                to: user.token,
+                sound: 'default',
+                title: '💰 Round-Up Savings Opportunity',
+                body: `By rounding up your ${transactionCount} transactions this week, you could have saved ${roundUpTotal.toFixed(
+                  2,
+                )}zł. That's ${annualSavings.toFixed(0)}zł per year! Enable automatic round-up savings?`,
+                data: {
+                  type: 'roundUpSavings',
+                  weeklyAmount: roundUpTotal,
+                  transactionCount: transactionCount,
+                },
+              },
+            ]);
+
+            this.logger.log(`Sent round-up opportunity notification to user ${user.userId}`);
+          } catch (error) {
+            this.logger.error(`Error sending notification: ${error.message}`);
+          }
+        }
+      } catch (error) {
+        this.logger.error(`Error processing round-up opportunity for user ${user.userId}: ${error.message}`);
       }
     }
   }

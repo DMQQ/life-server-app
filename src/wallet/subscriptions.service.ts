@@ -16,9 +16,7 @@ export class SubscriptionService {
   ) {}
 
   async insert(subscription: Partial<SubscriptionEntity>) {
-    subscription.nextBillingDate = this.formatDate(
-      subscription.nextBillingDate,
-    );
+    subscription.nextBillingDate = this.formatDate(subscription.nextBillingDate);
     subscription.dateStart = this.formatDate(subscription.dateStart);
     return await this.subscriptionRepository.save(subscription);
   }
@@ -52,10 +50,7 @@ export class SubscriptionService {
     });
   }
 
-  getNextBillingDate(subscription: {
-    billingCycle: BillingCycleEnum;
-    nextBillingDate: Date;
-  }) {
+  getNextBillingDate(subscription: { billingCycle: BillingCycleEnum; nextBillingDate: Date }) {
     switch (subscription.billingCycle) {
       case BillingCycleEnum.MONTHLY:
         return moment(subscription.nextBillingDate).add(1, 'month').toDate();
@@ -69,47 +64,34 @@ export class SubscriptionService {
   }
 
   async setNextBillingDate(subscription: SubscriptionEntity) {
-    subscription.nextBillingDate = this.formatDate(
-      await this.getNextBillingDate(subscription),
-    );
+    subscription.nextBillingDate = this.formatDate(await this.getNextBillingDate(subscription));
     return await this.subscriptionRepository.save(subscription);
   }
 
   formatDate(date: Date) {
-    const formattedDate = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      0,
-      0,
-      0,
-      0,
-    );
+    const formattedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
 
     return formattedDate;
   }
 
-  getBillingCycleString(
-    nextBillingDate: string | Date,
-    billingCycle: BillingCycleEnum,
-  ) {
+  getBillingCycleString(nextBillingDate: string | Date, billingCycle: BillingCycleEnum) {
     switch (billingCycle) {
       case BillingCycleEnum.MONTHLY:
-        return `${moment(nextBillingDate)
-          .subtract(30, 'days')
-          .format('MM-DD')}-${moment(nextBillingDate).format('MM-DD')}`;
+        return `${moment(nextBillingDate).subtract(30, 'days').format('MM-DD')}-${moment(nextBillingDate).format(
+          'MM-DD',
+        )}`;
       case BillingCycleEnum.WEEKLY:
-        return `${moment(nextBillingDate)
-          .subtract(7, 'days')
-          .format('MM-DD')}-${moment(nextBillingDate).format('MM-DD')}`;
+        return `${moment(nextBillingDate).subtract(7, 'days').format('MM-DD')}-${moment(nextBillingDate).format(
+          'MM-DD',
+        )}`;
       case BillingCycleEnum.DAILY:
-        return `${moment(nextBillingDate)
-          .subtract(1, 'days')
-          .format('MM-DD')}-${moment(nextBillingDate).format('MM-DD')}`;
+        return `${moment(nextBillingDate).subtract(1, 'days').format('MM-DD')}-${moment(nextBillingDate).format(
+          'MM-DD',
+        )}`;
       case BillingCycleEnum.YEARLY:
-        return `${moment(nextBillingDate)
-          .subtract(365, 'days')
-          .format('YYYY-MM')}-${moment(nextBillingDate).format('YYYY-MM')}`;
+        return `${moment(nextBillingDate).subtract(365, 'days').format('YYYY-MM')}-${moment(nextBillingDate).format(
+          'YYYY-MM',
+        )}`;
       default:
         throw new Error('Invalid billing cycle');
     }
@@ -122,10 +104,7 @@ export class SubscriptionService {
   }
 
   async enableSubscription(subscriptionId: string) {
-    await this.subscriptionRepository.update(
-      { id: subscriptionId },
-      { isActive: true },
-    );
+    await this.subscriptionRepository.update({ id: subscriptionId }, { isActive: true });
     return this.subscriptionRepository.findOne({
       where: { id: subscriptionId },
     });
@@ -140,10 +119,7 @@ export class SubscriptionService {
   }
 
   assignSubscription(expenseId: string, subscriptionId: string) {
-    return this.expenseRepository.update(
-      { id: expenseId },
-      { subscriptionId: subscriptionId },
-    );
+    return this.expenseRepository.update({ id: expenseId }, { subscriptionId: subscriptionId });
   }
 
   hasSubscription(expenseId: string) {
@@ -183,6 +159,25 @@ export class SubscriptionService {
       await this.assignSubscription(expenseId, sub.id);
     } else {
       await this.enableSubscription(expense.subscriptionId);
+    }
+  }
+
+  async getSubscriptionsDueOn(walletId: string, date: string): Promise<SubscriptionEntity[]> {
+    try {
+      const formattedDate = this.formatDate(new Date(date));
+
+      const subscriptions = await this.subscriptionRepository.find({
+        where: {
+          walletId,
+          nextBillingDate: formattedDate,
+          isActive: true,
+        },
+      });
+
+      return subscriptions;
+    } catch (error) {
+      console.error(`Error getting subscriptions due on ${date}:`, error.message);
+      return [];
     }
   }
 }
