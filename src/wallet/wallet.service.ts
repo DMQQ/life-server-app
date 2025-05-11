@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  ExpenseEntity,
-  ExpenseType,
-  WalletEntity,
-} from 'src/wallet/wallet.entity';
+import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/wallet.entity';
 import { Between, Repository } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
 import * as moment from 'moment';
@@ -22,13 +18,7 @@ export class WalletService {
   async getWalletIdByUserId(userId: string) {
     return this.walletRepository.findOne({
       where: { userId },
-      relations: [
-        'expenses',
-        'expenses.subscription',
-        'expenses.files',
-        'expenses.location',
-        'expenses.subexpenses',
-      ],
+      relations: ['expenses', 'expenses.subscription', 'expenses.files', 'expenses.location', 'expenses.subexpenses'],
     });
   }
 
@@ -82,10 +72,7 @@ export class WalletService {
       pagination: { skip: number; take: number };
     },
   ) {
-    const titleWords = (settings?.where?.title || '')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
+    const titleWords = (settings?.where?.title || '').trim().split(/\s+/).filter(Boolean);
 
     const expensesQuery = this.expenseRepository
       .createQueryBuilder('e')
@@ -96,9 +83,7 @@ export class WalletService {
       .where('e.walletId = :walletId', { walletId: walletId });
 
     if (titleWords.length > 0) {
-      const titleConditions = titleWords
-        .map((word, index) => `e.description LIKE :word${index}`)
-        .join(' OR ');
+      const titleConditions = titleWords.map((word, index) => `e.description LIKE :word${index}`).join(' OR ');
 
       expensesQuery.andWhere(
         `(${titleConditions})`,
@@ -197,10 +182,7 @@ export class WalletService {
   }
 
   // Update the createSubscriptionExpense method to use subscriptionId
-  async createSubscriptionExpense(
-    walletId: string,
-    expense: Partial<ExpenseEntity>,
-  ) {
+  async createSubscriptionExpense(walletId: string, expense: Partial<ExpenseEntity>) {
     const wallet = await this.walletRepository.findOne({
       where: { id: walletId },
     });
@@ -209,15 +191,11 @@ export class WalletService {
       ...expense,
       walletId: walletId,
       //@ts-ignore
-      subscriptionId: expense.subscription,
+      subscriptionId: expense.subscription?.id,
       balanceBeforeInteraction: wallet?.balance as number,
     });
 
-    await this._updateWalletBalance(
-      wallet.userId,
-      expense.amount,
-      ExpenseType.expense,
-    );
+    await this._updateWalletBalance(wallet.userId, expense.amount, ExpenseType.expense);
 
     return this.expenseRepository.findOne({
       where: { id: insert.identifiers[0].id },
@@ -245,9 +223,7 @@ export class WalletService {
         const updateResult = await this._updateWalletBalance(
           userId,
           amount,
-          type === ExpenseType.expense
-            ? ExpenseType.income
-            : ExpenseType.expense,
+          type === ExpenseType.expense ? ExpenseType.income : ExpenseType.expense,
         );
 
         return updateResult.affected > 0;
@@ -255,18 +231,11 @@ export class WalletService {
     }
   }
 
-  private async _updateWalletBalance(
-    userId: string,
-    amount: number,
-    type: ExpenseType,
-  ) {
+  private async _updateWalletBalance(userId: string, amount: number, type: ExpenseType) {
     return this.walletRepository.update(
       { userId },
       {
-        balance: () =>
-          type === ExpenseType.expense
-            ? `balance - ${amount}`
-            : `balance + ${amount}`,
+        balance: () => (type === ExpenseType.expense ? `balance - ${amount}` : `balance + ${amount}`),
       },
     );
   }
@@ -313,27 +282,18 @@ export class WalletService {
       where: { id: expenseId },
     });
 
-    if (typeof wallet === 'undefined' || wallet == null)
-      throw new Error('Expense doesnt exist');
+    if (typeof wallet === 'undefined' || wallet == null) throw new Error('Expense doesnt exist');
 
     let balance = wallet.balance;
     let originalBalance = wallet.balance;
 
     if (incoming.type === ExpenseType.refunded) {
-      balance =
-        exisitng.type === 'income'
-          ? wallet.balance - exisitng.amount
-          : wallet.balance + exisitng.amount;
+      balance = exisitng.type === 'income' ? wallet.balance - exisitng.amount : wallet.balance + exisitng.amount;
     } else {
       originalBalance =
-        exisitng.type === 'income'
-          ? wallet.balance - exisitng.amount
-          : wallet.balance + exisitng.amount; // restoring balance to state without this expense
+        exisitng.type === 'income' ? wallet.balance - exisitng.amount : wallet.balance + exisitng.amount; // restoring balance to state without this expense
 
-      balance =
-        incoming.type === 'income'
-          ? originalBalance + incoming.amount
-          : originalBalance - incoming.amount; // operating on old balance to create new with new expense
+      balance = incoming.type === 'income' ? originalBalance + incoming.amount : originalBalance - incoming.amount; // operating on old balance to create new with new expense
     }
 
     await this.walletRepository.update(
@@ -356,12 +316,7 @@ export class WalletService {
     return await this.expenseRepository.findOne({ where: { id: expenseId } });
   }
 
-  async getMonthTotalByType(
-    type: 'income' | 'expense',
-    userId: string,
-    month: number,
-    year: number,
-  ) {
+  async getMonthTotalByType(type: 'income' | 'expense', userId: string, month: number, year: number) {
     const date = new Date(year, month, 1);
 
     const expenses = await this.expenseRepository.query(
@@ -376,10 +331,7 @@ export class WalletService {
     return expenses[0].total;
   }
 
-  async getStatistics(
-    userId: string,
-    dateRange: [string, string],
-  ): Promise<[WalletStatisticsRange]> {
+  async getStatistics(userId: string, dateRange: [string, string]): Promise<[WalletStatisticsRange]> {
     const [startDate, endDate] = dateRange;
 
     console.log(userId);
@@ -448,8 +400,7 @@ export class WalletService {
   }
 
   async refundExpense(userId: string, expenseId: string) {
-    if (userId === '' || expenseId === '')
-      throw new Error('Invalid args provided to refundExpense');
+    if (userId === '' || expenseId === '') throw new Error('Invalid args provided to refundExpense');
 
     try {
       // revert the balance
@@ -458,9 +409,7 @@ export class WalletService {
           where: { id: expenseId },
         });
         expense.type = ExpenseType.refunded;
-        expense.note = `Refunded at ${moment().format('YYYY MM DD HH:MM')} \n ${
-          expense.note ?? ''
-        }`;
+        expense.note = `Refunded at ${moment().format('YYYY MM DD HH:MM')} \n ${expense.note ?? ''}`;
         await this.editExpense(expenseId, userId, expense);
       });
 
