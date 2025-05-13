@@ -29,10 +29,9 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
 
   private limitsService: LimitsService;
 
-  //   @Cron('0 8 * * *', {
-  //     timeZone: 'Europe/Warsaw',
-  //   })
-  @Interval(10_000)
+  @Cron('0 8 * * *', {
+    timeZone: 'Europe/Warsaw',
+  })
   async moneyLeftToday() {
     this.logger.log('Running Money Left Today notifications');
     const users = await this.notificationService.findAll();
