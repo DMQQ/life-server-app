@@ -21,6 +21,7 @@ import { TransactionSchedulerService } from './crons/transaction-scheduler.servi
 import { InsightsSchedulerService } from './crons/insights-scheduler.service';
 import { AlertsSchedulerService } from './crons/alerts-scheduler.service';
 import { ExpenseAnalysisService } from './crons/expense-analysis.service';
+import { MoneyLeftSchedulerService } from './crons/money-left.service';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { ExpenseAnalysisService } from './crons/expense-analysis.service';
     InsightsSchedulerService,
     AlertsSchedulerService,
     ExpenseAnalysisService,
+    MoneyLeftSchedulerService,
   ],
 })
 export class WalletModule {}
