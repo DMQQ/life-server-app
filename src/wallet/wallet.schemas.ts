@@ -34,6 +34,9 @@ export class GetWalletFilters {
 
   @Field(() => String, { nullable: true })
   type: 'income' | 'expense';
+
+  @Field(() => Boolean, { nullable: true })
+  isExactCategory?: boolean;
 }
 
 @ObjectType()

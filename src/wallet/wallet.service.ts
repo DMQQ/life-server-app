@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/wallet.entity';
-import { Between, Repository } from 'typeorm';
+import { Between, Brackets, Repository } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
 import * as moment from 'moment';
 
@@ -70,6 +70,7 @@ export class WalletService {
     settings?: {
       where: GetWalletFilters;
       pagination: { skip: number; take: number };
+      isExactCategory?: boolean;
     },
   ) {
     const titleWords = (settings?.where?.title || '').trim().split(/\s+/).filter(Boolean);
@@ -110,16 +111,28 @@ export class WalletService {
       })
       .andWhere('e.schedule = :schedule', { schedule: false });
 
-    if (settings?.where?.category.length > 0) {
-      expensesQuery.andWhere('e.category IN(:...category)', {
-        category: settings?.where?.category,
-      });
+    if (settings?.where?.category.length > 0 && !settings?.isExactCategory) {
+      const categories = settings?.where?.category?.map((m) => m.split(':').shift());
+
+      // expensesQuery.andWhere(
+      //   new Brackets((qb) => {
+      //     categories.forEach((category, index) => {
+      //       qb.orWhere(`e.category LIKE :category${index}`, {
+      //         ['category' + index]: `%${category}%`,
+      //       });
+      //     });
+      //   }),
+      // );
+      expensesQuery.andWhere('e.category IN (...:category)', { category: settings.where.category });
+    } else if (settings?.isExactCategory && settings?.where?.category?.length === 1) {
+      expensesQuery.andWhere('e.category = :category', { category: settings?.where?.category?.shift() });
     }
 
     const expenses = await expensesQuery
       .orderBy('e.date', 'DESC')
       .skip(settings?.pagination.skip || 0)
       .take(settings?.pagination.take || 10)
+      .cache(true)
       .getMany();
 
     return expenses;
@@ -334,9 +347,6 @@ export class WalletService {
   async getStatistics(userId: string, dateRange: [string, string]): Promise<[WalletStatisticsRange]> {
     const [startDate, endDate] = dateRange;
 
-    console.log(userId);
-
-    // Query database
     return this.expenseRepository.query(
       `
       WITH walletId AS (
@@ -348,8 +358,8 @@ export class WalletService {
         COALESCE(MAX(e.amount), 0) AS max,
         COALESCE(MIN(e.amount), 0) AS min,
         COALESCE(COUNT(*), 0) AS count,
-        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) AND date >= ? AND date <= ? AND schedule = 0 GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) AS theMostCommonCategory,
-        (SELECT category FROM expense WHERE walletId = (SELECT id FROM walletId) AND date >= ? AND date <= ? AND schedule = 0 GROUP BY category ORDER BY COUNT(*) ASC LIMIT 1) AS theLeastCommonCategory,
+        (SELECT SUBSTRING_INDEX(category, ':', 1) as category FROM expense WHERE walletId = (SELECT id FROM walletId) AND date >= ? AND date <= ? AND schedule = 0 GROUP BY SUBSTRING_INDEX(category, ':', 1) ORDER BY COUNT(*) DESC LIMIT 1) AS theMostCommonCategory,
+        (SELECT SUBSTRING_INDEX(category, ':', 1) as category FROM expense WHERE walletId = (SELECT id FROM walletId) AND date >= ? AND date <= ? AND schedule = 0 GROUP BY SUBSTRING_INDEX(category, ':', 1) ORDER BY COUNT(*) ASC LIMIT 1) AS theLeastCommonCategory,
         COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'income' AND date >= ? AND date <= ? AND schedule = 0), 0) AS income,
         COALESCE((SELECT SUM(amount) FROM expense WHERE walletId = (SELECT id FROM walletId) AND type = 'expense' AND date >= ? AND date <= ? AND schedule = 0), 0) AS expense,
         (SELECT balance FROM wallet WHERE userId = ?) AS lastBalance

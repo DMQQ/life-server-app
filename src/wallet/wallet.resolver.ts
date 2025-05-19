@@ -46,6 +46,7 @@ export class WalletResolver {
     return this.walletService.getExpensesByWalletId(wallet.id, {
       pagination: { skip, take },
       where: filters,
+      isExactCategory: filters?.isExactCategory,
     });
   }
 
