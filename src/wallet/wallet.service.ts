@@ -123,7 +123,7 @@ export class WalletService {
       //     });
       //   }),
       // );
-      expensesQuery.andWhere('e.category IN (...:category)', { category: settings.where.category });
+      expensesQuery.andWhere('e.category IN (:...category)', { category: settings.where.category });
     } else if (settings?.isExactCategory && settings?.where?.category?.length === 1) {
       expensesQuery.andWhere('e.category = :category', { category: settings?.where?.category?.shift() });
     }
