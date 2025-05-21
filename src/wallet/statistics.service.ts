@@ -32,9 +32,12 @@ export class StatisticsService {
 
     const grandTotal = parseFloat(grandTotalResult.grandTotal) || 0;
 
+    const categoryExpression =
+      displayMode === 'general' ? 'SUBSTRING_INDEX(expense.category, ":", 1)' : 'expense.category';
+
     const query = this.expenseEntity
       .createQueryBuilder('expense')
-      .select(displayMode === 'general' ? 'SUBSTRING_INDEX(expense.category, ":", 1)' : 'expense.category', 'category')
+      .select(categoryExpression, 'category')
       .addSelect('COUNT(expense.amount)', 'count')
       .addSelect('SUM(expense.amount)', 'total')
       .addSelect('ROUND((SUM(expense.amount) / :grandTotal) * 100, 2)', 'percentage')
@@ -42,7 +45,7 @@ export class StatisticsService {
       .andWhere('expense.date BETWEEN :startDate AND :endDate', { startDate, endDate })
       .andWhere("expense.type = 'expense'")
       .setParameter('grandTotal', grandTotal)
-      .groupBy('category')
+      .groupBy(categoryExpression)
       .orderBy('total', 'DESC');
 
     return query.getRawMany();
