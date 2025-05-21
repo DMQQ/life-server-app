@@ -71,3 +71,18 @@ export class WalletStatisticsRange {
   @Field(() => Float, { nullable: true })
   expense: number;
 }
+
+@ObjectType()
+export class StatisticsLegend {
+  @Field(() => String)
+  category: string;
+
+  @Field(() => String)
+  count: string;
+
+  @Field(() => Float)
+  total: number;
+
+  @Field(() => Float)
+  percentage: number;
+}
