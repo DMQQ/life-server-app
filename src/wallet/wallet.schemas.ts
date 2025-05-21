@@ -1,4 +1,5 @@
 import { Field, Float, InputType, ObjectType } from '@nestjs/graphql';
+import { ExpenseType } from './wallet.entity';
 
 @InputType()
 export class RangeDate {
@@ -85,4 +86,28 @@ export class StatisticsLegend {
 
   @Field(() => Float)
   percentage: number;
+}
+
+@ObjectType()
+export class ExpensePredictionType {
+  @Field()
+  description: string;
+
+  @Field(() => Float)
+  amount: number;
+
+  @Field()
+  category: string;
+
+  @Field()
+  type: ExpenseType;
+
+  @Field({ nullable: true })
+  shop?: string;
+
+  @Field({ nullable: true })
+  locationId?: string;
+
+  @Field(() => Float)
+  confidence: number;
 }

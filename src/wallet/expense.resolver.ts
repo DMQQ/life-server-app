@@ -12,15 +12,13 @@ import {
   ObjectType,
   Int,
 } from '@nestjs/graphql';
-import {
-  ExpenseEntity,
-  ExpenseLocationEntity,
-  ExpenseSubExpense,
-} from './wallet.entity';
+import { ExpenseEntity, ExpenseLocationEntity, ExpenseSubExpense } from './wallet.entity';
 import { SubscriptionService } from './subscriptions.service';
 import { SubscriptionEntity } from './subscription.entity';
 import { ExpenseService } from './expense.service';
 import { User } from 'src/utils/decorators/User';
+import { ExpensePredictionType } from './wallet.schemas';
+import { ExpensePredictionService } from './expense-prediction.service';
 
 @InputType()
 class CreateLocationDto {
@@ -129,12 +127,12 @@ export class ExpenseResolver {
   constructor(
     private subscriptionService: SubscriptionService,
     private expenseService: ExpenseService,
+
+    private expensePredictionService: ExpensePredictionService,
   ) {}
 
   @Query(() => ExpenseEntity)
-  expense(
-    @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
-  ) {
+  expense(@Args('expenseId', { type: () => ID, nullable: false }) expenseId: string) {
     return this.expenseService.getOne(expenseId);
   }
 
@@ -147,9 +145,7 @@ export class ExpenseResolver {
     }
 
     try {
-      const subscription = await this.subscriptionService.getSubscriptionById(
-        subscriptionId,
-      );
+      const subscription = await this.subscriptionService.getSubscriptionById(subscriptionId);
 
       return subscription;
     } catch (error) {
@@ -183,10 +179,7 @@ export class ExpenseResolver {
     @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
     @Args('locationId', { type: () => ID, nullable: false }) locationId: string,
   ) {
-    return !!(
-      (await this.expenseService.addExpenseLocation(expenseId, locationId))
-        .affected > 0
-    );
+    return !!((await this.expenseService.addExpenseLocation(expenseId, locationId)).affected > 0);
   }
 
   @Mutation(() => ExpenseSubExpense)
@@ -234,9 +227,7 @@ export class ExpenseResolver {
   }
 
   @Query(() => ExpenseEntity)
-  expenseWithSubExpenses(
-    @Args('expenseId', { type: () => ID }) expenseId: string,
-  ) {
+  expenseWithSubExpenses(@Args('expenseId', { type: () => ID }) expenseId: string) {
     return this.expenseService.getExpenseWithSubExpenses(expenseId);
   }
 
@@ -246,10 +237,7 @@ export class ExpenseResolver {
     // months in date format YYYY-MM-DD
     @Args('months', { type: () => [String], nullable: false }) months: string[],
   ) {
-    const response = await this.expenseService.monthlyCategoryComparison(
-      userId,
-      months,
-    );
+    const response = await this.expenseService.monthlyCategoryComparison(userId, months);
 
     return response;
   }
@@ -260,10 +248,7 @@ export class ExpenseResolver {
     // months in date format YYYY-MM-DD
     @Args('months', { type: () => [String], nullable: false }) months: string[],
   ) {
-    const response = await this.expenseService.monthlyHeatMapSpendings(
-      userId,
-      months,
-    );
+    const response = await this.expenseService.monthlyHeatMapSpendings(userId, months);
 
     return response;
   }
@@ -273,11 +258,17 @@ export class ExpenseResolver {
     @User() userId: string,
     @Args('months', { type: () => [String], nullable: false }) months: string[],
   ) {
-    const response = await this.expenseService.hourlyHeadMapSpendings(
-      userId,
-      months,
-    );
+    const response = await this.expenseService.hourlyHeadMapSpendings(userId, months);
 
     return response;
+  }
+
+  @Query(() => ExpensePredictionType, { nullable: true })
+  async predictExpense(
+    @User() user: string,
+    @Args('input') input: string,
+    @Args('amount', { nullable: true }) amount?: number,
+  ) {
+    return this.expensePredictionService.predictExpense(user, input, amount);
   }
 }

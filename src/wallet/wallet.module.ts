@@ -24,6 +24,7 @@ import { ExpenseAnalysisService } from './crons/expense-analysis.service';
 import { MoneyLeftSchedulerService } from './crons/money-left.service';
 import { StatisticsResolver } from './statistics.resolver';
 import { StatisticsService } from './statistics.service';
+import { ExpensePredictionService } from './expense-prediction.service';
 
 @Module({
   imports: [
@@ -48,6 +49,8 @@ import { StatisticsService } from './statistics.service';
 
     StatisticsResolver,
     StatisticsService,
+
+    ExpensePredictionService,
 
     ReportSchedulerService,
     TransactionSchedulerService,

@@ -114,16 +114,16 @@ export class WalletService {
     if (settings?.where?.category.length > 0 && !settings?.isExactCategory) {
       const categories = settings?.where?.category?.map((m) => m.split(':').shift());
 
-      // expensesQuery.andWhere(
-      //   new Brackets((qb) => {
-      //     categories.forEach((category, index) => {
-      //       qb.orWhere(`e.category LIKE :category${index}`, {
-      //         ['category' + index]: `%${category}%`,
-      //       });
-      //     });
-      //   }),
-      // );
-      expensesQuery.andWhere('e.category IN (:...category)', { category: settings.where.category });
+      expensesQuery.andWhere(
+        new Brackets((qb) => {
+          categories.forEach((category, index) => {
+            qb.orWhere(`e.category LIKE :category${index}`, {
+              ['category' + index]: `%${category}%`,
+            });
+          });
+        }),
+      );
+      // expensesQuery.andWhere('e.category IN (:...category)', { category: settings.where.category });
     } else if (settings?.isExactCategory && settings?.where?.category?.length === 1) {
       expensesQuery.andWhere('e.category = :category', { category: settings?.where?.category?.shift() });
     }
