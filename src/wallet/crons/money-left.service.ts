@@ -148,13 +148,14 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
             )}zł, Monthly: ${remainingMonthlyBudget.toFixed(2)}zł left.`;
           }
         }
-
-        await this.sendSingleNotification({
+        const notification = {
           to: user.token,
           sound: 'default',
           title: "📅 Today's Budget",
           body: this.truncateNotification(messageBody),
-        });
+        } as ExpoPushMessage;
+        await this.sendSingleNotification(notification);
+        await this.notificationService.saveNotification(user.userId, notification);
       } catch (error) {
         this.logger.error(
           `Error processing money left notification for user ${user.userId}: ${error.message}`,

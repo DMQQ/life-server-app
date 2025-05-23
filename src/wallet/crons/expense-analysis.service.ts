@@ -5,6 +5,7 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { ExpenseType } from '../wallet.entity';
 import * as moment from 'moment';
 import { Cron, Interval } from '@nestjs/schedule';
+import { ExpoPushMessage } from 'expo-server-sdk';
 
 @Injectable()
 export class ExpenseAnalysisService {
@@ -36,15 +37,17 @@ export class ExpenseAnalysisService {
           continue;
         }
 
-        // Send the notification
-        await this.notificationService.sendChunkNotifications([
+        const notification = [
           {
             to: user.token,
             sound: 'default',
             title: analysisResult.title,
             body: analysisResult.body,
           },
-        ]);
+        ] as ExpoPushMessage[];
+        // Send the notification
+        await this.notificationService.sendChunkNotifications(notification);
+        this.notificationService.saveNotification(user.userId, notification[0]);
       } catch (error) {
         this.logger.error(`Error processing description analysis for user ${user.userId}: ${error.message}`);
       }

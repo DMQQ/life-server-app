@@ -83,14 +83,16 @@ export class InsightsSchedulerService extends BaseScheduler {
           messageBody = messageBody.substring(0, 175) + '...';
         }
 
-        await this.notificationService.sendChunkNotifications([
-          {
-            to: n.token,
-            sound: 'default',
-            title: '📱 Daily Finance Update',
-            body: messageBody,
-          },
-        ]);
+        const notification = {
+          to: n.token,
+          sound: 'default',
+          title: '📱 Daily Finance Update',
+          body: messageBody,
+        } as ExpoPushMessage;
+
+        await this.notificationService.sendChunkNotifications([notification]);
+
+        await this.notificationService.saveNotification(n.userId, notification);
       } catch (error) {
         console.error(`Error processing insights for user ${n.userId}:`, error);
       }
@@ -143,14 +145,15 @@ export class InsightsSchedulerService extends BaseScheduler {
 
         const truncatedBody = messageBody.length > 178 ? messageBody.substring(0, 175) + '...' : messageBody;
 
-        await this.notificationService.sendChunkNotifications([
-          {
-            to: n.token,
-            sound: 'default',
-            title: '🔍 Spending Pattern Detected',
-            body: truncatedBody,
-          },
-        ]);
+        const notification = {
+          to: n.token,
+          sound: 'default',
+          title: '🔍 Spending Pattern Detected',
+          body: truncatedBody,
+        } as ExpoPushMessage;
+
+        await this.notificationService.sendChunkNotifications([notification]);
+        await this.notificationService.saveNotification(n.userId, notification);
       } catch (error) {
         console.error(`Error processing spending patterns for user ${n.userId}:`, error);
       }
@@ -198,14 +201,15 @@ export class InsightsSchedulerService extends BaseScheduler {
             1,
           )}x your daily average of ${averageDaily.toFixed(2)}zł!`;
 
-          await this.notificationService.sendChunkNotifications([
-            {
-              to: n.token,
-              sound: 'default',
-              title: '⚠️ Unusual Spending Detected',
-              body: messageBody,
-            },
-          ]);
+          const notification = {
+            to: n.token,
+            sound: 'default',
+            title: '⚠️ Unusual Spending Detected',
+            body: messageBody,
+          } as ExpoPushMessage;
+
+          await this.notificationService.sendChunkNotifications([notification]);
+          await this.notificationService.saveNotification(n.userId, notification);
         }
       } catch (error) {
         console.error(`Error processing unusual spending alert for user ${n.userId}:`, error);
@@ -290,12 +294,15 @@ export class InsightsSchedulerService extends BaseScheduler {
             isMoreOnWeekends ? 'more' : 'less'
           } on weekends than weekdays. ${savingsTip}`;
 
-          await this.sendSingleNotification({
+          const notification = {
             to: user.token,
             sound: 'default',
             title: '💰 Spending Pattern Analysis',
             body: this.truncateNotification(messageBody),
-          });
+          } as ExpoPushMessage;
+
+          await this.sendSingleNotification(notification);
+          await this.notificationService.saveNotification(user.userId, notification);
         }
       } catch (error) {
         this.logger.error(`Error processing weekend analysis for user ${user.userId}: ${error.message}`, error.stack);
@@ -362,12 +369,15 @@ export class InsightsSchedulerService extends BaseScheduler {
             dayNames[lowestAvgDay]
           } when you spend ${percentDiff.toFixed(0)}% less. Potential yearly savings: ${annualSavings.toFixed(0)}zł.`;
 
-          await this.sendSingleNotification({
+          const notification = {
             to: user.token,
             sound: 'default',
             title: '💸 Spending Day Insight',
             body: this.truncateNotification(messageBody),
-          });
+          } as ExpoPushMessage;
+
+          await this.sendSingleNotification(notification);
+          await this.notificationService.saveNotification(user.userId, notification);
         }
       } catch (error) {
         this.logger.error(`Error processing top spending day for user ${user.userId}: ${error.message}`, error.stack);
@@ -451,12 +461,14 @@ export class InsightsSchedulerService extends BaseScheduler {
         }
 
         if (messageBody) {
-          await this.sendSingleNotification({
+          const notification = {
             to: user.token,
             sound: 'default',
             title: '📆 Monthly Category Report',
             body: this.truncateNotification(messageBody),
-          });
+          } as ExpoPushMessage;
+          await this.sendSingleNotification(notification);
+          await this.notificationService.saveNotification(user.userId, notification);
         }
       } catch (error) {
         this.logger.error(`Error processing monthly comparison for user ${user.userId}: ${error.message}`, error.stack);
@@ -532,12 +544,15 @@ export class InsightsSchedulerService extends BaseScheduler {
           )}% last month. To match last month, try reducing expenses by ${reductionNeeded.toFixed(0)}zł next month.`;
         }
 
-        await this.sendSingleNotification({
+        const notification = {
           to: user.token,
           sound: 'default',
           title: '💰 Monthly Saving Analysis',
           body: this.truncateNotification(messageBody),
-        });
+        } as ExpoPushMessage;
+
+        await this.sendSingleNotification(notification);
+        await this.notificationService.saveNotification(user.userId, notification);
       } catch (error) {
         this.logger.error(`Error processing saving rate for user ${user.userId}: ${error.message}`, error.stack);
       }
@@ -582,12 +597,15 @@ export class InsightsSchedulerService extends BaseScheduler {
       try {
         if (!user.token || user.isEnable === false) continue;
 
-        await this.sendSingleNotification({
+        const notification = {
           to: user.token,
           sound: 'default',
           title: '💡 Smart Money Tip',
           body: tip,
-        });
+        } as ExpoPushMessage;
+
+        await this.sendSingleNotification(notification);
+        await this.notificationService.saveNotification(user.userId, notification);
       } catch (error) {
         this.logger.error(`Error sending financial tip to user ${user.userId}: ${error.message}`, error.stack);
       }
@@ -677,12 +695,16 @@ export class InsightsSchedulerService extends BaseScheduler {
           useCases[useCaseIndex]
         }`;
 
-        await this.sendSingleNotification({
+        const notification = {
           to: user.token,
           sound: 'default',
           title: '💡 What If? Savings Opportunity',
           body: this.truncateNotification(messageBody),
-        });
+        } as ExpoPushMessage;
+
+        await this.sendSingleNotification(notification);
+
+        await this.notificationService.saveNotification(user.userId, notification);
 
         this.logger.log(`Sent What If analysis for category ${targetCategory.category} to user ${user.userId}`);
       } catch (error) {
@@ -770,12 +792,16 @@ export class InsightsSchedulerService extends BaseScheduler {
           messageBody += ` That's a ${totalReduction.toFixed(0)}% reduction in monthly expenses!`;
         }
 
-        await this.sendSingleNotification({
+        const notification = {
           to: user.token,
           sound: 'default',
           title: '💡 Spontaneous Spending Insight',
           body: this.truncateNotification(messageBody),
-        });
+        } as ExpoPushMessage;
+
+        await this.sendSingleNotification(notification);
+
+        await this.notificationService.saveNotification(user.userId, notification);
       } catch (error) {
         this.logger.error(
           `Error processing spontaneous purchase analysis for user ${user.userId}: ${error.message}`,
@@ -826,20 +852,22 @@ export class InsightsSchedulerService extends BaseScheduler {
             lastFiveDays.slice(0, consecutiveSpendingDays).reduce((sum, day) => sum + day.total, 0) /
             consecutiveSpendingDays;
 
-          await this.notificationService.sendChunkNotifications([
-            {
-              to: user.token,
-              sound: 'default',
-              title: '💰 Zero Spend Challenge',
-              body: `You've spent money ${consecutiveSpendingDays} days in a row. Take the zero-spend challenge today to save ~${avgDailySpend.toFixed(
-                0,
-              )}zł! Small breaks add up to big savings.`,
-              data: {
-                type: 'zeroSpendChallenge',
-                avgAmount: avgDailySpend,
-              },
+          const notification = {
+            to: user.token,
+            sound: 'default',
+            title: '💰 Zero Spend Challenge',
+            body: `You've spent money ${consecutiveSpendingDays} days in a row. Take the zero-spend challenge today to save ~${avgDailySpend.toFixed(
+              0,
+            )}zł! Small breaks add up to big savings.`,
+            data: {
+              type: 'zeroSpendChallenge',
+              avgAmount: avgDailySpend,
             },
-          ]);
+          } as ExpoPushMessage;
+
+          await this.notificationService.sendChunkNotifications([notification]);
+
+          await this.notificationService.saveNotification(user.userId, notification);
         }
       } catch (error) {
         this.logger.error(`Error processing zero spend challenge for user ${user.userId}: ${error.message}`);
@@ -917,22 +945,24 @@ export class InsightsSchedulerService extends BaseScheduler {
         if (roundUpTotal >= 5 && transactionCount >= 3) {
           const annualSavings = roundUpTotal * 52;
 
+          const notification = {
+            to: user.token,
+            sound: 'default',
+            title: '💰 Round-Up Savings Opportunity',
+            body: `By rounding up your ${transactionCount} transactions this week, you could have saved ${roundUpTotal.toFixed(
+              2,
+            )}zł. That's ${annualSavings.toFixed(0)}zł per year! Enable automatic round-up savings?`,
+            data: {
+              type: 'roundUpSavings',
+              weeklyAmount: roundUpTotal,
+              transactionCount: transactionCount,
+            },
+          } as ExpoPushMessage;
+
           try {
-            await this.notificationService.sendChunkNotifications([
-              {
-                to: user.token,
-                sound: 'default',
-                title: '💰 Round-Up Savings Opportunity',
-                body: `By rounding up your ${transactionCount} transactions this week, you could have saved ${roundUpTotal.toFixed(
-                  2,
-                )}zł. That's ${annualSavings.toFixed(0)}zł per year! Enable automatic round-up savings?`,
-                data: {
-                  type: 'roundUpSavings',
-                  weeklyAmount: roundUpTotal,
-                  transactionCount: transactionCount,
-                },
-              },
-            ]);
+            await this.notificationService.sendChunkNotifications([notification]);
+
+            this.notificationService.saveNotification(user.userId, notification);
 
             this.logger.log(`Sent round-up opportunity notification to user ${user.userId}`);
           } catch (error) {

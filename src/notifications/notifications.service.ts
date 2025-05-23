@@ -1,4 +1,4 @@
-import { NotificationsEntity } from 'src/notifications/notifications.entity';
+import { NotificationsEntity, NotificationsHistoryEntity } from 'src/notifications/notifications.entity';
 import { Repository } from 'typeorm';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,6 +11,9 @@ export class NotificationsService {
   constructor(
     @InjectRepository(NotificationsEntity)
     private notificationsRepository: Repository<NotificationsEntity>,
+
+    @InjectRepository(NotificationsHistoryEntity)
+    private notificationHistoryRepository: Repository<NotificationsHistoryEntity>,
   ) {
     this.expo = new Expo();
   }
@@ -57,5 +60,27 @@ export class NotificationsService {
 
   findUserToken(userId: any): Promise<NotificationsEntity> {
     return this.notificationsRepository.findOne({ where: { userId } });
+  }
+
+  saveNotification(userId: string, message: Record<string, any>) {
+    return this.notificationHistoryRepository.insert({
+      userId,
+      message,
+      sendAt: new Date(),
+    });
+  }
+
+  findNotifications(userId: string, skip = 0, take = 25) {
+    return this.notificationHistoryRepository.find({ where: { userId }, skip, take, order: { sendAt: 'desc' } });
+  }
+
+  readNotification(id: string) {
+    return this.notificationHistoryRepository.update({ id }, { read: true });
+  }
+
+  async unreadNotifications(userId: string) {
+    return this.notificationHistoryRepository.findAndCount({
+      where: { userId, read: false },
+    });
   }
 }

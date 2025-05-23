@@ -48,6 +48,7 @@ export class ReportSchedulerService {
             `📈 Your average transaction was ${stats.average.toFixed(2)} with a total of ${stats.count} transactions.`,
           ].join('\n'),
         });
+        await this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
       } catch (error) {
         this.logger.error(`Error processing weekly report for user ${user.userId}: ${error.message}`);
       }
@@ -104,6 +105,7 @@ export class ReportSchedulerService {
             `📈 Your average transaction was ${stats.average.toFixed(2)} with a total of ${stats.count} transactions.`,
           ].join('\n'),
         });
+        await this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
       } catch (error) {
         this.logger.error(`Error processing monthly report for user ${user.userId}: ${error.message}`);
       }

@@ -57,6 +57,8 @@ export class AlertsSchedulerService {
                 2,
               )}zł remaining for the next ${daysLeftInMonth} days.`,
             });
+            this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
+
             break; // Only send one limit alert per day
           }
         }
@@ -97,6 +99,7 @@ export class AlertsSchedulerService {
                 2,
               )}zł remaining. ${daysToIncome} days until next predicted income. Plan your expenses carefully!`,
             });
+            this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
           } catch (error) {
             this.logger.error(`Error processing low balance alert for user ${user.userId}: ${error.message}`);
           }
@@ -161,6 +164,7 @@ export class AlertsSchedulerService {
                 2,
               )}zł will be charged ${dayText}. Current balance: ${wallet.balance.toFixed(2)}zł.`,
             });
+            this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
           } catch (error) {
             this.logger.error(
               `Error processing subscription ${subscription.id} for user ${user.userId}: ${error.message}`,
