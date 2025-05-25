@@ -277,6 +277,6 @@ export class ExpenseResolver {
     return this.subscriptionService.getSubscriptions(userId);
   }
 
-  @Mutation(() => SubscriptionEntity)
-  async modifySubscription(@Args('input') input: SubscriptionEntity) {}
+  // @Mutation(() => SubscriptionEntity)
+  // async modifySubscription(@Args('input') input: SubscriptionEntity) {}
 }
