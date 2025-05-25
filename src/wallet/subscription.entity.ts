@@ -25,8 +25,8 @@ export class SubscriptionEntity {
   @Field(() => String)
   dateStart: Date;
 
-  @Column({ type: 'timestamp', nullable: false })
-  @Field(() => String)
+  @Column({ type: 'timestamp', nullable: true })
+  @Field(() => String, { nullable: true })
   dateEnd: Date;
 
   @Column({ type: 'text', nullable: false })

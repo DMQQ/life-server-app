@@ -180,4 +180,18 @@ export class SubscriptionService {
       return [];
     }
   }
+
+  async getSubscriptions(userId: string) {
+    const [wallet] = await this.expenseRepository.query('SELECT id FROM wallet WHERE userId = ?', [userId]);
+    const walletId = wallet?.id;
+
+    return this.subscriptionRepository.find({
+      where: { walletId },
+      relations: ['expenses'],
+    });
+  }
+
+  async modifySubscription({ id, ...subscription }: SubscriptionEntity) {
+    return this.subscriptionRepository.update({ id }, subscription);
+  }
 }

@@ -203,8 +203,6 @@ export class WalletService {
     const insert = await this.expenseRepository.insert({
       ...expense,
       walletId: walletId,
-      //@ts-ignore
-      subscriptionId: expense.subscription?.id,
       balanceBeforeInteraction: wallet?.balance as number,
     });
 

@@ -271,4 +271,12 @@ export class ExpenseResolver {
   ) {
     return this.expensePredictionService.predictExpense(user, input, amount);
   }
+
+  @Query(() => [SubscriptionEntity])
+  subscription(@User() userId: string) {
+    return this.subscriptionService.getSubscriptions(userId);
+  }
+
+  @Mutation(() => SubscriptionEntity)
+  async modifySubscription(@Args('input') input: SubscriptionEntity) {}
 }
