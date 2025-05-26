@@ -273,7 +273,7 @@ export class ExpenseResolver {
   }
 
   @Query(() => [SubscriptionEntity])
-  subscription(@User() userId: string) {
+  subscriptions(@User() userId: string) {
     return this.subscriptionService.getSubscriptions(userId);
   }
 
