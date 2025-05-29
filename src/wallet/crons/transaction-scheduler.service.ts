@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression, Interval } from '@nestjs/schedule';
 import { WalletService } from '../wallet.service';
 import { SubscriptionService } from '../subscriptions.service';
-import moment from 'moment';
+import * as moment from 'moment';
 import { BillingCycleEnum } from '../subscription.entity';
 
 @Injectable()
