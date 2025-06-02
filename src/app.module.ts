@@ -61,6 +61,7 @@ import { HostsModule } from './hosts/hosts.module';
     GraphQLModule.forRoot({
       driver: ApolloDriver,
       autoSchemaFile: true,
+      cache:'bounded'
     }),
   ],
 })
