@@ -7,6 +7,8 @@ import { User } from 'src/utils/decorators/User';
 import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
 import { SubscriptionService } from './subscriptions.service';
 import { BillingCycleEnum } from './subscription.entity';
+import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
+import { ExpenseService } from './expense.service';
 
 const parseDate = (dateString: string) => {
   const currentTime = new Date();
@@ -26,7 +28,13 @@ const parseDate = (dateString: string) => {
 @UseGuards(AuthGuard)
 @Resolver(() => WalletEntity)
 export class WalletResolver {
-  constructor(private walletService: WalletService, private subscriptionService: SubscriptionService) {}
+  constructor(
+    private walletService: WalletService,
+    private subscriptionService: SubscriptionService,
+    private openAiService: OpenAIService,
+
+    private expenseService: ExpenseService,
+  ) {}
 
   @Query((returns) => WalletEntity)
   async wallet(@User() usrId: string) {
@@ -237,5 +245,34 @@ export class WalletResolver {
     } catch (error) {
       throw new BadRequestException('Subscription cancelation failed');
     }
+  }
+
+  @Mutation(() => ExpenseEntity)
+  async createExpenseFromImage(@Args('image') imageBase64: string, @User() user: string) {
+    const prediction = await this.openAiService.extractReceiptContent(imageBase64);
+    const receiptData = JSON.parse(prediction.choices[0].message.content) as {
+      merchant: string;
+      total_price: number;
+      date: string;
+      subexpenses: { name: string; quantity: number; amount: number; category: string }[];
+      title: string;
+      category: string;
+    };
+
+    const expense = await this.walletService.createExpenseFromAIPrediction(receiptData, user);
+
+    const subexpenses = await this.expenseService.addMultipleSubExpenses(
+      expense.id,
+      receiptData.subexpenses.map((sub) => ({
+        expenseId: expense.id,
+        category: sub.category,
+        description: sub.name + ' ' + sub.quantity + 'x',
+        amount: sub.amount,
+      })),
+    );
+
+    expense.subexpenses = subexpenses;
+
+    return expense;
   }
 }

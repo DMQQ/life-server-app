@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ExpenseEntity, WalletEntity } from './wallet.entity';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
+import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 
 @Injectable()
 export class ExpensePredictionService {
@@ -11,6 +12,8 @@ export class ExpensePredictionService {
 
     @InjectRepository(ExpenseEntity)
     private expenseEntity: Repository<ExpenseEntity>,
+
+    private openAIService: OpenAIService,
   ) {}
   async predictExpense(userId: string, input: string, amount?: number) {
     try {
@@ -33,6 +36,8 @@ export class ExpensePredictionService {
 
       const predictions = this.calculatePredictions(input, recentExpenses, amount);
 
+      console.log(predictions);
+
       if (predictions.length > 0) {
         const bestMatch = predictions[0];
 
@@ -41,6 +46,27 @@ export class ExpensePredictionService {
         }
 
         return bestMatch;
+      } else if (predictions.length === 0) {
+        const similarExpenses = await this.expenseEntity.find({
+          select: ['amount', 'description', 'category'],
+          where: {
+            description: Like(`%${input}%`),
+          },
+        });
+
+        const aiPrediction = await this.openAIService.predictExpense(input, similarExpenses);
+
+        console.log('AI Usage', aiPrediction.usage);
+
+        const match = JSON.parse(aiPrediction.choices[0].message.content);
+
+        return {
+          description: input,
+          confidence: 1,
+          shop: null,
+          type: 'expense',
+          ...match,
+        };
       }
 
       return null;

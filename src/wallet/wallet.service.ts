@@ -443,4 +443,28 @@ export class WalletService {
   async getWalletId(userId: string) {
     return (await this.walletRepository.findOne({ where: { userId } })).id;
   }
+
+  async createExpenseFromAIPrediction(
+    prediction: {
+      merchant: string;
+      total_price: number;
+      date: string;
+      subexpenses: { name: string; quantity: number; amount: number }[];
+      title: string;
+      category: string;
+    },
+    userId: string,
+  ) {
+    return this.createExpense(
+      userId,
+      prediction.total_price,
+      prediction.title,
+      ExpenseType.expense,
+      prediction.category,
+      moment(prediction.date).toDate(),
+      false,
+      null,
+      0.5,
+    );
+  }
 }

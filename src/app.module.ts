@@ -18,6 +18,7 @@ import { AppDataSource, dataSourceOptions } from './database';
 import { FlashCardsModule } from './flashcards/flashcards.module';
 import { GoalsModule } from './goals/goals.module';
 import { HostsModule } from './hosts/hosts.module';
+import { OpenAIModule } from './utils/services/OpenAI/openai.module';
 
 @Module({
   imports: [
@@ -40,6 +41,8 @@ import { HostsModule } from './hosts/hosts.module';
       inject: [ConfigService],
     }),
 
+    OpenAIModule,
+
     AuthenticationModule,
 
     TimelineModule,
@@ -61,6 +64,15 @@ import { HostsModule } from './hosts/hosts.module';
     GraphQLModule.forRoot({
       driver: ApolloDriver,
       autoSchemaFile: true,
+      cache: 'bounded',
+      uploads: {
+        maxFileSize: 50 * 1024 * 1024, // 50MB
+        maxFiles: 5,
+      },
+      context: ({ req }) => ({ req }),
+      bodyParserConfig: {
+        limit: '50mb',
+      },
     }),
   ],
 })
