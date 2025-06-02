@@ -17,7 +17,7 @@ export class ExpenseAnalysisService {
     private notificationService: NotificationsService,
   ) {}
 
-  @Cron('0 14 * * 2', {
+  @Cron('0 7 * * 2', {
     // Tuesday at 2 PM
     timeZone: 'Europe/Warsaw',
   })

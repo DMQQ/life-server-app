@@ -22,7 +22,7 @@ export class AlertsSchedulerService {
   ) {}
 
   // Budget Alerts at 10 AM
-  @Cron('0 10 * * *', {
+  @Cron('0 7 * * *', {
     timeZone: 'Europe/Warsaw',
   })
   async budgetAlerts() {
@@ -153,8 +153,8 @@ export class AlertsSchedulerService {
         for (const subscription of upcomingSubscriptions) {
           try {
             const daysUntilCharge = moment(subscription.nextBillingDate).diff(moment(), 'days');
-            const dayText =
-              daysUntilCharge === 0 ? 'today' : daysUntilCharge === 1 ? 'tomorrow' : `in ${daysUntilCharge} days`;
+          
+            if (daysUntilCharge !== 1) continue;
 
             notifications.push({
               to: user.token,
@@ -162,7 +162,7 @@ export class AlertsSchedulerService {
               title: '📆 Subscription Reminder',
               body: `🔄 ${subscription.description} - ${subscription.amount.toFixed(
                 2,
-              )}zł will be charged ${dayText}. Current balance: ${wallet.balance.toFixed(2)}zł.`,
+              )}zł will be charged ${'tomorrow'}. Current balance: ${wallet.balance.toFixed(2)}zł.`,
             });
             this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
           } catch (error) {
