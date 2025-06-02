@@ -94,16 +94,8 @@ export class ReportSchedulerService {
           to: user.token,
           sound: 'default',
           title: '📆 Monthly Spendings Report',
-          body: [
-            `💰 You have spent ${stats.total.toFixed(2)} this month, ${stats.income.toFixed(
-              2,
-            )} of which was income ⬆️ and ${stats.expense.toFixed(2)} was expense ⬇️.`,
-            `💵 You have ${stats.lastBalance.toFixed(2)} left in your wallet.`,
-            `🔼 You spent at most ${stats.max.toFixed(2)} and at least ${stats.min.toFixed(
-              2,
-            )} in a single transaction 🔽.`,
-            `📈 Your average transaction was ${stats.average.toFixed(2)} with a total of ${stats.count} transactions.`,
-          ].join('\n'),
+          body: `Hi, You spent ${stats.expense.toFixed(2)}zł this month, on average ${stats.average}zł on ${stats.count} entries, least/most (${stats.min.toFixed(2)}, ${stats.max.toFixed(2)})zł, you earned ${stats.income.toFixed(2)}zł`
+
         });
         await this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
       } catch (error) {

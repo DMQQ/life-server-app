@@ -29,7 +29,7 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
 
   private limitsService: LimitsService;
 
-  @Cron('0 8 * * *', {
+  @Cron('0 7 * * *', {
     timeZone: 'Europe/Warsaw',
   })
   async moneyLeftToday() {

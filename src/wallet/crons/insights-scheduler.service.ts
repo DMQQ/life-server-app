@@ -28,7 +28,7 @@ export class InsightsSchedulerService extends BaseScheduler {
   private expenseService: ExpenseService;
   private subscriptionSerivce: SubscriptionService;
 
-  @Cron('0 20 * * *', {
+  @Cron('0 22 * * *', {
     timeZone: 'Europe/Warsaw',
   })
   async getDailyInsights() {
@@ -99,7 +99,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 18 * * 1', {
+  @Cron('0 22 * * 1', {
     timeZone: 'Europe/Warsaw',
   })
   async spendingPatternInsights() {
@@ -160,7 +160,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 19 * * *', {
+  @Cron('0 22 * * *', {
     timeZone: 'Europe/Warsaw',
   })
   async unusualSpendingAlert() {
@@ -217,7 +217,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 9 * * 6', {
+  @Cron('0 22 * * 6', {
     timeZone: 'Europe/Warsaw',
   })
   async weekdayVsWeekendAnalysis() {
@@ -310,7 +310,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 10 * * 0', {
+  @Cron('0 22 * * 0', {
     timeZone: 'Europe/Warsaw',
   })
   async topSpendingDayAnalysis() {
@@ -385,7 +385,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 12 26 * *', {
+  @Cron('0 22 26 * *', {
     timeZone: 'Europe/Warsaw',
   })
   async monthlyCategoryComparison() {
@@ -476,7 +476,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 18 28-31 * *', {
+  @Cron('0 22 28-31 * *', {
     timeZone: 'Europe/Warsaw',
   })
   async savingRateAnalysis() {
@@ -559,7 +559,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 17 * * 0', {
+  @Cron('0 7 * * 0', {
     timeZone: 'Europe/Warsaw',
   })
   async weeklyFinancialTip() {
@@ -612,7 +612,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 19 */3 * *', {
+  @Cron('0 7 */3 * *', {
     timeZone: 'Europe/Warsaw',
   })
   async whatIfAnalysis() {
@@ -713,7 +713,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 18 * * 5', {
+  @Cron('0 22 * * 5', {
     timeZone: 'Europe/Warsaw',
   })
   async spontaneousPurchaseAnalysis() {
@@ -812,7 +812,6 @@ export class InsightsSchedulerService extends BaseScheduler {
   }
 
   @Cron('0 7 * * *', {
-    // Daily at 7 AM
     timeZone: 'Europe/Warsaw',
   })
   async zeroSpendDayChallenge() {
@@ -875,8 +874,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 18 * * 5', {
-    // Every Friday at 6 PM
+  @Cron('0 22 * * 5', {
     timeZone: 'Europe/Warsaw',
   })
   async roundUpSavingsOpportunity() {
