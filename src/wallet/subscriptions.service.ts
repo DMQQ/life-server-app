@@ -188,6 +188,7 @@ export class SubscriptionService {
     return this.subscriptionRepository.find({
       where: { walletId },
       relations: ['expenses'],
+      order: { nextBillingDate: 'desc' },
     });
   }
 

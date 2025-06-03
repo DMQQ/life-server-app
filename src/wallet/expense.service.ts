@@ -116,7 +116,7 @@ export class ExpenseService {
   async monthlyCategoryComparison(userId: string, months: string[]) {
     const walletId = (await this.walletRepository.findOne({ where: { userId } })).id;
     const query = `
-      SELECT category, SUM(amount) as total, AVG(amount) as avg, COUNT(amount) as count FROM expense WHERE walletId = ? AND date BETWEEN ? AND ? GROUP BY category
+      SELECT category, SUM(amount) as total, AVG(amount) as avg, COUNT(amount) as count FROM expense WHERE walletId = ? AND date BETWEEN ? AND ? AND type = 'expense' GROUP BY category
     `;
 
     const queryMonth = (month: string) => {
@@ -141,6 +141,7 @@ export class ExpenseService {
       FROM expense
       WHERE walletId = ?
         AND date BETWEEN ? AND ?
+        AND type = 'expense'
       GROUP BY DAY(date)
       ORDER BY day_of_month
     `.trim();
@@ -182,6 +183,7 @@ export class ExpenseService {
       FROM expense 
       WHERE walletId = ?
       AND date BETWEEN ? AND ?
+      AND type = 'expense'
       GROUP BY hour
       ORDER BY hour ASC
       
@@ -464,6 +466,7 @@ export class ExpenseService {
       WHERE walletId = ?
         AND date BETWEEN ? AND ?
         AND schedule = 0
+        AND type = 'expense'
       ORDER BY date DESC
     `;
 
