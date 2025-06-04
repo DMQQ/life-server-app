@@ -89,6 +89,24 @@ export class StatisticsLegend {
 }
 
 @ObjectType()
+export class StatisticsDayOfWeekComparison {
+  @Field(() => Float)
+  day: number;
+
+  @Field(() => Float)
+  total: number;
+
+  @Field(() => Float)
+  avg: number;
+
+  @Field(() => Float)
+  median: number;
+
+  @Field(() => Float)
+  count: number;
+}
+
+@ObjectType()
 export class ExpensePredictionType {
   @Field()
   description: string;

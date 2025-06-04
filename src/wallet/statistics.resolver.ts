@@ -1,8 +1,7 @@
 import { Resolver, Query, Args } from '@nestjs/graphql';
-
 import { User } from 'src/utils/decorators/User';
 import * as moment from 'moment';
-import { StatisticsLegend } from './wallet.schemas';
+import { StatisticsDayOfWeekComparison, StatisticsLegend } from './wallet.schemas';
 import { StatisticsService } from './statistics.service';
 
 @Resolver()
@@ -16,6 +15,15 @@ export class StatisticsResolver {
     @Args('endDate') endDate: string,
     @Args('displayMode') displayMode: 'detailed' | 'general',
   ) {
-    return this.statisticsService.legend(userId, moment(startDate).toDate(), moment(endDate).toDate(), displayMode);
+    return this.statisticsService.legend(userId, startDate, endDate, displayMode);
+  }
+
+  @Query(() => [StatisticsDayOfWeekComparison])
+  async statisticsDayOfWeek(
+    @User() userId: string,
+    @Args('startDate') startDate: string,
+    @Args('endDate') endDate: string,
+  ) {
+    return this.statisticsService.dayOfWeek(userId, startDate, endDate);
   }
 }
