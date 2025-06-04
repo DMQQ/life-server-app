@@ -107,6 +107,18 @@ export class StatisticsDayOfWeekComparison {
 }
 
 @ObjectType()
+export class StatisticsDailySpendings {
+  @Field(() => Float)
+  total: number;
+
+  @Field(() => String)
+  date: string;
+
+  @Field(() => String)
+  day: string;
+}
+
+@ObjectType()
 export class ExpensePredictionType {
   @Field()
   description: string;

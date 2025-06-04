@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ExpenseEntity, WalletEntity } from './wallet.entity';
 import { Repository } from 'typeorm';
+import * as moment from 'moment';
 
 @Injectable()
 export class StatisticsService {
@@ -127,5 +128,26 @@ export class StatisticsService {
 
     const mid = Math.floor(amounts.length / 2);
     return amounts.length % 2 === 0 ? (amounts[mid - 1].amount + amounts[mid].amount) / 2 : amounts[mid].amount;
+  }
+
+  async spendingsByDay(userId: string, startDate: string, endDate: string) {
+    const walletId = await this.getWalletId(userId);
+
+    return (
+      await this.expenseEntity
+        .createQueryBuilder('exp')
+        .select(['SUM(exp.amount) as total', 'exp.date as date'])
+        .andWhere('exp.date BETWEEN :startDate AND :endDate', {
+          startDate,
+          endDate,
+        })
+        .andWhere("exp.type = 'expense'")
+        .andWhere('exp.walletId = :walletId', { walletId })
+        .groupBy('date')
+        .getRawMany()
+    ).map((e) => ({
+      ...e,
+      day: moment(e.date).format('DD'),
+    }));
   }
 }
