@@ -51,19 +51,19 @@ export class OpenAIService {
             {
               type: 'text',
               text: `Analyze this receipt and extract:
-              1. merchant: store/restaurant name
+              1. merchant: store/restaurant name. If unclear, use general category (shopping, clothes, beer, etc.) + first item name
               2. total_price: final amount paid
-              3. date: transaction date (YYYY-MM-DD format)
-              4. title: brief description of purchase (e.g. "Groceries at Biedronka", "Dinner at McDonald's")
+              3. date: transaction date (YYYY-MM-DD format) - VERIFY DATE ACCURACY, double-check day/month/year
+              4. title: brief generalized description IN POLISH (e.g. "Zakupy spożywcze", "Odzież", "Piwo", "Obiad") - use category type, not specific store names
               5. category: main expense category from the list
               6. subexpenses: individual items with name, quantity, amount, and category
-
+              
               Return as JSON:
               {
                 "merchant": "string",
                 "total_price": number,
                 "date": "YYYY-MM-DD",
-                "title": "descriptive purchase title",
+                "title": "generalized purchase type in Polish",
                 "category": "category_from_list",
                 "subexpenses": [
                   {
