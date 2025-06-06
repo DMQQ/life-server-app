@@ -10,7 +10,7 @@ export class OpenAIService {
     'housing, transportation, food, drinks, shopping, addictions, work, clothes, health, entertainment, utilities, debt, education, savings, travel, edit, income, animals, refunded, gifts, gifts:birthday, gifts:holiday, gifts:charitable, sports, sports:equipment, sports:memberships, sports:events, tech, tech:software, tech:accessories, tech:repairs, goingout, goingout:dining, goingout:nightlife, goingout:events, trips, trips:lodging, trips:activities, trips:transportation, subscriptions, investments, maintenance, insurance, taxes, children, donations, beauty, pets, weed, alcohol, vape, tattoos, dating, gambling, fastFood, videoGames, streaming, concerts, haircuts, health:therapy, health:gym, health:skincare, health:dentist, emergencies, carRepair, transportation:parking, housing:rent';
 
   private config = {
-    model: 'gpt-4o-mini',
+    model: 'gpt-4.1-nano-2025-04-14',
     max_tokens: 500,
     temperature: 0.1,
   } as any;
@@ -37,7 +37,7 @@ export class OpenAIService {
 
     return this.client.chat.completions.create({
       model: this.config.model,
-      max_completion_tokens: this.config.max_tokens,
+      max_completion_tokens: this.config.max_tokens * 4,
       temperature: 0.1,
       response_format: { type: 'json_object' },
       messages: [
@@ -54,7 +54,7 @@ export class OpenAIService {
               1. merchant: store/restaurant name. If unclear, use general category (shopping, clothes, beer, etc.) + first item name
               2. total_price: final amount paid
               3. date: transaction date (YYYY-MM-DD format) - VERIFY DATE ACCURACY, double-check day/month/year
-              4. title: brief generalized description IN POLISH (e.g. "Zakupy spożywcze", "Odzież", "Piwo", "Obiad") - use category type, not specific store names
+              4. title: IN POLISH - If only ONE item purchased, use that item name as title. If multiple items, use generalized category description (e.g. "Zakupy spożywcze" for groceries, "Odzież" for clothes, "Piwo" for beer items, "Obiad" for restaurant meals, "Leki" for medicines, "Kosmetyki" for cosmetics)
               5. category: main expense category from the list
               6. subexpenses: individual items with name, quantity, amount, and category
               
@@ -79,7 +79,7 @@ export class OpenAIService {
               type: 'image_url',
               image_url: {
                 url: `data:image/jpeg;base64,${optimizedBase64}`,
-                detail: 'low',
+                detail: 'high',
               },
             },
           ],
