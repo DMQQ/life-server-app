@@ -81,3 +81,15 @@ export class GroupStats {
   @Field(() => Int)
   masteredCards: number;
 }
+
+@ObjectType()
+export class AIGeneratedFlashCards {
+  @Field()
+  question: string;
+
+  @Field()
+  answer: string;
+
+  @Field()
+  explanation: string;
+}

@@ -117,4 +117,36 @@ export class OpenAIService {
       ],
     });
   }
+
+  async generateFlashCards(content: string) {
+    const response = await this.client.chat.completions.create({
+      model: this.config.model,
+      max_completion_tokens: this.config.max_tokens * 8,
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content: `Create educational flashcards from the provided content. Generate comprehensive Q&A pairs that test understanding of key concepts, facts, and details.
+  
+  Rules:
+  - Create 5-15 flashcards depending on content length
+  - Questions should be clear and specific
+  - Answers should be concise but complete
+  - Explanations should provide context or additional insight
+  - Cover main topics, important details, and key relationships
+  - Vary question types: definitions, examples, comparisons, applications
+  
+  Return JSON: {"flashcards": [{"question": "string", "answer": "string", "explanation": "string"}]}`,
+        },
+        {
+          role: 'user',
+          content: content,
+        },
+      ],
+    });
+
+    const parsedContent = JSON.parse(response.choices[0].message.content);
+    return parsedContent.flashcards;
+  }
 }
