@@ -5,7 +5,7 @@ import { WalletService } from '../wallet.service';
 import { ExpenseService } from '../expense.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
 import { ExpenseType, LimitRange } from '../wallet.entity';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import { LimitsService } from '../limits.service';
 import { SubscriptionService } from '../subscriptions.service';
 import { BaseScheduler } from './scheduler-base.service';

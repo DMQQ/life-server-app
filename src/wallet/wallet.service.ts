@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/wallet.entity';
 import { Between, Brackets, Repository } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 
 @Injectable()
 export class WalletService {

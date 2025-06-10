@@ -3,7 +3,7 @@ import { WalletService } from '../wallet.service';
 import { ExpenseService } from '../expense.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { ExpenseType } from '../wallet.entity';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import { Cron, Interval } from '@nestjs/schedule';
 import { ExpoPushMessage } from 'expo-server-sdk';
 

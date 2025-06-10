@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ExerciseEntity, ExerciseProgressEntity, WorkoutEntity } from './workout.entity';
 import { Repository } from 'typeorm';
 import { CreateExercise } from './workout.dto';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 
 @Injectable()
 export class ExerciseService {

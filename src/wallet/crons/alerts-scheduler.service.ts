@@ -7,7 +7,7 @@ import { SubscriptionService } from '../subscriptions.service';
 import { ExpenseService } from '../expense.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
 import { ExpenseType, LimitRange } from '../wallet.entity';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 
 @Injectable()
 export class AlertsSchedulerService {
