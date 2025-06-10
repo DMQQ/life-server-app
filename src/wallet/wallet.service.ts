@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/wallet.entity';
 import { Between, Brackets, Repository } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
-import * as moment from 'moment';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class WalletService {
@@ -272,7 +272,7 @@ export class WalletService {
   }
 
   async getScheduledTransactions(_date: Date) {
-    const date = moment(_date || new Date()).format('YYYY-MM-DD');
+    const date = dayjs(_date || new Date()).format('YYYY-MM-DD');
 
     const startOfDay = `${date} 00:00:00`;
     const endOfDay = `${date} 23:59:59`;
@@ -417,7 +417,7 @@ export class WalletService {
           where: { id: expenseId },
         });
         expense.type = ExpenseType.refunded;
-        expense.note = `Refunded at ${moment().format('YYYY MM DD HH:MM')} \n ${expense.note ?? ''}`;
+        expense.note = `Refunded at ${dayjs().format('YYYY MM DD HH:MM')} \n ${expense.note ?? ''}`;
         await this.editExpense(expenseId, userId, expense);
       });
 
@@ -461,7 +461,7 @@ export class WalletService {
       prediction.title,
       ExpenseType.expense,
       prediction.category,
-      moment(prediction.date).toDate(),
+      dayjs(prediction.date).toDate(),
       false,
       null,
       0.5,

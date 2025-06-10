@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ExpenseEntity, WalletEntity } from './wallet.entity';
 import { Repository } from 'typeorm';
-import * as moment from 'moment';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class StatisticsService {
@@ -147,7 +147,7 @@ export class StatisticsService {
         .getRawMany()
     ).map((e) => ({
       ...e,
-      day: moment(e.date).format('DD'),
+      day: dayjs(e.date).format('DD'),
     }));
   }
 }

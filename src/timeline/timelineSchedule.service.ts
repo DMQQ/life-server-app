@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as moment from 'moment';
 import { TimelineEntity } from 'src/timeline/timeline.entity';
 import { Like, Repository } from 'typeorm';
 
@@ -21,9 +20,7 @@ export class TimelineScheduleService {
     private timelineRepository: Repository<TimelineEntity>,
   ) {}
 
-  async findEventsByTypeWithCurrentTime(
-    type: 'beginTime' | 'endTime',
-  ): Promise<FindEventsResponse[]> {
+  async findEventsByTypeWithCurrentTime(type: 'beginTime' | 'endTime'): Promise<FindEventsResponse[]> {
     return this.timelineRepository.query(
       `
       SELECT 

@@ -1,14 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  ExerciseEntity,
-  ExerciseProgressEntity,
-  WorkoutEntity,
-} from './workout.entity';
+import { ExerciseEntity, ExerciseProgressEntity, WorkoutEntity } from './workout.entity';
 import { Repository } from 'typeorm';
 import { CreateExercise } from './workout.dto';
-import { StringDecoder } from 'string_decoder';
-import * as moment from 'moment';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class ExerciseService {
@@ -44,36 +39,28 @@ export class ExerciseService {
     });
   }
 
-  async assignExerciseToWorkout(
-    exerciseId: string,
-    workoutId: string,
-    userId: string,
-  ) {
+  async assignExerciseToWorkout(exerciseId: string, workoutId: string, userId: string) {
     return new Promise(async (resolve, reject) => {
       const canAssign = await this.exerciseEntity.manager.find(WorkoutEntity, {
         where: { workoutId, authorId: userId },
       });
 
-      if (!canAssign.length)
-        return reject('You are not the author of this workout');
+      if (!canAssign.length) return reject('You are not the author of this workout');
 
       const isAssigned = await this.exerciseEntity.query(
         'SELECT * FROM workout_exercises WHERE workoutWorkoutId = ? AND exerciseExerciseId = ?',
         [workoutId, exerciseId],
       );
 
-      if (isAssigned.length)
-        return reject('Exercise already assigned to workout');
+      if (isAssigned.length) return reject('Exercise already assigned to workout');
 
       this.exerciseEntity
-        .query(
-          'INSERT INTO workout_exercises(workoutWorkoutId,exerciseExerciseId) VALUES (?,?);',
-          [workoutId, exerciseId],
-        )
+        .query('INSERT INTO workout_exercises(workoutWorkoutId,exerciseExerciseId) VALUES (?,?);', [
+          workoutId,
+          exerciseId,
+        ])
         .then((result) => resolve(true))
-        .catch((error) =>
-          reject('Error assigning exercise to workout: ' + error),
-        );
+        .catch((error) => reject('Error assigning exercise to workout: ' + error));
     });
   }
 
@@ -89,12 +76,10 @@ export class ExerciseService {
     });
   }
 
-  createExerciseProgress(
-    data: Omit<ExerciseProgressEntity, 'date' | 'exerciseProgressId'>,
-  ) {
+  createExerciseProgress(data: Omit<ExerciseProgressEntity, 'date' | 'exerciseProgressId'>) {
     return this.progressEntity.insert({
       ...data,
-      date: moment().format('YYYY-MM-DD'),
+      date: dayjs().format('YYYY-MM-DD'),
     });
   }
 
@@ -127,10 +112,7 @@ export class ExerciseService {
       });
 
     const weightProgressInRange = async () => {
-      const lastWeekSum = this.progressEntity
-        .createQueryBuilder('p')
-        .select('SUM(p.weight)')
-        .where('p.date');
+      const lastWeekSum = this.progressEntity.createQueryBuilder('p').select('SUM(p.weight)').where('p.date');
     };
 
     return Promise.all([maxWeight(), lastRecord()]);

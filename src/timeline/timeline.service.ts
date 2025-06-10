@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as moment from 'moment-timezone';
-import {
-  TimelineEntity,
-  TimelineFilesEntity,
-  TimelineTodosEntity,
-} from 'src/timeline/timeline.entity';
+import dayjs from 'dayjs';
+import { TimelineEntity, TimelineFilesEntity, TimelineTodosEntity } from 'src/timeline/timeline.entity';
 import { Like, Repository } from 'typeorm';
 import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
 
@@ -99,7 +95,7 @@ export class TimelineService {
   }
 
   async findByCurrentDate(userId: string) {
-    const currentDate = moment().tz('Europe/Warsaw').format('YYYY-MM-DD');
+    const currentDate = dayjs().format('YYYY-MM-DD');
     return this.timelineRepository.find({
       where: { date: Like(`%${currentDate}%`), userId },
       relations: ['images', 'todos'],
@@ -143,10 +139,7 @@ export class TimelineService {
   }
 
   async completeTimeline(id: string, userId: string) {
-    return this.timelineRepository.update(
-      { id, userId },
-      { isCompleted: true },
-    );
+    return this.timelineRepository.update({ id, userId }, { isCompleted: true });
   }
 
   async createTimelineTodos(
@@ -170,17 +163,13 @@ export class TimelineService {
     return this.timelineTodosRepository.findOne({ where: { id } });
   }
 
-  private _generateDates(
-    input: RepeatableTimeline,
-    momentType: moment.unitOfTime.DurationConstructor,
-  ) {
+  private _generateDates(input: RepeatableTimeline, dayjsType: dayjs.ManipulateType) {
     let dates = [] as string[];
 
     for (let i = 0; i < input.reapeatCount; i++) {
       dates.push(
-        moment(input.startDate)
-          .tz('Europe/Warsaw')
-          .add(i * input.repeatEveryNth, momentType)
+        dayjs(input.startDate)
+          .add(i * input.repeatEveryNth, dayjsType)
           .format('YYYY-MM-DD'),
       );
     }

@@ -3,13 +3,15 @@ import { Cron, Interval } from '@nestjs/schedule';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { WalletService } from '../wallet.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
-import * as moment from 'moment';
-
+import dayjs from 'dayjs';
 @Injectable()
 export class ReportSchedulerService {
   private readonly logger = new Logger(ReportSchedulerService.name);
 
-  constructor(private notificationService: NotificationsService, private walletService: WalletService) {}
+  constructor(
+    private notificationService: NotificationsService,
+    private walletService: WalletService,
+  ) {}
 
   @Cron('0 14 * * 0', {
     timeZone: 'Europe/Warsaw',
@@ -18,8 +20,8 @@ export class ReportSchedulerService {
     const users = await this.notificationService.findAll();
 
     const range = [
-      moment().isoWeekday(1).startOf('day').format('YYYY-MM-DD'),
-      moment().isoWeekday(7).endOf('day').format('YYYY-MM-DD'),
+      dayjs().isoWeekday(1).startOf('day').format('YYYY-MM-DD'),
+      dayjs().isoWeekday(7).endOf('day').format('YYYY-MM-DD'),
     ] as [string, string];
 
     const notifications = [] as ExpoPushMessage[];
@@ -68,13 +70,13 @@ export class ReportSchedulerService {
     timeZone: 'Europe/Warsaw',
   })
   async monthlyReport() {
-    if (!moment().isSame(moment().endOf('month'), 'day')) {
+    if (!dayjs().isSame(dayjs().endOf('month'), 'day')) {
       return;
     }
 
     const users = await this.notificationService.findAll();
 
-    const range = [moment().startOf('month').format('YYYY-MM-DD'), moment().endOf('month').format('YYYY-MM-DD')] as [
+    const range = [dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().endOf('month').format('YYYY-MM-DD')] as [
       string,
       string,
     ];
@@ -94,8 +96,7 @@ export class ReportSchedulerService {
           to: user.token,
           sound: 'default',
           title: '📆 Monthly Spendings Report',
-          body: `Hi, You spent ${stats.expense.toFixed(2)}zł this month, on average ${stats.average}zł on ${stats.count} entries, least/most (${stats.min.toFixed(2)}, ${stats.max.toFixed(2)})zł, you earned ${stats.income.toFixed(2)}zł`
-
+          body: `Hi, You spent ${stats.expense.toFixed(2)}zł this month, on average ${stats.average}zł on ${stats.count} entries, least/most (${stats.min.toFixed(2)}, ${stats.max.toFixed(2)})zł, you earned ${stats.income.toFixed(2)}zł`,
         });
         await this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
       } catch (error) {

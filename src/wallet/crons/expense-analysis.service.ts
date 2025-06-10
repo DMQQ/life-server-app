@@ -3,7 +3,7 @@ import { WalletService } from '../wallet.service';
 import { ExpenseService } from '../expense.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { ExpenseType } from '../wallet.entity';
-import * as moment from 'moment';
+import dayjs from 'dayjs';
 import { Cron, Interval } from '@nestjs/schedule';
 import { ExpoPushMessage } from 'expo-server-sdk';
 
@@ -66,10 +66,10 @@ export class ExpenseAnalysisService {
       }
 
       // Get expenses from last 3 months
-      const threeMonthsAgo = moment().subtract(3, 'months').format('YYYY-MM-DD');
+      const threeMonthsAgo = dayjs().subtract(3, 'months').format('YYYY-MM-DD');
       const expenses = await this.expenseService.getExpensesForPeriod(walletId, [
-        moment(threeMonthsAgo).startOf('day').format('YYYY-MM-DD HH:MM:ss'),
-        moment().endOf('day').format('YYYY-MM-DD HH:MM:ss'),
+        dayjs(threeMonthsAgo).startOf('day').format('YYYY-MM-DD HH:MM:ss'),
+        dayjs().endOf('day').format('YYYY-MM-DD HH:MM:ss'),
       ]);
 
       if (!expenses || expenses.length < 15) {

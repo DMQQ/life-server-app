@@ -1,6 +1,5 @@
 import { Resolver, Query, Args } from '@nestjs/graphql';
 import { User } from 'src/utils/decorators/User';
-import * as moment from 'moment';
 import { StatisticsDailySpendings, StatisticsDayOfWeekComparison, StatisticsLegend } from './wallet.schemas';
 import { StatisticsService } from './statistics.service';
 

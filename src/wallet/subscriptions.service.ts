@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BillingCycleEnum, SubscriptionEntity } from './subscription.entity';
-import * as moment from 'moment';
+import dayjs from 'dayjs';
 import { ExpenseEntity, WalletEntity } from './wallet.entity';
 
 @Injectable()
@@ -53,11 +53,11 @@ export class SubscriptionService {
   getNextBillingDate(subscription: { billingCycle: BillingCycleEnum; nextBillingDate: Date }) {
     switch (subscription.billingCycle) {
       case BillingCycleEnum.MONTHLY:
-        return moment(subscription.nextBillingDate).add(1, 'month').toDate();
+        return dayjs(subscription.nextBillingDate).add(1, 'month').toDate();
       case BillingCycleEnum.WEEKLY:
-        return moment(subscription.nextBillingDate).add(7, 'days').toDate();
+        return dayjs(subscription.nextBillingDate).add(7, 'days').toDate();
       case BillingCycleEnum.DAILY:
-        return moment(subscription.nextBillingDate).add(1, 'days').toDate();
+        return dayjs(subscription.nextBillingDate).add(1, 'days').toDate();
       default:
         throw new Error('Invalid billing cycle');
     }
@@ -77,19 +77,19 @@ export class SubscriptionService {
   getBillingCycleString(nextBillingDate: string | Date, billingCycle: BillingCycleEnum) {
     switch (billingCycle) {
       case BillingCycleEnum.MONTHLY:
-        return `${moment(nextBillingDate).subtract(30, 'days').format('MM-DD')}-${moment(nextBillingDate).format(
+        return `${dayjs(nextBillingDate).subtract(30, 'days').format('MM-DD')}-${dayjs(nextBillingDate).format(
           'MM-DD',
         )}`;
       case BillingCycleEnum.WEEKLY:
-        return `${moment(nextBillingDate).subtract(7, 'days').format('MM-DD')}-${moment(nextBillingDate).format(
+        return `${dayjs(nextBillingDate).subtract(7, 'days').format('MM-DD')}-${dayjs(nextBillingDate).format(
           'MM-DD',
         )}`;
       case BillingCycleEnum.DAILY:
-        return `${moment(nextBillingDate).subtract(1, 'days').format('MM-DD')}-${moment(nextBillingDate).format(
+        return `${dayjs(nextBillingDate).subtract(1, 'days').format('MM-DD')}-${dayjs(nextBillingDate).format(
           'MM-DD',
         )}`;
       case BillingCycleEnum.YEARLY:
-        return `${moment(nextBillingDate).subtract(365, 'days').format('YYYY-MM')}-${moment(nextBillingDate).format(
+        return `${dayjs(nextBillingDate).subtract(365, 'days').format('YYYY-MM')}-${dayjs(nextBillingDate).format(
           'YYYY-MM',
         )}`;
       default:

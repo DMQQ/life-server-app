@@ -5,7 +5,7 @@ import { WalletService } from '../wallet.service';
 import { ExpenseService } from '../expense.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
 import { ExpenseType, LimitRange } from '../wallet.entity';
-import * as moment from 'moment';
+import dayjs from 'dayjs';
 import { LimitsService } from '../limits.service';
 import { SubscriptionService } from '../subscriptions.service';
 import { BaseScheduler } from './scheduler-base.service';
@@ -44,10 +44,10 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
         const walletId = wallet.id;
         if (!wallet) continue;
 
-        const today = moment().format('YYYY-MM-DD');
+        const today = dayjs().format('YYYY-MM-DD');
 
-        const daysLeftInMonth = moment().endOf('month').diff(moment(), 'days') + 1; // +1 to include today
-        const daysLeftInWeek = 7 - moment().day();
+        const daysLeftInMonth = dayjs().endOf('month').diff(dayjs(), 'day') + 1;
+        const daysLeftInWeek = 7 - dayjs().day();
 
         let monthlyBudget = wallet.income * (wallet.monthlyPercentageTarget / 100);
 
@@ -63,7 +63,7 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
 
           if (monthlyBudget <= 0) {
             try {
-              const threeMonthsAgo = moment().subtract(3, 'months').format('YYYY-MM-DD');
+              const threeMonthsAgo = dayjs().subtract(3, 'month').format('YYYY-MM-DD');
               const monthlyData = await this.expenseService.getMonthIncomesAndExpenses(walletId, [
                 threeMonthsAgo,
                 today,
@@ -82,14 +82,14 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
           }
         }
 
-        const daysInMonth = moment().daysInMonth();
+        const daysInMonth = dayjs().daysInMonth();
         const dailyBudget = monthlyBudget / daysInMonth;
 
-        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
+        const startOfMonth = dayjs().startOf('month').format('YYYY-MM-DD');
         const monthToDate = await this.expenseService.getTotalExpensesForPeriod(walletId, [startOfMonth, today]);
         const spentThisMonth = monthToDate.expense_sum || 0;
 
-        const startOfWeek = moment().startOf('week').add(1, 'day').format('YYYY-MM-DD');
+        const startOfWeek = dayjs().startOf('week').add(1, 'day').format('YYYY-MM-DD');
         const weekToDate = await this.expenseService.getTotalExpensesForPeriod(walletId, [startOfWeek, today]);
         const spentThisWeek = weekToDate.expense_sum || 0;
 
@@ -118,7 +118,7 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
           constraint = 'monthly';
         }
 
-        const dayOfWeek = moment().day();
+        const dayOfWeek = dayjs().day();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
         if (canSpendToday < 10) {

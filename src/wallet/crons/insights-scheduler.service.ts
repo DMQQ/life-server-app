@@ -5,7 +5,7 @@ import { WalletService } from '../wallet.service';
 import { ExpenseService } from '../expense.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
 import { ExpenseType, LimitRange } from '../wallet.entity';
-import * as moment from 'moment';
+import dayjs from 'dayjs';
 import { LimitsService } from '../limits.service';
 import { SubscriptionService } from '../subscriptions.service';
 import { BaseScheduler } from './scheduler-base.service';
@@ -45,12 +45,12 @@ export class InsightsSchedulerService extends BaseScheduler {
 
         const [today, yesterday] = await Promise.all([
           this.expenseService.getDailyInsights(walletId, [
-            moment().startOf('day').format('YYYY-MM-DD HH:MM:ss'),
-            moment().endOf('day').format('YYYY-MM-DD HH:MM:ss'),
+            dayjs().startOf('day').format('YYYY-MM-DD HH:MM:ss'),
+            dayjs().endOf('day').format('YYYY-MM-DD HH:MM:ss'),
           ]),
           this.expenseService.getDailyInsights(walletId, [
-            moment().startOf('day').subtract(1, 'd').format('YYYY-MM-DD HH:MM:ss'),
-            moment().endOf('day').subtract(1, 'd').format('YYYY-MM-DD HH:MM:ss'),
+            dayjs().startOf('day').subtract(1, 'day').format('YYYY-MM-DD HH:MM:ss'),
+            dayjs().endOf('day').subtract(1, 'day').format('YYYY-MM-DD HH:MM:ss'),
           ]),
         ]);
 
@@ -112,8 +112,8 @@ export class InsightsSchedulerService extends BaseScheduler {
         const walletId = await this.walletService.getWalletId(n.userId);
         if (!walletId) continue;
 
-        const startDate = moment().subtract(1, 'month').format('YYYY-MM-DD');
-        const endDate = moment().format('YYYY-MM-DD');
+        const startDate = dayjs().subtract(1, 'month').format('YYYY-MM-DD');
+        const endDate = dayjs().format('YYYY-MM-DD');
 
         const hourlyData = await this.expenseService.getHourlySpendingPatterns(walletId, [startDate, endDate]);
 
@@ -174,24 +174,24 @@ export class InsightsSchedulerService extends BaseScheduler {
         if (!walletId) continue;
 
         const todayData = await this.expenseService.getDailyInsights(walletId, [
-          moment().startOf('day').format('YYYY-MM-DD HH:MM:ss'),
-          moment().endOf('day').format('YYYY-MM-DD HH:MM:ss'),
+          dayjs().startOf('day').format('YYYY-MM-DD HH:MM:ss'),
+          dayjs().endOf('day').format('YYYY-MM-DD HH:MM:ss'),
         ]);
 
         const todayExpense = todayData.expense_sum || 0;
 
         if (todayExpense <= 0) continue;
 
-        const lastMonthStart = moment().subtract(30, 'days').format('YYYY-MM-DD');
-        const yesterdayEnd = moment().subtract(1, 'day').format('YYYY-MM-DD');
+        const lastMonthStart = dayjs().subtract(30, 'day').format('YYYY-MM-DD');
+        const yesterdayEnd = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
 
         const monthlyData = await this.expenseService.getTotalExpensesForPeriod(walletId, [
-          moment(lastMonthStart).startOf('day').format('YYYY-MM-DD HH:MM:ss'),
-          moment(yesterdayEnd).endOf('day').format('YYYY-MM-DD HH:MM:ss'),
+          dayjs(lastMonthStart).startOf('day').format('YYYY-MM-DD HH:MM:ss'),
+          dayjs(yesterdayEnd).endOf('day').format('YYYY-MM-DD HH:MM:ss'),
         ]);
 
         const monthlyTotal = monthlyData.expense_sum || 0;
-        const daysInPeriod = moment(yesterdayEnd).diff(moment(lastMonthStart), 'days') + 1;
+        const daysInPeriod = dayjs(yesterdayEnd).diff(dayjs(lastMonthStart), 'day') + 1;
         const averageDaily = monthlyTotal / Math.max(1, daysInPeriod);
 
         if (todayExpense > averageDaily * 2 && todayExpense >= 20) {
@@ -231,31 +231,26 @@ export class InsightsSchedulerService extends BaseScheduler {
         const walletId = await this.walletService.getWalletId(user.userId);
         if (!walletId) continue;
 
-        // Get data for last 4 weeks
-        const startDate = moment().subtract(28, 'days').format('YYYY-MM-DD');
-        const endDate = moment().format('YYYY-MM-DD');
+        const startDate = dayjs().subtract(28, 'day').format('YYYY-MM-DD');
+        const endDate = dayjs().format('YYYY-MM-DD');
 
-        // Get all expenses
         const expenses = await this.expenseService.getExpensesForPeriod(walletId, [
-          moment(startDate).startOf('day').format('YYYY-MM-DD HH:MM:ss'),
-          moment(endDate).endOf('day').format('YYYY-MM-DD HH:MM:ss'),
+          dayjs(startDate).startOf('day').format('YYYY-MM-DD HH:MM:ss'),
+          dayjs(endDate).endOf('day').format('YYYY-MM-DD HH:MM:ss'),
         ]);
 
-        // Skip if not enough data
         if (!expenses || expenses.length < 10) {
           this.logger.log(`Not enough expenses for user ${user.userId} to analyze weekend patterns`);
           continue;
         }
 
-        // Split expenses by weekday and weekend
         const weekdayExpenses = [];
         const weekendExpenses = [];
 
         for (const expense of expenses) {
-          const date = moment(expense.date);
+          const date = dayjs(expense.date);
           const dayOfWeek = date.day();
 
-          // 0 is Sunday, 6 is Saturday
           if (dayOfWeek === 0 || dayOfWeek === 6) {
             weekendExpenses.push(expense);
           } else {
@@ -263,7 +258,6 @@ export class InsightsSchedulerService extends BaseScheduler {
           }
         }
 
-        // Skip if not enough data in either category
         if (weekdayExpenses.length < 5 || weekendExpenses.length < 3) {
           continue;
         }
@@ -271,7 +265,7 @@ export class InsightsSchedulerService extends BaseScheduler {
         const weekdayTotal = weekdayExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
         const weekendTotal = weekendExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
 
-        const totalDays = moment(endDate).diff(moment(startDate), 'days') + 1;
+        const totalDays = dayjs(endDate).diff(dayjs(startDate), 'day') + 1;
         const weekendDays = Math.round((totalDays * 2) / 7);
         const weekdayDays = totalDays - weekendDays;
 
@@ -324,8 +318,8 @@ export class InsightsSchedulerService extends BaseScheduler {
         const walletId = await this.walletService.getWalletId(user.userId);
         if (!walletId) continue;
 
-        const startDate = moment().subtract(6, 'weeks').format('YYYY-MM-DD');
-        const endDate = moment().format('YYYY-MM-DD');
+        const startDate = dayjs().subtract(6, 'week').format('YYYY-MM-DD');
+        const endDate = dayjs().format('YYYY-MM-DD');
 
         const dayOfWeekData = await this.expenseService.getSpendingByDayOfWeek(walletId, [startDate, endDate]);
 
@@ -364,7 +358,6 @@ export class InsightsSchedulerService extends BaseScheduler {
           const weeklySavingsPotential = highestAvg - lowestAvg;
           const annualSavings = weeklySavingsPotential * 52;
 
-          // Create message
           const messageBody = `📊 Your top spending day is ${dayNames[highestAvgDay]}. Tip: Plan purchases for ${
             dayNames[lowestAvgDay]
           } when you spend ${percentDiff.toFixed(0)}% less. Potential yearly savings: ${annualSavings.toFixed(0)}zł.`;
@@ -399,8 +392,8 @@ export class InsightsSchedulerService extends BaseScheduler {
         const walletId = await this.walletService.getWalletId(user.userId);
         if (!walletId) continue;
 
-        const currentMonth = moment().format('YYYY-MM');
-        const lastMonth = moment().subtract(1, 'month').format('YYYY-MM');
+        const currentMonth = dayjs().format('YYYY-MM');
+        const lastMonth = dayjs().subtract(1, 'month').format('YYYY-MM');
 
         const monthlyData = await this.expenseService.getMonthlyCategories(walletId, [lastMonth, currentMonth]);
 
@@ -480,7 +473,7 @@ export class InsightsSchedulerService extends BaseScheduler {
     timeZone: 'Europe/Warsaw',
   })
   async savingRateAnalysis() {
-    if (!moment().isSame(moment().endOf('month'), 'day')) {
+    if (!dayjs().isSame(dayjs().endOf('month'), 'day')) {
       return;
     }
 
@@ -494,10 +487,10 @@ export class InsightsSchedulerService extends BaseScheduler {
         const walletId = await this.walletService.getWalletId(user.userId);
         if (!walletId) continue;
 
-        const currentMonthStart = moment().startOf('month').format('YYYY-MM-DD');
-        const currentMonthEnd = moment().endOf('month').format('YYYY-MM-DD');
-        const prevMonthStart = moment().subtract(1, 'month').startOf('month').format('YYYY-MM-DD');
-        const prevMonthEnd = moment().subtract(1, 'month').endOf('month').format('YYYY-MM-DD');
+        const currentMonthStart = dayjs().startOf('month').format('YYYY-MM-DD');
+        const currentMonthEnd = dayjs().endOf('month').format('YYYY-MM-DD');
+        const prevMonthStart = dayjs().subtract(1, 'month').startOf('month').format('YYYY-MM-DD');
+        const prevMonthEnd = dayjs().subtract(1, 'month').endOf('month').format('YYYY-MM-DD');
 
         const currentMonth = await this.expenseService.getMonthIncomesAndExpenses(walletId, [
           currentMonthStart,
@@ -589,7 +582,7 @@ export class InsightsSchedulerService extends BaseScheduler {
       '🎧 Entertainment hack: Split premium subscriptions like Spotify Family or Netflix with friends to save up to 70%.',
     ];
 
-    const weekNumber = moment().week();
+    const weekNumber = dayjs().isoWeek();
     const tipIndex = weekNumber % tips.length;
     const tip = tips[tipIndex];
 
@@ -626,8 +619,8 @@ export class InsightsSchedulerService extends BaseScheduler {
         const walletId = await this.walletService.getWalletId(user.userId);
         if (!walletId) continue;
 
-        const startDate = moment().subtract(3, 'months').startOf('month').format('YYYY-MM-DD');
-        const endDate = moment().format('YYYY-MM-DD');
+        const startDate = dayjs().subtract(3, 'month').startOf('month').format('YYYY-MM-DD');
+        const endDate = dayjs().format('YYYY-MM-DD');
 
         const categories = await this.expenseService.getCategoryBreakdown(walletId, [startDate, endDate]);
 
@@ -643,20 +636,19 @@ export class InsightsSchedulerService extends BaseScheduler {
           continue;
         }
 
-        const dayOfMonth = moment().date();
+        const dayOfMonth = dayjs().date();
         const userSeed = user.userId.charCodeAt(0) || 1;
         const combinedSeed = (dayOfMonth + userSeed) % viableCategories.length;
 
         const targetCategory = viableCategories[combinedSeed];
         const targetSpending = parseFloat(targetCategory.total);
-        const monthsInPeriod = moment(endDate).diff(moment(startDate), 'months', true);
+        const monthsInPeriod = dayjs(endDate).diff(dayjs(startDate), 'month', true);
         const monthlyAverage = targetSpending / monthsInPeriod;
 
         const reductionPercent = 15 + ((dayOfMonth + userSeed) % 4) * 5;
         const monthlySavings = (monthlyAverage * reductionPercent) / 100;
         const yearlySavings = monthlySavings * 12;
 
-        // Calculate long-term impact
         const fiveYearSavings = yearlySavings * 5;
         const tenYearWithGrowth = monthlySavings * 12 * ((Math.pow(1.07, 10) - 1) / 0.07);
 
@@ -727,8 +719,8 @@ export class InsightsSchedulerService extends BaseScheduler {
         const walletId = await this.walletService.getWalletId(user.userId);
         if (!walletId) continue;
 
-        const startDate = moment().subtract(1, 'month').format('YYYY-MM-DD');
-        const endDate = moment().format('YYYY-MM-DD');
+        const startDate = dayjs().subtract(1, 'month').format('YYYY-MM-DD');
+        const endDate = dayjs().format('YYYY-MM-DD');
 
         const expenses = await this.expenseService.getExpensesWithSpontaneousRate(walletId, [startDate, endDate]);
 
@@ -825,14 +817,14 @@ export class InsightsSchedulerService extends BaseScheduler {
         const walletId = await this.walletService.getWalletId(user.userId);
         if (!walletId) continue;
 
-        const today = moment().format('YYYY-MM-DD');
+        const today = dayjs().format('YYYY-MM-DD');
         const subscriptionsDueToday = await this.subscriptionSerivce.getSubscriptionsDueOn(walletId, today);
 
         if (subscriptionsDueToday.length > 0) continue;
 
         const lastFiveDays = [];
         for (let i = 1; i <= 5; i++) {
-          const date = moment().subtract(i, 'days').format('YYYY-MM-DD');
+          const date = dayjs().subtract(i, 'day').format('YYYY-MM-DD');
           const dayExpenses = await this.expenseService.getDailyTotal(walletId, date);
           lastFiveDays.push({ date, total: dayExpenses });
         }
@@ -899,8 +891,8 @@ export class InsightsSchedulerService extends BaseScheduler {
           continue;
         }
 
-        const weekStart = moment().startOf('week').format('YYYY-MM-DD');
-        const today = moment().format('YYYY-MM-DD');
+        const weekStart = dayjs().startOf('week').format('YYYY-MM-DD');
+        const today = dayjs().format('YYYY-MM-DD');
 
         let transactions = [];
         try {

@@ -3,6 +3,15 @@ import { AppModule } from './app.module';
 import * as express from 'express';
 import * as compression from 'compression';
 
+import * as dayjs from 'dayjs';
+import * as advancedFormat from 'dayjs/plugin/advancedFormat';
+import * as isoWeek from 'dayjs/plugin/isoWeek';
+import * as isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+
+dayjs.extend(isoWeek);
+dayjs.extend(isSameOrBefore);
+dayjs.extend(advancedFormat);
+
 const ADDR = '10.1.1.105';
 
 async function bootstrap() {

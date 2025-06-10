@@ -7,7 +7,7 @@ import { SubscriptionService } from '../subscriptions.service';
 import { ExpenseService } from '../expense.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
 import { ExpenseType, LimitRange } from '../wallet.entity';
-import * as moment from 'moment';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class AlertsSchedulerService {
@@ -41,7 +41,7 @@ export class AlertsSchedulerService {
         const monthlyLimits = (await this.limitsService.limits(wallet.id, LimitRange.monthly)) as any;
 
         // Check for limits approaching threshold
-        const daysLeftInMonth = moment().endOf('month').diff(moment(), 'days');
+        const daysLeftInMonth = dayjs().endOf('month').diff(dayjs(), 'days');
 
         for (const limit of monthlyLimits) {
           const percentUsed = (limit.current / limit.amount) * 100;
@@ -65,8 +65,8 @@ export class AlertsSchedulerService {
 
         if (wallet.balance < 100) {
           try {
-            const lastMonth = moment().subtract(1, 'month').format('YYYY-MM-DD');
-            const today = moment().format('YYYY-MM-DD');
+            const lastMonth = dayjs().subtract(1, 'month').format('YYYY-MM-DD');
+            const today = dayjs().format('YYYY-MM-DD');
             const monthRange = { from: lastMonth, to: today };
 
             const recentExpenses = await this.expenseService.getExpenses(user.userId, monthRange);
@@ -75,17 +75,17 @@ export class AlertsSchedulerService {
             let daysToIncome = 7; // Default assumption
             if (incomes.length > 0) {
               // Sort by date, most recent first
-              incomes.sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf());
-              const lastIncomeDate = moment(incomes[0].date);
+              incomes.sort((a, b) => dayjs(b.date).valueOf() - dayjs(a.date).valueOf());
+              const lastIncomeDate = dayjs(incomes[0].date);
 
               // If we have a regular monthly pattern, predict next income
               if (incomes.length >= 2) {
-                const secondLastIncomeDate = moment(incomes[1].date);
+                const secondLastIncomeDate = dayjs(incomes[1].date);
                 const daysBetweenIncomes = lastIncomeDate.diff(secondLastIncomeDate, 'days');
                 if (daysBetweenIncomes > 20 && daysBetweenIncomes < 35) {
                   // Likely monthly income
                   const nextPredictedIncome = lastIncomeDate.clone().add(daysBetweenIncomes, 'days');
-                  daysToIncome = nextPredictedIncome.diff(moment(), 'days');
+                  daysToIncome = nextPredictedIncome.diff(dayjs(), 'days');
                   if (daysToIncome < 0) daysToIncome = 7; // Fallback if prediction is in the past
                 }
               }
@@ -136,7 +136,7 @@ export class AlertsSchedulerService {
 
         // Get all active subscriptions
         const now = new Date();
-        const threeDaysLater = moment().add(3, 'days').toDate();
+        const threeDaysLater = dayjs().add(3, 'days').toDate();
 
         // Get all subscriptions
         const allSubscriptions = await this.subscriptionService.getAllSubscriptions();
@@ -152,8 +152,8 @@ export class AlertsSchedulerService {
 
         for (const subscription of upcomingSubscriptions) {
           try {
-            const daysUntilCharge = moment(subscription.nextBillingDate).diff(moment(), 'days');
-          
+            const daysUntilCharge = dayjs(subscription.nextBillingDate).diff(dayjs(), 'days');
+
             if (daysUntilCharge !== 1) continue;
 
             notifications.push({

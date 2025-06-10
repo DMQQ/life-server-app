@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ExpenseEntity, ExpenseLocationEntity, ExpenseSubExpense, WalletEntity } from './wallet.entity';
 import { Between, Like, Repository } from 'typeorm';
-import * as moment from 'moment';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class ExpenseService {
@@ -120,15 +120,16 @@ export class ExpenseService {
     `;
 
     const queryMonth = (month: string) => {
-      const start = moment(month).startOf('month').format('YYYY-MM-DD');
-      const end = moment(month).endOf('month').format('YYYY-MM-DD');
+      const start = dayjs(month).startOf('month').format('YYYY-MM-DD');
+      const end = dayjs(month).endOf('month').format('YYYY-MM-DD');
       return this.expenseEntity.query(query.trim(), [walletId, start, end]);
     };
 
     const monthsResponse = await Promise.all(months.map((m) => queryMonth(m)));
 
     return monthsResponse.map((arr, index) => ({
-      month: moment.months()[moment(months[index]).get('month')],
+      //prettier-ignore
+      month: ['January','Febuary','March','April','May','June','July','August','September','October','November','December'][dayjs(months[index]).get('month')],
       categories: arr.map((i) => ({ ...i, count: +i.count })),
     }));
   }
@@ -200,7 +201,7 @@ export class ExpenseService {
     return this.expenseEntity.find({
       where: {
         walletId,
-        date: Between(moment(range.from).toDate(), moment(range.to).toDate()),
+        date: Between(dayjs(range.from).toDate(), dayjs(range.to).toDate()),
       },
     });
   }
@@ -386,8 +387,8 @@ export class ExpenseService {
       const result = [];
 
       for (const month of months) {
-        const startDate = moment(month).startOf('month').format('YYYY-MM-DD');
-        const endDate = moment(month).endOf('month').format('YYYY-MM-DD');
+        const startDate = dayjs(month).startOf('month').format('YYYY-MM-DD');
+        const endDate = dayjs(month).endOf('month').format('YYYY-MM-DD');
 
         const query = `
         SELECT 
@@ -406,7 +407,7 @@ export class ExpenseService {
         const categories = await this.expenseEntity.query(query, [walletId, startDate, endDate]);
 
         result.push({
-          month: moment(month).format('MMMM YYYY'),
+          month: dayjs(month).format('MMMM YYYY'),
           categories: categories || [],
         });
       }
@@ -587,8 +588,8 @@ export class ExpenseService {
 
   async getDailyTotal(walletId: string, date: string): Promise<number> {
     try {
-      const startDate = moment(date).startOf('day').format('YYYY-MM-DD HH:MM:ss');
-      const endDate = moment(date).endOf('day').format('YYYY-MM-DD HH:MM:ss');
+      const startDate = dayjs(date).startOf('day').format('YYYY-MM-DD HH:MM:ss');
+      const endDate = dayjs(date).endOf('day').format('YYYY-MM-DD HH:MM:ss');
 
       const query = `
         SELECT 
@@ -616,8 +617,8 @@ export class ExpenseService {
       .createQueryBuilder('expense')
       .where('expense.walletId = :walletId', { walletId })
       .andWhere('expense.date BETWEEN :from AND :to', {
-        from: moment(range.from).startOf('day').toDate(),
-        to: moment(range.to).endOf('day').toDate(),
+        from: dayjs(range.from).startOf('day').toDate(),
+        to: dayjs(range.to).endOf('day').toDate(),
       })
       .getMany();
   }

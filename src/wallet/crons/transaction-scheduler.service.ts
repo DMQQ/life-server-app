@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { WalletService } from '../wallet.service';
 import { SubscriptionService } from '../subscriptions.service';
-import * as moment from 'moment';
+import dayjs from 'dayjs';
 import { BillingCycleEnum, SubscriptionEntity } from '../subscription.entity';
 
 @Injectable()
@@ -86,12 +86,12 @@ export class TransactionSchedulerService {
 
     const dateFormat =
       subscription.billingCycle === BillingCycleEnum.MONTHLY
-        ? moment().format('MMMM')
+        ? dayjs().format('MMMM')
         : subscription.billingCycle === BillingCycleEnum.DAILY
-        ? moment().format('MMMM Do')
+        ? dayjs().format('MMMM Do')
         : subscription.billingCycle === BillingCycleEnum.WEEKLY
-        ? `${moment().format('DD')}-${moment().add(7, 'days').format('DD')} ${moment().add(7, 'days').format('MMMM')}`
-        : moment().format('YYYY-MM-DD');
+        ? `${dayjs().format('DD')}-${dayjs().add(7, 'day').format('DD')} ${dayjs().add(7, 'day').format('MMMM')}`
+        : dayjs().format('YYYY-MM-DD');
 
     return `${cleanText} (${dateFormat})`.trim();
   }
