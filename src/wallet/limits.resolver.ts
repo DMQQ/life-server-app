@@ -13,6 +13,7 @@ import { LimitRange, WalletLimits } from './wallet.entity';
 import { LimitsService } from './limits.service';
 import { User } from 'src/utils/decorators/User';
 import { WalletService } from './wallet.service';
+import { Cache, InvalidateCache, UserCache } from '../utils/services/Cache/cache.decorator';
 
 @ObjectType()
 export class LimitsOutput extends WalletLimits {
@@ -40,6 +41,7 @@ export class LimitsResolver {
   ) {}
 
   @Query(() => [LimitsOutput])
+  @UserCache(30)
   async limits(
     @Args('range', { type: () => String }) range: LimitRange,
     @User() user: string,
@@ -51,6 +53,7 @@ export class LimitsResolver {
   }
 
   @Mutation(() => Boolean)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async deleteLimit(
     @Args('id', { type: () => ID, nullable: false }) id: string,
   ) {
@@ -58,6 +61,7 @@ export class LimitsResolver {
   }
 
   @Mutation(() => WalletLimits)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async createLimit(
     @Args('input', { type: () => CreateLimit, nullable: false })
     input: CreateLimit,

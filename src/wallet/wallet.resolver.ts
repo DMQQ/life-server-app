@@ -9,6 +9,7 @@ import { SubscriptionService } from './subscriptions.service';
 import { BillingCycleEnum } from './subscription.entity';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 import { ExpenseService } from './expense.service';
+import { Cache, InvalidateCache, UserCache } from '../utils/services/Cache/cache.decorator';
 
 const parseDate = (dateString: string) => {
   const currentTime = new Date();
@@ -37,6 +38,7 @@ export class WalletResolver {
   ) {}
 
   @Query((returns) => WalletEntity)
+  @UserCache(30)
   async wallet(@User() usrId: string) {
     const wallet = await this.walletService.getWalletByUserId(usrId);
 
@@ -44,6 +46,7 @@ export class WalletResolver {
   }
 
   @ResolveField(() => [ExpenseEntity])
+  @UserCache(30)
   async expenses(
     @Parent() wallet: WalletEntity,
     @Args('skip', { type: () => Int, nullable: true }) skip: number = 0,
@@ -59,6 +62,7 @@ export class WalletResolver {
   }
 
   @Mutation((returns) => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async createExpense(
     @User() usrId: string,
     @Args('amount', { type: () => Float }) amount: number,
@@ -114,6 +118,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ID)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async deleteExpense(@Args('id', { type: () => ID }) id: string, @User() userId: string) {
     await this.walletService.deleteExpense(id, userId);
 
@@ -121,11 +126,13 @@ export class WalletResolver {
   }
 
   @Mutation(() => WalletEntity)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async editWalletBalance(@User() usrId: string, @Args('amount', { type: () => Int }) amount: number) {
     return await this.walletService.editUserWalletBalance(usrId, amount);
   }
 
   @Mutation(() => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async editExpense(
     @User() usrId: string,
     @Args('expenseId', { type: () => ID }) expenseId: string,
@@ -149,6 +156,7 @@ export class WalletResolver {
   }
 
   @Query(() => Float)
+  @UserCache(30)
   async getMonthTotalExpenses(@User() usrId: string) {
     return await this.walletService.getMonthTotalByType(
       'expense',
@@ -159,6 +167,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => Boolean)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async createWallet(
     @User() user: string,
     @Args('balance', { type: () => Float, nullable: false, defaultValue: 0 })
@@ -174,6 +183,7 @@ export class WalletResolver {
   }
 
   @Query(() => Float)
+  @UserCache(30)
   async getMonthTotal(@User() usrId: string, @Args('date') date: string) {
     const parsedDate = new Date(date);
 
@@ -197,6 +207,7 @@ export class WalletResolver {
   }
 
   @Query(() => WalletStatisticsRange)
+  @UserCache(30)
   async getStatistics(@User() usrId: string, @Args('range', { type: () => [String, String] }) range: [string, string]) {
     if (range.length !== 2) {
       throw new BadRequestException('Invalid range');
@@ -212,6 +223,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async refundExpense(@User() user: string, @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string) {
     try {
       return this.walletService.refundExpense(user, expenseId);
@@ -221,6 +233,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async createSubscription(
     @User() user: string,
     @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
@@ -237,6 +250,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async cancelSubscription(@Args('subscriptionId', { type: () => ID }) subscriptionId: string) {
     try {
       await this.subscriptionService.cancelSubscription(subscriptionId);
@@ -248,6 +262,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser:true })
   async createExpenseFromImage(@Args('image') imageBase64: string, @User() user: string) {
     const prediction = await this.openAiService.extractReceiptContent(imageBase64);
     const receiptData = JSON.parse(prediction.choices[0].message.content) as {

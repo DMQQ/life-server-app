@@ -2,12 +2,14 @@ import { Resolver, Query, Args } from '@nestjs/graphql';
 import { User } from 'src/utils/decorators/User';
 import { StatisticsDailySpendings, StatisticsDayOfWeekComparison, StatisticsLegend } from './wallet.schemas';
 import { StatisticsService } from './statistics.service';
+import { Cache, UserCache } from '../utils/services/Cache/cache.decorator';
 
 @Resolver()
 export class StatisticsResolver {
   constructor(private statisticsService: StatisticsService) {}
 
   @Query(() => [StatisticsLegend])
+  @UserCache(30)
   async statisticsLegend(
     @User() userId: string,
     @Args('startDate') startDate: string,
@@ -18,6 +20,7 @@ export class StatisticsResolver {
   }
 
   @Query(() => [StatisticsDayOfWeekComparison])
+  @UserCache(30)
   async statisticsDayOfWeek(
     @User() userId: string,
     @Args('startDate') startDate: string,
@@ -27,6 +30,7 @@ export class StatisticsResolver {
   }
 
   @Query(() => [StatisticsDailySpendings])
+  @UserCache(30)
   async statisticsDailySpendings(
     @User() userId: string,
     @Args('startDate') startDate: string,

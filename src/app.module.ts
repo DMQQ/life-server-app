@@ -19,9 +19,12 @@ import { FlashCardsModule } from './flashcards/flashcards.module';
 import { GoalsModule } from './goals/goals.module';
 import { HostsModule } from './hosts/hosts.module';
 import { OpenAIModule } from './utils/services/OpenAI/openai.module';
+import { CacheModule } from './utils/services/Cache/cache.module';
 
 @Module({
   imports: [
+    CacheModule,
+
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
