@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression, Interval } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { WalletService } from '../wallet.service';
 import { SubscriptionService } from '../subscriptions.service';
 import * as moment from 'moment';
-import { BillingCycleEnum } from '../subscription.entity';
+import { BillingCycleEnum, SubscriptionEntity } from '../subscription.entity';
 
 @Injectable()
 export class TransactionSchedulerService {
@@ -61,19 +61,7 @@ export class TransactionSchedulerService {
             ...expense,
             date: new Date(),
             subscriptionId: subscription.id,
-            description:
-              expense.description +
-              ` (${
-                subscription.billingCycle === BillingCycleEnum.MONTHLY
-                  ? moment().format('MMMM')
-                  : subscription.billingCycle === BillingCycleEnum.DAILY
-                  ? moment().format('MMMM Do')
-                  : subscription.billingCycle === BillingCycleEnum.WEEKLY
-                  ? `${moment().format('DD')}-${moment().add(7, 'days').format('DD')} ${moment()
-                      .add(7, 'days')
-                      .format('MMMM')}`
-                  : moment().format('YYYY-MM-DD')
-              })`,
+            description: this.createDescriptionText(expense.description, subscription),
             note: `Subscription for ${subscriptionRange}`,
             subscription: subscription,
           });
@@ -87,5 +75,24 @@ export class TransactionSchedulerService {
     } catch (error) {
       this.logger.error(`Error inserting subscriptions: ${error.message}`);
     }
+  }
+
+  private createDescriptionText(text: string, subscription: SubscriptionEntity) {
+    const cleanText = text
+      .replace(/\([A-Za-z]+\)/g, '')
+      .replace(/\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}/g, '')
+      .replace(/\d{4}-\d{2}-\d{2}/g, '')
+      .trim();
+
+    const dateFormat =
+      subscription.billingCycle === BillingCycleEnum.MONTHLY
+        ? moment().format('MMMM')
+        : subscription.billingCycle === BillingCycleEnum.DAILY
+        ? moment().format('MMMM Do')
+        : subscription.billingCycle === BillingCycleEnum.WEEKLY
+        ? `${moment().format('DD')}-${moment().add(7, 'days').format('DD')} ${moment().add(7, 'days').format('MMMM')}`
+        : moment().format('YYYY-MM-DD');
+
+    return `${cleanText} (${dateFormat})`.trim();
   }
 }
