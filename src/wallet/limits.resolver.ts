@@ -13,7 +13,8 @@ import { LimitRange, WalletLimits } from './wallet.entity';
 import { LimitsService } from './limits.service';
 import { User } from 'src/utils/decorators/User';
 import { WalletService } from './wallet.service';
-import { Cache, InvalidateCache, UserCache } from '../utils/services/Cache/cache.decorator';
+import { Cache, CacheInterceptor, InvalidateCache, InvalidateCacheInterceptor, UserCache } from '../utils/services/Cache/cache.decorator';
+import { UseInterceptors } from '@nestjs/common';
 
 @ObjectType()
 export class LimitsOutput extends WalletLimits {
@@ -31,7 +32,9 @@ class CreateLimit {
 
   @Field(() => String)
   type: string;
+
 }
+@UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 
 @Resolver()
 export class LimitsResolver {

@@ -19,7 +19,13 @@ import { ExpenseService } from './expense.service';
 import { User } from 'src/utils/decorators/User';
 import { ExpensePredictionType } from './wallet.schemas';
 import { ExpensePredictionService } from './expense-prediction.service';
-import { InvalidateCache, UserCache } from '../utils/services/Cache/cache.decorator';
+import {
+  CacheInterceptor,
+  InvalidateCache,
+  InvalidateCacheInterceptor,
+  UserCache,
+} from '../utils/services/Cache/cache.decorator';
+import { UseInterceptors } from '@nestjs/common';
 
 @InputType()
 class CreateLocationDto {
@@ -123,6 +129,7 @@ class HourlyStats {
   variance: number;
 }
 
+@UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @Resolver(() => ExpenseEntity)
 export class ExpenseResolver {
   constructor(
@@ -133,13 +140,12 @@ export class ExpenseResolver {
   ) {}
 
   @Query(() => ExpenseEntity)
-  @UserCache(60)
+  @UserCache(3600)
   expense(@Args('expenseId', { type: () => ID, nullable: false }) expenseId: string) {
     return this.expenseService.getOne(expenseId);
   }
 
   @ResolveField('subscription', () => SubscriptionEntity, { nullable: true })
-  @UserCache(60)
   async getSubscription(@Parent() expense: ExpenseEntity) {
     const { subscriptionId } = expense;
 
@@ -157,13 +163,12 @@ export class ExpenseResolver {
   }
 
   @ResolveField('subexpenses', () => [ExpenseSubExpense])
-  @UserCache(60)
   async getSubExpenses(@Parent() expense: ExpenseEntity) {
     return this.expenseService.getSubExpenses(expense.id);
   }
 
   @Mutation(() => ExpenseLocationEntity)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   createLocation(
     @Args('input', { type: () => CreateLocationDto }) input: CreateLocationDto,
   ): Promise<ExpenseLocationEntity> {
@@ -171,7 +176,7 @@ export class ExpenseResolver {
   }
 
   @Query(() => [ExpenseLocationEntity])
-  @UserCache(60)
+  @UserCache(3600)
   locations(
     @Args('query', { nullable: true }) query: string,
     @Args('latitude', { type: () => Float, nullable: true }) latitude: number,
@@ -181,7 +186,7 @@ export class ExpenseResolver {
   }
 
   @Mutation(() => Boolean)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async addExpenseLocation(
     @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
     @Args('locationId', { type: () => ID, nullable: false }) locationId: string,
@@ -190,7 +195,7 @@ export class ExpenseResolver {
   }
 
   @Mutation(() => ExpenseSubExpense)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   createSubExpense(
     @Args('expenseId', { type: () => ID }) expenseId: string,
     @Args('input', { type: () => CreateSubExpenseDto })
@@ -200,7 +205,7 @@ export class ExpenseResolver {
   }
 
   @Mutation(() => [ExpenseSubExpense])
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   addMultipleSubExpenses(
     @Args('expenseId', { type: () => ID }) expenseId: string,
     @Args('inputs', { type: () => [CreateSubExpenseDto] })
@@ -211,7 +216,7 @@ export class ExpenseResolver {
   }
 
   @Mutation(() => ExpenseSubExpense)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   updateSubExpense(
     @Args('id', { type: () => ID }) id: string,
     @Args('input', { type: () => UpdateSubExpenseDto })
@@ -221,32 +226,32 @@ export class ExpenseResolver {
   }
 
   @Mutation(() => Boolean)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async deleteSubExpense(@Args('id', { type: () => ID }) id: string) {
     const result = await this.expenseService.deleteSubExpense(id);
     return result.success;
   }
 
   @Query(() => [ExpenseSubExpense])
-  @UserCache(60)
+  @UserCache(3600)
   subExpenses(@Args('expenseId', { type: () => ID }) expenseId: string) {
     return this.expenseService.getSubExpenses(expenseId);
   }
 
   @Query(() => ExpenseSubExpense, { nullable: true })
-  @UserCache(60)
+  @UserCache(3600)
   subExpense(@Args('id', { type: () => ID }) id: string) {
     return this.expenseService.getSubExpenseById(id);
   }
 
   @Query(() => ExpenseEntity)
-  @UserCache(60)
+  @UserCache(3600)
   expenseWithSubExpenses(@Args('expenseId', { type: () => ID }) expenseId: string) {
     return this.expenseService.getExpenseWithSubExpenses(expenseId);
   }
 
   @Query(() => [MonthlyCategoryComparisonOutput])
-  @UserCache(60)
+  @UserCache(3600)
   async monthlyCategoryComparison(
     @User() userId: string,
     // months in date format YYYY-MM-DD
@@ -258,7 +263,7 @@ export class ExpenseResolver {
   }
 
   @Query(() => [MonthlyHeatMap])
-  @UserCache(60)
+  @UserCache(3600)
   async monthlyDateSpendings(
     @User() userId: string,
     // months in date format YYYY-MM-DD
@@ -270,7 +275,7 @@ export class ExpenseResolver {
   }
 
   @Query(() => [HourlyStats])
-  @UserCache(60)
+  @UserCache(3600)
   async hourlySpendingsHeatMap(
     @User() userId: string,
     @Args('months', { type: () => [String], nullable: false }) months: string[],
@@ -290,7 +295,7 @@ export class ExpenseResolver {
   }
 
   @Query(() => [SubscriptionEntity])
-  @UserCache(60)
+  @UserCache(3600)
   subscriptions(@User() userId: string) {
     return this.subscriptionService.getSubscriptions(userId);
   }

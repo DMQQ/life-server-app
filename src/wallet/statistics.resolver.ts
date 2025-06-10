@@ -2,8 +2,15 @@ import { Resolver, Query, Args } from '@nestjs/graphql';
 import { User } from 'src/utils/decorators/User';
 import { StatisticsDailySpendings, StatisticsDayOfWeekComparison, StatisticsLegend } from './wallet.schemas';
 import { StatisticsService } from './statistics.service';
-import { Cache, UserCache } from '../utils/services/Cache/cache.decorator';
+import {
+  Cache,
+  CacheInterceptor,
+  InvalidateCacheInterceptor,
+  UserCache,
+} from '../utils/services/Cache/cache.decorator';
+import { UseInterceptors } from '@nestjs/common';
 
+@UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @Resolver()
 export class StatisticsResolver {
   constructor(private statisticsService: StatisticsService) {}

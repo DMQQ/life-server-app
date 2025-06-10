@@ -1,5 +1,5 @@
 import { Args, Float, ID, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
-import { BadRequestException, NotFoundException, UseGuards } from '@nestjs/common';
+import { BadRequestException, NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { WalletService } from './wallet.service';
 import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/wallet.entity';
@@ -9,7 +9,13 @@ import { SubscriptionService } from './subscriptions.service';
 import { BillingCycleEnum } from './subscription.entity';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 import { ExpenseService } from './expense.service';
-import { Cache, InvalidateCache, UserCache } from '../utils/services/Cache/cache.decorator';
+import {
+  Cache,
+  CacheInterceptor,
+  InvalidateCache,
+  InvalidateCacheInterceptor,
+  UserCache,
+} from '../utils/services/Cache/cache.decorator';
 
 const parseDate = (dateString: string) => {
   const currentTime = new Date();
@@ -26,6 +32,7 @@ const parseDate = (dateString: string) => {
   );
 };
 
+@UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @UseGuards(AuthGuard)
 @Resolver(() => WalletEntity)
 export class WalletResolver {
@@ -62,7 +69,7 @@ export class WalletResolver {
   }
 
   @Mutation((returns) => ExpenseEntity)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async createExpense(
     @User() usrId: string,
     @Args('amount', { type: () => Float }) amount: number,
@@ -118,7 +125,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ID)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async deleteExpense(@Args('id', { type: () => ID }) id: string, @User() userId: string) {
     await this.walletService.deleteExpense(id, userId);
 
@@ -126,13 +133,13 @@ export class WalletResolver {
   }
 
   @Mutation(() => WalletEntity)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async editWalletBalance(@User() usrId: string, @Args('amount', { type: () => Int }) amount: number) {
     return await this.walletService.editUserWalletBalance(usrId, amount);
   }
 
   @Mutation(() => ExpenseEntity)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async editExpense(
     @User() usrId: string,
     @Args('expenseId', { type: () => ID }) expenseId: string,
@@ -167,7 +174,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => Boolean)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async createWallet(
     @User() user: string,
     @Args('balance', { type: () => Float, nullable: false, defaultValue: 0 })
@@ -223,7 +230,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ExpenseEntity)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async refundExpense(@User() user: string, @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string) {
     try {
       return this.walletService.refundExpense(user, expenseId);
@@ -233,7 +240,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ExpenseEntity)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async createSubscription(
     @User() user: string,
     @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
@@ -250,7 +257,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ExpenseEntity)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async cancelSubscription(@Args('subscriptionId', { type: () => ID }) subscriptionId: string) {
     try {
       await this.subscriptionService.cancelSubscription(subscriptionId);
@@ -262,7 +269,7 @@ export class WalletResolver {
   }
 
   @Mutation(() => ExpenseEntity)
-  @InvalidateCache({ invalidateCurrentUser:true })
+  @InvalidateCache({ invalidateCurrentUser: true })
   async createExpenseFromImage(@Args('image') imageBase64: string, @User() user: string) {
     const prediction = await this.openAiService.extractReceiptContent(imageBase64);
     const receiptData = JSON.parse(prediction.choices[0].message.content) as {
