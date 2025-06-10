@@ -16,7 +16,7 @@ export class StatisticsResolver {
   constructor(private statisticsService: StatisticsService) {}
 
   @Query(() => [StatisticsLegend])
-  @UserCache(30)
+  @UserCache(3600)
   async statisticsLegend(
     @User() userId: string,
     @Args('startDate') startDate: string,
@@ -27,7 +27,7 @@ export class StatisticsResolver {
   }
 
   @Query(() => [StatisticsDayOfWeekComparison])
-  @UserCache(30)
+  @UserCache(3600)
   async statisticsDayOfWeek(
     @User() userId: string,
     @Args('startDate') startDate: string,
@@ -37,7 +37,7 @@ export class StatisticsResolver {
   }
 
   @Query(() => [StatisticsDailySpendings])
-  @UserCache(30)
+  @UserCache(3600)
   async statisticsDailySpendings(
     @User() userId: string,
     @Args('startDate') startDate: string,

@@ -44,7 +44,7 @@ export class LimitsResolver {
   ) {}
 
   @Query(() => [LimitsOutput])
-  @UserCache(30)
+  @UserCache(3600)
   async limits(
     @Args('range', { type: () => String }) range: LimitRange,
     @User() user: string,

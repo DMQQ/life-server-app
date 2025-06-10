@@ -45,7 +45,7 @@ export class WalletResolver {
   ) {}
 
   @Query((returns) => WalletEntity)
-  @UserCache(30)
+  @UserCache(3600)
   async wallet(@User() usrId: string) {
     const wallet = await this.walletService.getWalletByUserId(usrId);
 
@@ -53,7 +53,7 @@ export class WalletResolver {
   }
 
   @ResolveField(() => [ExpenseEntity])
-  @UserCache(30)
+  @UserCache(3600)
   async expenses(
     @Parent() wallet: WalletEntity,
     @Args('skip', { type: () => Int, nullable: true }) skip: number = 0,
@@ -163,7 +163,7 @@ export class WalletResolver {
   }
 
   @Query(() => Float)
-  @UserCache(30)
+  @UserCache(3600)
   async getMonthTotalExpenses(@User() usrId: string) {
     return await this.walletService.getMonthTotalByType(
       'expense',
@@ -190,7 +190,7 @@ export class WalletResolver {
   }
 
   @Query(() => Float)
-  @UserCache(30)
+  @UserCache(3600)
   async getMonthTotal(@User() usrId: string, @Args('date') date: string) {
     const parsedDate = new Date(date);
 
@@ -214,7 +214,7 @@ export class WalletResolver {
   }
 
   @Query(() => WalletStatisticsRange)
-  @UserCache(30)
+  @UserCache(3600)
   async getStatistics(@User() usrId: string, @Args('range', { type: () => [String, String] }) range: [string, string]) {
     if (range.length !== 2) {
       throw new BadRequestException('Invalid range');
