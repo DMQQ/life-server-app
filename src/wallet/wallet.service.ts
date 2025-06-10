@@ -345,6 +345,8 @@ export class WalletService {
   async getStatistics(userId: string, dateRange: [string, string]): Promise<[WalletStatisticsRange]> {
     const [startDate, endDate] = dateRange;
 
+    if (!startDate || !endDate) return Promise.reject(`startDate '${startDate}' or endDate '${endDate}' is empty`);
+
     return this.expenseRepository.query(
       `
       WITH walletId AS (
