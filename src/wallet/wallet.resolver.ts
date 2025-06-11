@@ -17,6 +17,7 @@ import {
   InvalidateCacheInterceptor,
   UserCache,
 } from '../utils/services/Cache/cache.decorator';
+import { CacheService } from 'src/utils/services/Cache/cache.service';
 
 const parseDate = (dateString: string) => {
   const currentTime = new Date();
@@ -44,10 +45,11 @@ export class WalletResolver {
     private openAiService: OpenAIService,
 
     private expenseService: ExpenseService,
+
+    private cacheService: CacheService,
   ) {}
 
   @Query((returns) => WalletEntity)
-  @UserCache(3600)
   async wallet(@User() usrId: string) {
     const wallet = await this.walletService.getWalletByUserId(usrId);
 
@@ -55,19 +57,25 @@ export class WalletResolver {
   }
 
   @ResolveField(() => [ExpenseEntity])
-  @UserCache(3600)
   async expenses(
     @Parent() wallet: WalletEntity,
     @Args('skip', { type: () => Int, nullable: true }) skip: number = 0,
-    @Args('take', { type: () => Int, nullable: true }) take: number = 10,
+    @Args('take', { type: () => Int, nullable: true }) take: number = 20,
     @Args('filters', { nullable: true, type: () => GetWalletFilters })
     filters: GetWalletFilters,
   ) {
-    return this.walletService.getExpensesByWalletId(wallet.id, {
+    const cacheKey = `${wallet.userId}:Wallet:expenses:${JSON.stringify({ skip, take, filters })}`;
+    const cached = await this.cacheService.get(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.walletService.getExpensesByWalletId(wallet.id, {
       pagination: { skip, take },
       where: filters,
       isExactCategory: filters?.isExactCategory,
     });
+
+    await this.cacheService.set(cacheKey, result, 1800);
+    return result;
   }
 
   @Mutation((returns) => ExpenseEntity)
