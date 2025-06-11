@@ -25,6 +25,7 @@ import { MoneyLeftSchedulerService } from './crons/money-left.service';
 import { StatisticsResolver } from './resolvers/statistics.resolver';
 import { StatisticsService } from './services/statistics.service';
 import { ExpensePredictionService } from './services/expense-prediction.service';
+import { UploadModule } from 'src/upload/upload.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ExpensePredictionService } from './services/expense-prediction.service'
       WalletLimits,
     ]),
     NotificationsModule,
+    UploadModule,
   ],
   providers: [
     WalletResolver,

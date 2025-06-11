@@ -9,5 +9,6 @@ import { ExpenseFileEntity } from 'src/wallet/entities/wallet.entity';
   imports: [TypeOrmModule.forFeature([TimelineFilesEntity, ExpenseFileEntity])],
   controllers: [UploadController],
   providers: [UploadService],
+  exports: [UploadService],
 })
 export class UploadModule {}

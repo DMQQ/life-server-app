@@ -54,7 +54,7 @@ export class OpenAIService {
               1. merchant: store/restaurant name. If unclear, use general category (shopping, clothes, beer, etc.) + first item name
               2. total_price: final amount paid
               3. date: transaction date (YYYY-MM-DD format) - VERIFY DATE ACCURACY, double-check day/month/year
-              4. title: IN POLISH - If only ONE item purchased, use that item name as title. If multiple items, use generalized category description (e.g. "Zakupy spożywcze" for groceries, "Odzież" for clothes, "Piwo" for beer items, "Obiad" for restaurant meals, "Leki" for medicines, "Kosmetyki" for cosmetics)
+              4. title: IN POLISH - If only ONE item purchased, use that item name as title. If multiple items, use generalized category description BUT IF possible to read add Shop name to description otherwise dont (e.g. "Zakupy spożywcze" for groceries, "Odzież" for clothes, "Piwo" for beer items, "Obiad" for restaurant meals, "Leki" for medicines, "Kosmetyki" for cosmetics)
               5. category: main expense category from the list
               6. subexpenses: individual items with name, quantity, amount, and category
               
@@ -128,16 +128,16 @@ export class OpenAIService {
         {
           role: 'system',
           content: `Create educational flashcards from the provided content. Generate comprehensive Q&A pairs that test understanding of key concepts, facts, and details.
-  
-  Rules:
-  - Create 5-15 flashcards depending on content length
-  - Questions should be clear and specific
-  - Answers should be concise but complete
-  - Explanations should provide context or additional insight
-  - Cover main topics, important details, and key relationships
-  - Vary question types: definitions, examples, comparisons, applications
-  
-  Return JSON: {"flashcards": [{"question": "string", "answer": "string", "explanation": "string"}]}`,
+          Rules:
+          - Create 5-20 flashcards depending on content length
+          - Questions should be clear and specific
+          - Answers should be concise but complete
+          - Explanations should provide context or additional insight
+          - Cover main topics, important details, and key relationships
+          - Vary question types: definitions, examples, comparisons, applications
+          - You are allowed to add some additional flashcards in related topics
+          
+          Return JSON: {"flashcards": [{"question": "string", "answer": "string", "explanation": "string"}]}`,
         },
         {
           role: 'user',

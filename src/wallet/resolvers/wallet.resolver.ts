@@ -18,6 +18,7 @@ import {
   UserCache,
 } from '../../utils/services/Cache/cache.decorator';
 import { CacheService } from 'src/utils/services/Cache/cache.service';
+import { UploadService } from 'src/upload/upload.service';
 
 const parseDate = (dateString: string) => {
   const currentTime = new Date();
@@ -47,6 +48,8 @@ export class WalletResolver {
     private expenseService: ExpenseService,
 
     private cacheService: CacheService,
+
+    private fileUploadService: UploadService,
   ) {}
 
   @Query((returns) => WalletEntity)
@@ -302,6 +305,10 @@ export class WalletResolver {
         amount: sub.amount,
       })),
     );
+
+    try {
+      expense.files = await this.fileUploadService.saveBase64ToDisk(imageBase64, expense.description, expense.id);
+    } catch (error) {}
 
     expense.subexpenses = subexpenses;
 
