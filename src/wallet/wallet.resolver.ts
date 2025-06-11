@@ -12,6 +12,7 @@ import { ExpenseService } from './expense.service';
 import {
   Cache,
   CacheInterceptor,
+  DefaultCacheModule,
   InvalidateCache,
   InvalidateCacheInterceptor,
   UserCache,
@@ -33,6 +34,7 @@ const parseDate = (dateString: string) => {
 };
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
+@DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
 @UseGuards(AuthGuard)
 @Resolver(() => WalletEntity)
 export class WalletResolver {

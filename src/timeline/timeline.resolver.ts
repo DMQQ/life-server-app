@@ -1,25 +1,17 @@
-import {
-  Args,
-  Field,
-  ID,
-  InputType,
-  Int,
-  Mutation,
-  Parent,
-  Query,
-  ResolveField,
-  Resolver,
-} from '@nestjs/graphql';
+import { Args, Field, ID, InputType, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
 import { TimelineService } from './timeline.service';
-import {
-  TimelineEntity,
-  TimelineFilesEntity,
-  TimelineTodosEntity,
-} from 'src/timeline/timeline.entity';
+import { TimelineEntity, TimelineFilesEntity, TimelineTodosEntity } from 'src/timeline/timeline.entity';
 import { User } from 'src/utils/decorators/User';
 import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
-import { NotFoundException, UseGuards } from '@nestjs/common';
+import { NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
+import {
+  CacheInterceptor,
+  DefaultCacheModule,
+  InvalidateCache,
+  InvalidateCacheInterceptor,
+  UserCache,
+} from 'src/utils/services/Cache/cache.decorator';
 
 @InputType()
 class TimelineTodo {
@@ -40,11 +32,14 @@ class PaginationInput {
 }
 
 @UseGuards(AuthGuard)
+@UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
+@DefaultCacheModule('Timeline', { invalidateCurrentUser: true })
 @Resolver(() => TimelineEntity)
 export class TimelineResolver {
   constructor(private timelineService: TimelineService) {}
 
   @Query(() => [TimelineEntity])
+  @UserCache(3600)
   timeline(
     @User() userId: string,
     @Args('date', { nullable: true }) date: string,
@@ -62,14 +57,9 @@ export class TimelineResolver {
   }
 
   @Query(() => [TimelineEntity])
-  async timelineMonth(
-    @User() userId: string,
-    @Args('date', { nullable: false }) date: string,
-  ) {
-    const timeline = await this.timelineService.findUserMonthEvents(
-      userId,
-      date,
-    );
+  @UserCache(3600)
+  async timelineMonth(@User() userId: string, @Args('date', { nullable: false }) date: string) {
+    const timeline = await this.timelineService.findUserMonthEvents(userId, date);
 
     if (timeline === null || timeline === undefined)
       throw new NotFoundException(`Timeline with current date not found`);
@@ -78,6 +68,7 @@ export class TimelineResolver {
   }
 
   @Query(() => TimelineEntity)
+  @UserCache(3600)
   async timelineById(
     @Args('id', { nullable: false, type: () => String }) id: string,
 
@@ -85,13 +76,13 @@ export class TimelineResolver {
   ) {
     const timeline = await this.timelineService.findOneById(id, userId);
 
-    if (timeline === null || timeline === undefined)
-      throw new NotFoundException(`Timeline with id ${id} not found`);
+    if (timeline === null || timeline === undefined) throw new NotFoundException(`Timeline with id ${id} not found`);
 
     return timeline;
   }
 
   @Query(() => [TimelineEntity])
+  @UserCache(3600)
   async timelineByCurrentDate(@User() userId: string) {
     const timeline = await this.timelineService.findByCurrentDate(userId);
 
@@ -102,6 +93,7 @@ export class TimelineResolver {
   }
 
   @Mutation(() => TimelineEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
   createTimeline(
     @Args('input', { type: () => CreateTimelineInput })
     input: CreateTimelineInput,
@@ -111,17 +103,12 @@ export class TimelineResolver {
 
     @User() userId: string,
   ) {
-    return this.timelineService.createRepeatableTimeline(
-      { ...input, userId },
-      options,
-    );
+    return this.timelineService.createRepeatableTimeline({ ...input, userId }, options);
   }
 
   @Mutation(() => TimelineEntity)
-  async completeTimeline(
-    @User() usrId: string,
-    @Args('id', { nullable: false, type: () => String }) id: string,
-  ) {
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async completeTimeline(@User() usrId: string, @Args('id', { nullable: false, type: () => String }) id: string) {
     const updateResult = await this.timelineService.completeTimeline(id, usrId);
 
     if (updateResult === null || updateResult === undefined)
@@ -131,15 +118,14 @@ export class TimelineResolver {
   }
 
   @Mutation(() => Boolean)
-  async removeTimeline(
-    @Args('id', { nullable: false, type: () => String }) id: string,
-    @User() userId: string,
-  ) {
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async removeTimeline(@Args('id', { nullable: false, type: () => String }) id: string, @User() userId: string) {
     await this.timelineService.removeTimeline(id, userId);
     return true;
   }
 
   @Mutation(() => TimelineTodosEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
   async createTimelineTodos(
     @User() usrId: string,
     @Args('todos', { type: () => [TimelineTodo] }) todos: TimelineTodo[],
@@ -150,23 +136,22 @@ export class TimelineResolver {
   }
 
   @Mutation(() => Boolean)
-  async removeTimelineTodo(
-    @Args('id', { nullable: false, type: () => ID }) id: string,
-  ) {
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async removeTimelineTodo(@Args('id', { nullable: false, type: () => ID }) id: string) {
     await this.timelineService.removeTimelineTodo(id);
     return true;
   }
 
   @Mutation(() => TimelineTodosEntity)
-  async completeTimelineTodo(
-    @Args('id', { nullable: false, type: () => ID }) id: string,
-  ) {
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async completeTimelineTodo(@Args('id', { nullable: false, type: () => ID }) id: string) {
     await this.timelineService.completeTimelineTodo(id);
 
     return this.timelineService.findTodoById(id);
   }
 
   @Mutation(() => TimelineEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
   async editTimeline(
     @User() user: string,
 
@@ -177,8 +162,7 @@ export class TimelineResolver {
   ) {
     const timeline = await this.timelineService.findOneById(timelineId, user);
 
-    if (timeline === undefined || timeline == null)
-      throw new NotFoundException('Timeline not found');
+    if (timeline === undefined || timeline == null) throw new NotFoundException('Timeline not found');
 
     const result = await this.timelineService.editTimeline(input, timelineId);
 
@@ -191,9 +175,6 @@ export class TimelineResolver {
     @Args('pagination', { nullable: true, type: () => PaginationInput })
     pagination: PaginationInput,
   ) {
-    return timeline.images.slice(
-      pagination?.skip || 0,
-      pagination?.skip + pagination?.take || timeline.images.length,
-    );
+    return timeline.images.slice(pagination?.skip || 0, pagination?.skip + pagination?.take || timeline.images.length);
   }
 }

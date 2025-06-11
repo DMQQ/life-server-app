@@ -7,23 +7,39 @@ import { Reflector } from '@nestjs/core';
 
 export const CACHE_KEY = 'cache';
 export const INVALIDATE_CACHE_KEY = 'invalidate_cache';
+export const DEFAULT_CACHE_MODULE_KEY = 'default_cache_module';
 
-export const UserCache = (ttl: number, options: { includeUser?: boolean } = {}) =>
-  SetMetadata(CACHE_KEY, { ttl, options });
+export interface CacheOptions {
+  includeUser?: boolean;
+  module?: string;
+}
 
-export const Cache = (ttl: number, options: { includeUser?: boolean } = {}) => SetMetadata(CACHE_KEY, { ttl, options });
+export interface DefaultCacheModuleOptions {
+  invalidateCurrentUser?: boolean;
+}
+
+export const DefaultCacheModule = (module: string, options: DefaultCacheModuleOptions = {}) =>
+  SetMetadata(DEFAULT_CACHE_MODULE_KEY, { module, ...options });
+
+export const UserCache = (ttl: number, options: CacheOptions = {}) => SetMetadata(CACHE_KEY, { ttl, options });
+
+export const Cache = (ttl: number, options: CacheOptions = {}) => SetMetadata(CACHE_KEY, { ttl, options });
 
 export interface InvalidateOptions {
   patterns?: string[];
   invalidateAll?: boolean;
   invalidateCurrentUser?: boolean;
+  module?: string;
 }
 
 export const InvalidateCache = (options: InvalidateOptions = {}) => SetMetadata(INVALIDATE_CACHE_KEY, options);
 
 @Injectable()
 export class CacheInterceptor implements NestInterceptor {
-  constructor(private readonly cacheService: CacheService, private readonly reflector: Reflector) {}
+  constructor(
+    private readonly cacheService: CacheService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
     const cacheMetadata = this.reflector.get(CACHE_KEY, context.getHandler());
@@ -32,20 +48,25 @@ export class CacheInterceptor implements NestInterceptor {
       return next.handle();
     }
 
+    const classDefaults = this.reflector.get(DEFAULT_CACHE_MODULE_KEY, context.getClass()) || {};
     const gqlCtx = GqlExecutionContext.create(context);
     const accountId = gqlCtx.getContext().req.account?.accountId;
     const gqlArgs = gqlCtx.getArgs();
 
     const className = context.getClass().name;
     const methodName = context.getHandler().name;
+    const module = cacheMetadata.options?.module || classDefaults.module || className;
     const argsHash = Object.keys(gqlArgs).length > 0 ? JSON.stringify(gqlArgs) : '';
-    const cacheKey = `${accountId}:${className}:${methodName}:${argsHash}`;
+    const cacheKey = `${accountId}:${module}:${methodName}:${argsHash}`;
 
     try {
       const cachedResult = await this.cacheService.get(cacheKey);
       if (cachedResult !== null) {
+        console.log('Cache HIT for: ' + cacheKey);
         return of(cachedResult);
       }
+
+      console.log('Cache MISS for: ' + cacheKey);
 
       return next.handle().pipe(
         tap(async (result) => {
@@ -60,7 +81,10 @@ export class CacheInterceptor implements NestInterceptor {
 
 @Injectable()
 export class InvalidateCacheInterceptor implements NestInterceptor {
-  constructor(private readonly cacheService: CacheService, private readonly reflector: Reflector) {}
+  constructor(
+    private readonly cacheService: CacheService,
+    private readonly reflector: Reflector,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const invalidateMetadata = this.reflector.get(INVALIDATE_CACHE_KEY, context.getHandler());
@@ -72,13 +96,25 @@ export class InvalidateCacheInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(async () => {
         try {
+          const classDefaults = this.reflector.get(DEFAULT_CACHE_MODULE_KEY, context.getClass()) || {};
           const gqlCtx = GqlExecutionContext.create(context);
           const accountId = gqlCtx.getContext().req.account?.accountId;
 
+          const shouldInvalidateCurrentUser =
+            invalidateMetadata.invalidateCurrentUser ?? classDefaults.invalidateCurrentUser ?? false;
+          const targetModule = invalidateMetadata.module || classDefaults.module;
+
           if (invalidateMetadata.invalidateAll) {
             await this.cacheService.flushAll();
-          } else if (invalidateMetadata.invalidateCurrentUser && accountId) {
-            await this.cacheService.invalidateUser(accountId);
+          } else if (shouldInvalidateCurrentUser && accountId) {
+            if (targetModule) {
+              console.log('Invalidate pattern ', `${accountId}:${targetModule}:*`);
+              await this.cacheService.invalidatePattern(`${accountId}:${targetModule}:*`);
+            } else {
+              await this.cacheService.invalidateUser(accountId);
+            }
+          } else if (targetModule && accountId) {
+            await this.cacheService.invalidatePattern(`${accountId}:${targetModule}:*`);
           } else if (invalidateMetadata.patterns) {
             for (const pattern of invalidateMetadata.patterns) {
               await this.cacheService.invalidatePattern(pattern);

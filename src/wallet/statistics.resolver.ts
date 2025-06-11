@@ -3,14 +3,15 @@ import { User } from 'src/utils/decorators/User';
 import { StatisticsDailySpendings, StatisticsDayOfWeekComparison, StatisticsLegend } from './wallet.schemas';
 import { StatisticsService } from './statistics.service';
 import {
-  Cache,
   CacheInterceptor,
+  DefaultCacheModule,
   InvalidateCacheInterceptor,
   UserCache,
 } from '../utils/services/Cache/cache.decorator';
 import { UseInterceptors } from '@nestjs/common';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
+@DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
 @Resolver()
 export class StatisticsResolver {
   constructor(private statisticsService: StatisticsService) {}

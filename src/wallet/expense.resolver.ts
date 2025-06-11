@@ -21,6 +21,7 @@ import { ExpensePredictionType } from './wallet.schemas';
 import { ExpensePredictionService } from './expense-prediction.service';
 import {
   CacheInterceptor,
+  DefaultCacheModule,
   InvalidateCache,
   InvalidateCacheInterceptor,
   UserCache,
@@ -130,6 +131,7 @@ class HourlyStats {
 }
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
+@DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
 @Resolver(() => ExpenseEntity)
 export class ExpenseResolver {
   constructor(

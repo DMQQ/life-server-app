@@ -3,8 +3,15 @@ import { UserGoal, GoalCategory, GoalEntry } from './goals.entity';
 import { GoalService } from './goals.service';
 import { InputType, Field, ObjectType } from '@nestjs/graphql';
 import { IsString, IsNumber, IsDate, IsOptional } from 'class-validator';
-import { UseGuards } from '@nestjs/common';
 import { User } from 'src/utils/decorators/User';
+import { UseInterceptors } from '@nestjs/common';
+import {
+  CacheInterceptor,
+  DefaultCacheModule,
+  InvalidateCache,
+  InvalidateCacheInterceptor,
+  UserCache,
+} from 'src/utils/services/Cache/cache.decorator';
 
 // Keep same input types for API compatibility
 @InputType()
@@ -89,11 +96,14 @@ class Goals extends GoalCategory {}
 @ObjectType({ description: 'GoalStats' })
 class GoalStats extends GoalEntry {}
 
+@UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
+@DefaultCacheModule('Goals', { invalidateCurrentUser: true })
 @Resolver(() => Goal)
 export class GoalResolver {
   constructor(private goalService: GoalService) {}
 
   @Query(() => Goal)
+  @UserCache(3600)
   async userGoal(
     @User() userId: string,
     @Args('dateRange', { type: () => DateRangeInput, nullable: true })
@@ -103,29 +113,27 @@ export class GoalResolver {
   }
 
   @Mutation(() => Goals)
-  async createGoals(
-    @User() userId: string,
-    @Args('input') input: CreateGoalsInput,
-  ) {
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async createGoals(@User() userId: string, @Args('input') input: CreateGoalsInput) {
     const userGoal = await this.goalService.getOrCreateUserGoal(userId);
     return this.goalService.createGoalCategory(userGoal.id, input);
   }
 
   @Mutation(() => Goals)
-  async updateGoals(
-    @Args('id', { type: () => ID }) id: string,
-    @Args('input') input: UpdateGoalsInput,
-  ) {
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async updateGoals(@Args('id', { type: () => ID }) id: string, @Args('input') input: UpdateGoalsInput) {
     return this.goalService.updateGoalCategory(id, input);
   }
 
   @Mutation(() => Boolean)
+  @InvalidateCache({ invalidateCurrentUser: true })
   async deleteGoals(@Args('id', { type: () => ID }) id: string) {
     await this.goalService.deleteGoalCategory(id);
     return true;
   }
 
   @Mutation(() => GoalStats)
+  @InvalidateCache({ invalidateCurrentUser: true })
   async upsertGoalStats(
     @Args('goalsId', { type: () => ID }) categoryId: string,
     @Args('value', { type: () => Number }) value: number,
@@ -135,12 +143,14 @@ export class GoalResolver {
   }
 
   @Query(() => [Goals])
+  @UserCache(3600)
   async goals(@User() userId: string) {
     const userGoal = await this.goalService.getUserGoalWithEntries(userId);
     return userGoal.categories;
   }
 
   @Query(() => Goals)
+  @UserCache(3600)
   async goal(@Args('id', { type: () => ID }) id: string) {
     return this.goalService.getGoal(id);
   }
