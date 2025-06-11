@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BillingCycleEnum, SubscriptionEntity } from './subscription.entity';
+import { BillingCycleEnum, SubscriptionEntity } from '../entities/subscription.entity';
 import * as dayjs from 'dayjs';
-import { ExpenseEntity, WalletEntity } from './wallet.entity';
+import { ExpenseEntity, WalletEntity } from '../entities/wallet.entity';
 
 @Injectable()
 export class SubscriptionService {

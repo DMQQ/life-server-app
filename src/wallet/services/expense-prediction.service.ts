@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ExpenseEntity, WalletEntity } from './wallet.entity';
+import { ExpenseEntity, WalletEntity } from '../entities/wallet.entity';
 import { Like, Repository } from 'typeorm';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 

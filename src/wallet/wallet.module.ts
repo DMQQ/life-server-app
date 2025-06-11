@@ -6,25 +6,25 @@ import {
   ExpenseSubExpense,
   WalletEntity,
   WalletLimits,
-} from 'src/wallet/wallet.entity';
-import { WalletResolver } from './wallet.resolver';
-import { WalletService } from './wallet.service';
+} from 'src/wallet/entities/wallet.entity';
+import { WalletResolver } from './resolvers/wallet.resolver';
+import { WalletService } from './services/wallet.service';
 import { NotificationsModule } from 'src/notifications/notifications.module';
-import { SubscriptionService } from './subscriptions.service';
-import { SubscriptionEntity } from './subscription.entity';
-import { ExpenseResolver } from './expense.resolver';
-import { ExpenseService } from './expense.service';
-import { LimitsService } from './limits.service';
-import { LimitsResolver } from './limits.resolver';
+import { SubscriptionService } from './services/subscriptions.service';
+import { SubscriptionEntity } from './entities/subscription.entity';
+import { ExpenseResolver } from './resolvers/expense.resolver';
+import { ExpenseService } from './services/expense.service';
+import { LimitsService } from './services/limits.service';
+import { LimitsResolver } from './resolvers/limits.resolver';
 import { ReportSchedulerService } from './crons/report-scheduler.service';
 import { TransactionSchedulerService } from './crons/transaction-scheduler.service';
 import { InsightsSchedulerService } from './crons/insights-scheduler.service';
 import { AlertsSchedulerService } from './crons/alerts-scheduler.service';
 import { ExpenseAnalysisService } from './crons/expense-analysis.service';
 import { MoneyLeftSchedulerService } from './crons/money-left.service';
-import { StatisticsResolver } from './statistics.resolver';
-import { StatisticsService } from './statistics.service';
-import { ExpensePredictionService } from './expense-prediction.service';
+import { StatisticsResolver } from './resolvers/statistics.resolver';
+import { StatisticsService } from './services/statistics.service';
+import { ExpensePredictionService } from './services/expense-prediction.service';
 
 @Module({
   imports: [

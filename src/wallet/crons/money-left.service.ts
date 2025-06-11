@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
 import { NotificationsService } from 'src/notifications/notifications.service';
-import { WalletService } from '../wallet.service';
-import { ExpenseService } from '../expense.service';
+import { WalletService } from '../services/wallet.service';
+import { ExpenseService } from '../services/expense.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
-import { ExpenseType, LimitRange } from '../wallet.entity';
+import { ExpenseType, LimitRange } from '../entities/wallet.entity';
 import * as dayjs from 'dayjs';
-import { LimitsService } from '../limits.service';
-import { SubscriptionService } from '../subscriptions.service';
+import { LimitsService } from '../services/limits.service';
+import { SubscriptionService } from '../services/subscriptions.service';
 import { BaseScheduler } from './scheduler-base.service';
 
 @Injectable()

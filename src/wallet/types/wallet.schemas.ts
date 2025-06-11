@@ -1,5 +1,5 @@
 import { Field, Float, InputType, ObjectType } from '@nestjs/graphql';
-import { ExpenseType } from './wallet.entity';
+import { ExpenseType } from '../entities/wallet.entity';
 
 @InputType()
 export class RangeDate {

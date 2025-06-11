@@ -1,15 +1,15 @@
 import { Args, Field, Float, ObjectType, Resolver, Query, Mutation, InputType, ID } from '@nestjs/graphql';
-import { LimitRange, WalletLimits } from './wallet.entity';
-import { LimitsService } from './limits.service';
+import { LimitRange, WalletLimits } from '../entities/wallet.entity';
+import { LimitsService } from '../services/limits.service';
 import { User } from 'src/utils/decorators/User';
-import { WalletService } from './wallet.service';
+import { WalletService } from '../services//wallet.service';
 import {
   CacheInterceptor,
   DefaultCacheModule,
   InvalidateCache,
   InvalidateCacheInterceptor,
   UserCache,
-} from '../utils/services/Cache/cache.decorator';
+} from '../../utils/services/Cache/cache.decorator';
 import { UseInterceptors } from '@nestjs/common';
 
 @ObjectType()

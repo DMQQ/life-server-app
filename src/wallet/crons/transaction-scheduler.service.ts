@@ -1,15 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { WalletService } from '../wallet.service';
-import { SubscriptionService } from '../subscriptions.service';
+import { WalletService } from '../services/wallet.service';
+import { SubscriptionService } from '../services/subscriptions.service';
 import * as dayjs from 'dayjs';
-import { BillingCycleEnum, SubscriptionEntity } from '../subscription.entity';
+import { BillingCycleEnum, SubscriptionEntity } from '../entities/subscription.entity';
 
 @Injectable()
 export class TransactionSchedulerService {
   private readonly logger = new Logger(TransactionSchedulerService.name);
 
-  constructor(private walletService: WalletService, private subscriptionService: SubscriptionService) {}
+  constructor(
+    private walletService: WalletService,
+    private subscriptionService: SubscriptionService,
+  ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async addScheduledTransactions() {
@@ -88,10 +91,10 @@ export class TransactionSchedulerService {
       subscription.billingCycle === BillingCycleEnum.MONTHLY
         ? dayjs().format('MMMM')
         : subscription.billingCycle === BillingCycleEnum.DAILY
-        ? dayjs().format('MMMM Do')
-        : subscription.billingCycle === BillingCycleEnum.WEEKLY
-        ? `${dayjs().format('DD')}-${dayjs().add(7, 'day').format('DD')} ${dayjs().add(7, 'day').format('MMMM')}`
-        : dayjs().format('YYYY-MM-DD');
+          ? dayjs().format('MMMM Do')
+          : subscription.billingCycle === BillingCycleEnum.WEEKLY
+            ? `${dayjs().format('DD')}-${dayjs().add(7, 'day').format('DD')} ${dayjs().add(7, 'day').format('MMMM')}`
+            : dayjs().format('YYYY-MM-DD');
 
     return `${cleanText} (${dateFormat})`.trim();
   }

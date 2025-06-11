@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ExpenseEntity, LimitRange, WalletLimits } from './wallet.entity';
+import { ExpenseEntity, LimitRange, WalletLimits } from '../entities/wallet.entity';
 import { Between, Repository } from 'typeorm';
 import * as dayjs from 'dayjs';
 

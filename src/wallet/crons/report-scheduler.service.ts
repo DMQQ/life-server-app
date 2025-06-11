@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, Interval } from '@nestjs/schedule';
 import { NotificationsService } from 'src/notifications/notifications.service';
-import { WalletService } from '../wallet.service';
+import { WalletService } from '../services/wallet.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
 import * as dayjs from 'dayjs';
 @Injectable()

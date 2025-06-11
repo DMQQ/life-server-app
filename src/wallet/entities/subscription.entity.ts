@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { ObjectType, Field, ID, Int, Float } from '@nestjs/graphql';
-import { ExpenseEntity } from './wallet.entity';
+import { ExpenseEntity } from '../entities/wallet.entity';
 
 export enum BillingCycleEnum {
   DAILY = 'daily',

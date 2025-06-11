@@ -1,14 +1,14 @@
 import { Args, Float, ID, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
 import { BadRequestException, NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
-import { WalletService } from './wallet.service';
-import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/wallet.entity';
+import { WalletService } from '../services/wallet.service';
+import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
 import { User } from 'src/utils/decorators/User';
-import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
-import { SubscriptionService } from './subscriptions.service';
-import { BillingCycleEnum } from './subscription.entity';
+import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
+import { SubscriptionService } from '../services/subscriptions.service';
+import { BillingCycleEnum } from '../entities/subscription.entity';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
-import { ExpenseService } from './expense.service';
+import { ExpenseService } from '../services/expense.service';
 import {
   Cache,
   CacheInterceptor,
@@ -16,7 +16,7 @@ import {
   InvalidateCache,
   InvalidateCacheInterceptor,
   UserCache,
-} from '../utils/services/Cache/cache.decorator';
+} from '../../utils/services/Cache/cache.decorator';
 import { CacheService } from 'src/utils/services/Cache/cache.service';
 
 const parseDate = (dateString: string) => {

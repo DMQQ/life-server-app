@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { TimelineFilesEntity } from 'src/timeline/timeline.entity';
 import { In, Repository } from 'typeorm';
 import { File } from './upload.controller';
-import { ExpenseFileEntity } from 'src/wallet/wallet.entity';
+import { ExpenseFileEntity } from 'src/wallet/entities/wallet.entity';
 
 @Injectable()
 export class UploadService {

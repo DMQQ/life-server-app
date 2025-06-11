@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/wallet.entity';
+import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
 import { Between, Brackets, Repository } from 'typeorm';
-import { GetWalletFilters, WalletStatisticsRange } from './wallet.schemas';
+import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
 import * as dayjs from 'dayjs';
 
 @Injectable()

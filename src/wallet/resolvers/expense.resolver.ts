@@ -1,134 +1,27 @@
-import {
-  Args,
-  Field,
-  Float,
-  InputType,
-  Mutation,
-  Parent,
-  ResolveField,
-  Resolver,
-  Query,
-  ID,
-  ObjectType,
-  Int,
-} from '@nestjs/graphql';
-import { ExpenseEntity, ExpenseLocationEntity, ExpenseSubExpense } from './wallet.entity';
-import { SubscriptionService } from './subscriptions.service';
-import { SubscriptionEntity } from './subscription.entity';
-import { ExpenseService } from './expense.service';
+import { Args, Float, Mutation, Parent, ResolveField, Resolver, Query, ID } from '@nestjs/graphql';
+import { ExpenseEntity, ExpenseLocationEntity, ExpenseSubExpense } from '../entities//wallet.entity';
+import { SubscriptionService } from '../services/subscriptions.service';
+import { SubscriptionEntity } from '../entities/subscription.entity';
+import { ExpenseService } from '../services/expense.service';
 import { User } from 'src/utils/decorators/User';
-import { ExpensePredictionType } from './wallet.schemas';
-import { ExpensePredictionService } from './expense-prediction.service';
+import { ExpensePredictionType } from '../types/wallet.schemas';
+import { ExpensePredictionService } from '../services/expense-prediction.service';
 import {
   CacheInterceptor,
   DefaultCacheModule,
   InvalidateCache,
   InvalidateCacheInterceptor,
   UserCache,
-} from '../utils/services/Cache/cache.decorator';
+} from '../../utils/services/Cache/cache.decorator';
 import { UseInterceptors } from '@nestjs/common';
-
-@InputType()
-class CreateLocationDto {
-  @Field(() => Float)
-  longitude: number;
-
-  @Field(() => Float)
-  latitude: number;
-
-  @Field()
-  name: string;
-
-  @Field()
-  kind: string;
-}
-
-@InputType()
-class CreateSubExpenseDto {
-  @Field()
-  description: string;
-
-  @Field(() => Float)
-  amount: number;
-
-  @Field()
-  category: string;
-}
-
-@InputType()
-class UpdateSubExpenseDto {
-  @Field({ nullable: true })
-  description?: string;
-
-  @Field(() => Float, { nullable: true })
-  amount?: number;
-
-  @Field({ nullable: true })
-  category?: string;
-}
-
-@ObjectType()
-class MonthlyCategoryComparisonItem {
-  @Field(() => String)
-  category: string;
-
-  @Field(() => Float)
-  total: number;
-
-  @Field(() => Float)
-  avg: number;
-
-  @Field(() => Float)
-  count: number;
-}
-
-@ObjectType()
-class MonthlyCategoryComparisonOutput {
-  @Field({ nullable: true })
-  month: string;
-
-  @Field(() => [MonthlyCategoryComparisonItem], { nullable: true })
-  categories: MonthlyCategoryComparisonItem[];
-}
-
-@ObjectType()
-class MonthlyHeatMap {
-  @Field(() => Int)
-  dayOfMonth: number;
-
-  @Field(() => Int)
-  totalCount: number;
-
-  @Field(() => Float)
-  totalAmount: number;
-
-  @Field(() => Float)
-  averageAmount: number;
-}
-
-@ObjectType()
-class HourlyStats {
-  @Field(() => Number)
-  hour: number;
-
-  @Field(() => Number)
-  count: number;
-
-  @Field(() => Float)
-  avg_amount: number;
-
-  @Field(() => Float)
-  min_amount: number;
-
-  @Field(() => Float)
-  max_amount: number;
-
-  @Field(() => Float)
-  std_deviation: number;
-
-  @Field(() => Float)
-  variance: number;
-}
+import {
+  CreateLocationDto,
+  CreateSubExpenseDto,
+  HourlyStats,
+  MonthlyCategoryComparisonOutput,
+  MonthlyHeatMap,
+  UpdateSubExpenseDto,
+} from '../types/expense.schemas';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
@@ -148,12 +41,8 @@ export class ExpenseResolver {
   }
 
   @ResolveField('subscription', () => SubscriptionEntity, { nullable: true })
-  async getSubscription(@Parent() expense: ExpenseEntity) {
-    const { subscriptionId } = expense;
-
-    if (!subscriptionId) {
-      return null;
-    }
+  async getSubscription(@Parent() { subscriptionId }: ExpenseEntity) {
+    if (!subscriptionId) return null;
 
     try {
       const subscription = await this.subscriptionService.getSubscriptionById(subscriptionId);
@@ -213,7 +102,6 @@ export class ExpenseResolver {
     @Args('inputs', { type: () => [CreateSubExpenseDto] })
     inputs: CreateSubExpenseDto[],
   ) {
-    console.log('expenseId', expenseId);
     return this.expenseService.addMultipleSubExpenses(expenseId, inputs);
   }
 

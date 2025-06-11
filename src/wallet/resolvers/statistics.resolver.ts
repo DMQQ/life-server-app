@@ -1,13 +1,13 @@
 import { Resolver, Query, Args } from '@nestjs/graphql';
 import { User } from 'src/utils/decorators/User';
-import { StatisticsDailySpendings, StatisticsDayOfWeekComparison, StatisticsLegend } from './wallet.schemas';
-import { StatisticsService } from './statistics.service';
+import { StatisticsDailySpendings, StatisticsDayOfWeekComparison, StatisticsLegend } from '../types/wallet.schemas';
+import { StatisticsService } from '../services/statistics.service';
 import {
   CacheInterceptor,
   DefaultCacheModule,
   InvalidateCacheInterceptor,
   UserCache,
-} from '../utils/services/Cache/cache.decorator';
+} from '../../utils/services/Cache/cache.decorator';
 import { UseInterceptors } from '@nestjs/common';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
