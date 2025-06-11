@@ -45,12 +45,12 @@ export class InsightsSchedulerService extends BaseScheduler {
 
         const [today, yesterday] = await Promise.all([
           this.expenseService.getDailyInsights(walletId, [
-            dayjs().startOf('day').format('YYYY-MM-DD HH:MM:ss'),
-            dayjs().endOf('day').format('YYYY-MM-DD HH:MM:ss'),
+            dayjs().startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+            dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss'),
           ]),
           this.expenseService.getDailyInsights(walletId, [
-            dayjs().startOf('day').subtract(1, 'day').format('YYYY-MM-DD HH:MM:ss'),
-            dayjs().endOf('day').subtract(1, 'day').format('YYYY-MM-DD HH:MM:ss'),
+            dayjs().startOf('day').subtract(1, 'day').format('YYYY-MM-DD HH:mm:ss'),
+            dayjs().endOf('day').subtract(1, 'day').format('YYYY-MM-DD HH:mm:ss'),
           ]),
         ]);
 
@@ -174,8 +174,8 @@ export class InsightsSchedulerService extends BaseScheduler {
         if (!walletId) continue;
 
         const todayData = await this.expenseService.getDailyInsights(walletId, [
-          dayjs().startOf('day').format('YYYY-MM-DD HH:MM:ss'),
-          dayjs().endOf('day').format('YYYY-MM-DD HH:MM:ss'),
+          dayjs().startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+          dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss'),
         ]);
 
         const todayExpense = todayData.expense_sum || 0;
@@ -186,8 +186,8 @@ export class InsightsSchedulerService extends BaseScheduler {
         const yesterdayEnd = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
 
         const monthlyData = await this.expenseService.getTotalExpensesForPeriod(walletId, [
-          dayjs(lastMonthStart).startOf('day').format('YYYY-MM-DD HH:MM:ss'),
-          dayjs(yesterdayEnd).endOf('day').format('YYYY-MM-DD HH:MM:ss'),
+          dayjs(lastMonthStart).startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+          dayjs(yesterdayEnd).endOf('day').format('YYYY-MM-DD HH:mm:ss'),
         ]);
 
         const monthlyTotal = monthlyData.expense_sum || 0;
@@ -235,8 +235,8 @@ export class InsightsSchedulerService extends BaseScheduler {
         const endDate = dayjs().format('YYYY-MM-DD');
 
         const expenses = await this.expenseService.getExpensesForPeriod(walletId, [
-          dayjs(startDate).startOf('day').format('YYYY-MM-DD HH:MM:ss'),
-          dayjs(endDate).endOf('day').format('YYYY-MM-DD HH:MM:ss'),
+          dayjs(startDate).startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+          dayjs(endDate).endOf('day').format('YYYY-MM-DD HH:mm:ss'),
         ]);
 
         if (!expenses || expenses.length < 10) {

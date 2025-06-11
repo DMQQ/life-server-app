@@ -40,14 +40,12 @@ export class ReportSchedulerService {
           sound: 'default',
           title: '📊 Weekly Spendings Report',
           body: [
-            `💰 You have spent ${stats.total.toFixed(2)} this week, ${stats.income.toFixed(
-              2,
-            )} of which was income ⬆️ and ${stats.expense.toFixed(2)} was expense ⬇️.`,
+            `💰 You have spent ${stats.expense.toFixed(2)}zł this week, and earned ${stats.income.toFixed(2)}zł`,
             `💵 You have ${stats.lastBalance.toFixed(2)} left in your wallet.`,
             `🔼 You spent at most ${stats.max.toFixed(2)} and at least ${stats.min.toFixed(
               2,
             )} in a single transaction 🔽.`,
-            `📈 Your average transaction was ${stats.average.toFixed(2)} with a total of ${stats.count} transactions.`,
+            `📈 Your average was ${stats.average.toFixed(2)} with a total of ${stats.count} transactions.`,
           ].join('\n'),
         });
         await this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);

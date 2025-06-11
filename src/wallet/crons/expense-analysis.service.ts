@@ -68,8 +68,8 @@ export class ExpenseAnalysisService {
       // Get expenses from last 3 months
       const threeMonthsAgo = dayjs().subtract(3, 'months').format('YYYY-MM-DD');
       const expenses = await this.expenseService.getExpensesForPeriod(walletId, [
-        dayjs(threeMonthsAgo).startOf('day').format('YYYY-MM-DD HH:MM:ss'),
-        dayjs().endOf('day').format('YYYY-MM-DD HH:MM:ss'),
+        dayjs(threeMonthsAgo).startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+        dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss'),
       ]);
 
       if (!expenses || expenses.length < 15) {

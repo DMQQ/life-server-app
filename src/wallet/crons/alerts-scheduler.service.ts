@@ -57,9 +57,7 @@ export class AlertsSchedulerService {
                 2,
               )}zł remaining for the next ${daysLeftInMonth} days.`,
             });
-            this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
-
-            break; // Only send one limit alert per day
+            await this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
           }
         }
 
@@ -118,8 +116,8 @@ export class AlertsSchedulerService {
     }
   }
 
-  // Subscription Reminders at 9 AM
-  @Cron('0 9 * * *', {
+  // Subscription Reminders at 7 AM
+  @Cron('0 7 * * *', {
     timeZone: 'Europe/Warsaw',
   })
   async subscriptionReminders() {

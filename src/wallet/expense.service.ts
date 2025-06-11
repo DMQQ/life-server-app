@@ -588,8 +588,8 @@ export class ExpenseService {
 
   async getDailyTotal(walletId: string, date: string): Promise<number> {
     try {
-      const startDate = dayjs(date).startOf('day').format('YYYY-MM-DD HH:MM:ss');
-      const endDate = dayjs(date).endOf('day').format('YYYY-MM-DD HH:MM:ss');
+      const startDate = dayjs(date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+      const endDate = dayjs(date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
 
       const query = `
         SELECT 
