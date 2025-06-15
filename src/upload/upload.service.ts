@@ -76,7 +76,7 @@ export class UploadService {
   }
 
   async saveBase64ToDisk(base64: string, expenseName: string, expenseId: string) {
-    const uri = base64.split(';base64.').pop();
+    const uri = base64.split(';base64,').pop();
 
     try {
       const image = await sharp(Buffer.from(uri, 'base64')).resize({ height: 720 }).jpeg({ quality: 60 }).toBuffer();
