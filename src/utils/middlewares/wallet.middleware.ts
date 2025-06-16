@@ -19,7 +19,9 @@ export class WalletMiddleware implements NestMiddleware {
       return next();
     }
 
-    req.wallet.walletId = walletId;
+    req.wallet = {
+      walletId,
+    };
 
     next();
   }
