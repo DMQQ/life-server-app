@@ -1,6 +1,12 @@
 import { Resolver, Query, Args } from '@nestjs/graphql';
 import { User } from 'src/utils/decorators/User';
-import { StatisticsDailySpendings, StatisticsDayOfWeekComparison, StatisticsLegend } from '../types/wallet.schemas';
+import {
+  MonthlyLimitResult,
+  StatisticsDailySpendings,
+  StatisticsDayOfWeekComparison,
+  StatisticsLegend,
+  ZeroExpenseDays,
+} from '../types/wallet.schemas';
 import { StatisticsService } from '../services/statistics.service';
 import {
   CacheInterceptor,
@@ -45,5 +51,38 @@ export class StatisticsResolver {
     @Args('endDate') endDate: string,
   ) {
     return this.statisticsService.spendingsByDay(userId, startDate, endDate);
+  }
+
+  @Query(() => ZeroExpenseDays)
+  @UserCache(7200)
+  async statisticsZeroExpenseDays(
+    @User() userId: string,
+    @Args('startDate') startDate: string,
+    @Args('endDate') endDate: string,
+  ) {
+    const [days, avg, streak] = await Promise.all([
+      this.statisticsService.zeroExpensesDays(userId, startDate, endDate),
+      this.statisticsService.avgSpendingsInRange(userId, startDate, endDate),
+      this.statisticsService.noSpendingsStreaks(userId, startDate, endDate),
+    ]);
+
+    const saved = days.length * avg;
+
+    return {
+      days,
+      avg,
+      streak,
+      saved,
+    };
+  }
+
+  @Query(() => [MonthlyLimitResult])
+  @UserCache(7200)
+  async statisticsSpendingsLimits(
+    @User() userId: string,
+    @Args('startDate') startDate: string,
+    @Args('endDate') endDate: string,
+  ) {
+    return this.statisticsService.spendingsLimits(userId, startDate, endDate);
   }
 }

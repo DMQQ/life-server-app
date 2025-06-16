@@ -1,4 +1,4 @@
-import { Field, Float, InputType, ObjectType } from '@nestjs/graphql';
+import { Field, Float, InputType, Int, ObjectType } from '@nestjs/graphql';
 import { ExpenseType } from '../entities/wallet.entity';
 
 @InputType()
@@ -140,4 +140,64 @@ export class ExpensePredictionType {
 
   @Field(() => Float)
   confidence: number;
+}
+
+@ObjectType()
+class ZeroExpenseStreak {
+  @Field(() => String)
+  start: string;
+
+  @Field(() => String)
+  end: string;
+
+  @Field(() => Int)
+  length: number;
+}
+
+@ObjectType()
+export class ZeroExpenseDays {
+  @Field(() => [String])
+  days: string[];
+
+  @Field(() => Float)
+  avg: number;
+
+  @Field(() => [ZeroExpenseStreak])
+  streak: ZeroExpenseStreak[];
+
+  @Field(() => Float)
+  saved: number;
+}
+
+@ObjectType()
+export class CategoryLimitResult {
+  @Field(() => String)
+  category: string;
+
+  @Field(() => Float)
+  spent: number;
+
+  @Field(() => Float)
+  limit: number;
+
+  @Field(() => Boolean)
+  exceeded: boolean;
+}
+
+@ObjectType()
+export class MonthlyLimitResult {
+  @Field(() => String)
+  month: string;
+
+  @Field(() => Float)
+  totalSpent: number;
+
+  @Field(() => Float)
+  generalLimit: number;
+
+  @Field(() => Boolean)
+  generalLimitExceeded: boolean;
+
+  @Field(() => [CategoryLimitResult])
+  categories: CategoryLimitResult[];
 }
