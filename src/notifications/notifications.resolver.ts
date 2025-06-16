@@ -1,6 +1,6 @@
 import { Args, Field, InputType, Mutation, Resolver, Query, Int, ID } from '@nestjs/graphql';
 import { NotificationsService } from './notifications.service';
-import { User } from 'src/utils/decorators/User';
+import { User } from 'src/utils/decorators/user.decorator';
 import { BadRequestException, UseGuards } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import Expo from 'expo-server-sdk';

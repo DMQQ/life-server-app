@@ -3,7 +3,7 @@ import { UserGoal, GoalCategory, GoalEntry } from './goals.entity';
 import { GoalService } from './goals.service';
 import { InputType, Field, ObjectType } from '@nestjs/graphql';
 import { IsString, IsNumber, IsDate, IsOptional } from 'class-validator';
-import { User } from 'src/utils/decorators/User';
+import { User } from 'src/utils/decorators/user.decorator';
 import { UseInterceptors } from '@nestjs/common';
 import {
   CacheInterceptor,

@@ -3,7 +3,7 @@ import { ExpenseEntity, ExpenseLocationEntity, ExpenseSubExpense } from '../enti
 import { SubscriptionService } from '../services/subscriptions.service';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import { ExpenseService } from '../services/expense.service';
-import { User } from 'src/utils/decorators/User';
+import { User } from 'src/utils/decorators/user.decorator';
 import { ExpensePredictionType } from '../types/wallet.schemas';
 import { ExpensePredictionService } from '../services/expense-prediction.service';
 import {

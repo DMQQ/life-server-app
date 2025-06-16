@@ -2,7 +2,7 @@ import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { GroupsService } from './group.service';
 import { Group } from './flashcards.entity';
 import { CreateGroupInput, UpdateGroupInput } from './flashcard.types';
-import { User } from '../utils/decorators/User';
+import { User } from '../utils/decorators/user.decorator';
 import {
   CacheInterceptor,
   DefaultCacheModule,

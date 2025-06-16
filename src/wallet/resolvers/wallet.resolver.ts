@@ -3,7 +3,7 @@ import { BadRequestException, NotFoundException, UseGuards, UseInterceptors } fr
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { WalletService } from '../services/wallet.service';
 import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
-import { User } from 'src/utils/decorators/User';
+import { User } from 'src/utils/decorators/user.decorator';
 import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
 import { SubscriptionService } from '../services/subscriptions.service';
 import { BillingCycleEnum } from '../entities/subscription.entity';

@@ -1,7 +1,7 @@
 import { Args, Field, ID, InputType, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
 import { TimelineService } from './timeline.service';
 import { TimelineEntity, TimelineFilesEntity, TimelineTodosEntity } from 'src/timeline/timeline.entity';
-import { User } from 'src/utils/decorators/User';
+import { User } from 'src/utils/decorators/user.decorator';
 import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
 import { NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';

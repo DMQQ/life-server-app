@@ -2,13 +2,8 @@ import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { WorkoutService } from './workout.service';
 import { Type, WorkoutEntity, difficulty, type } from './workout.entity';
 import { CreateWorkout } from './workout.dto';
-import { User } from 'src/utils/decorators/User';
-import {
-  UseGuards,
-  UsePipes,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { User } from 'src/utils/decorators/user.decorator';
+import { UseGuards, UsePipes, NotFoundException, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { ExerciseService } from './exercise.service';
 
@@ -27,19 +22,14 @@ export class WorkoutResolver {
     @User() userId: string,
   ) {
     if (!difficulty.includes(input.difficulty))
-      throw new BadRequestException(
-        'Difficulty must be Beginner, Intermediate or Advanced',
-      );
+      throw new BadRequestException('Difficulty must be Beginner, Intermediate or Advanced');
 
-    if (!type.includes(input.type))
-      throw new BadRequestException('Invalid type');
+    if (!type.includes(input.type)) throw new BadRequestException('Invalid type');
 
     let workoutId: string;
 
     try {
-      workoutId = await this.workoutService.createWorkout(
-        Object.assign(input, { userId }),
-      );
+      workoutId = await this.workoutService.createWorkout(Object.assign(input, { userId }));
     } catch (error) {
       console.log(error);
       throw new BadRequestException(error.message);
@@ -48,11 +38,7 @@ export class WorkoutResolver {
     try {
       if (input.exercises !== undefined) {
         const exercisePromiseArray = input.exercises.map((exerciseId) =>
-          this.exerciseService.assignExerciseToWorkout(
-            exerciseId,
-            workoutId,
-            userId,
-          ),
+          this.exerciseService.assignExerciseToWorkout(exerciseId, workoutId, userId),
         );
 
         await Promise.all(exercisePromiseArray);
@@ -66,18 +52,13 @@ export class WorkoutResolver {
   }
 
   @Query(() => WorkoutEntity)
-  async workout(
-    @Args('id', { type: () => ID, nullable: false }) id: string,
-    @User() usrId: string,
-  ) {
+  async workout(@Args('id', { type: () => ID, nullable: false }) id: string, @User() usrId: string) {
     try {
       const workout = await this.workoutService.getWorkout(id, usrId);
 
       return workout;
     } catch (error) {
-      throw new NotFoundException(
-        `No workout with id ${id} found for your account`,
-      );
+      throw new NotFoundException(`No workout with id ${id} found for your account`);
     }
   }
 

@@ -3,7 +3,7 @@ import { ExerciseService } from './exercise.service';
 import { ExerciseEntity, ExerciseProgressEntity } from './workout.entity';
 import { CreateExercise, CreateProgressInput } from './workout.dto';
 import { BadRequestException, UseGuards } from '@nestjs/common';
-import { User } from 'src/utils/decorators/User';
+import { User } from 'src/utils/decorators/user.decorator';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 
 @UseGuards(AuthGuard)
@@ -18,9 +18,7 @@ export class ExerciseResolver {
   ) {
     const diff = ['Beginner', 'Intermediate', 'Advanced'];
     if (!diff.includes(input.difficulty))
-      throw new BadRequestException(
-        'Difficulty must be one of: ' + diff.join(', '),
-      );
+      throw new BadRequestException('Difficulty must be one of: ' + diff.join(', '));
 
     return this.exerciseService.createExercise(input);
   }
@@ -37,11 +35,7 @@ export class ExerciseResolver {
     @User() usrId: string,
   ) {
     try {
-      const uploaded = await this.exerciseService.assignExerciseToWorkout(
-        exerciseId,
-        workoutId,
-        usrId,
-      );
+      const uploaded = await this.exerciseService.assignExerciseToWorkout(exerciseId, workoutId, usrId);
 
       return !!uploaded;
     } catch (error) {
@@ -50,10 +44,7 @@ export class ExerciseResolver {
   }
 
   @Query(() => [ExerciseProgressEntity])
-  exerciseProgress(
-    @User() usr: string,
-    @Args('exerciseId', { type: () => ID }) exerciseId: string,
-  ) {
+  exerciseProgress(@User() usr: string, @Args('exerciseId', { type: () => ID }) exerciseId: string) {
     return this.exerciseService.getExerciseProgress(exerciseId, usr);
   }
 
@@ -73,10 +64,7 @@ export class ExerciseResolver {
   }
 
   @Query(() => Boolean)
-  async exerciseProgressStats(
-    @User() usr: string,
-    @Args('exerciseId', { type: () => ID }) exerciseId: string,
-  ) {
+  async exerciseProgressStats(@User() usr: string, @Args('exerciseId', { type: () => ID }) exerciseId: string) {
     const v = await this.exerciseService.exerciseProgressStats(exerciseId, usr);
 
     console.log(v);

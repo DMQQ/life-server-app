@@ -8,7 +8,7 @@ import * as jwt from 'jsonwebtoken';
 
 import * as bcrypt from 'bcrypt';
 
-const JWT_SECRET_TEMP = 'mylife'; // temporary secret
+const JWT_SECRET_TEMP = process.env.JWT_SECRET || 'mylife'; // temporary secret
 
 @Injectable()
 export class AuthenticationService {

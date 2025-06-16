@@ -2,7 +2,7 @@ import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { FlashCardService } from './flashcards.service';
 import { FlashCard } from './flashcards.entity';
 import { UseInterceptors } from '@nestjs/common';
-import { User } from '../utils/decorators/User';
+import { User } from '../utils/decorators/user.decorator';
 import {
   AIGeneratedFlashCards,
   CreateFlashCardInput,

@@ -5,7 +5,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthenticationModule } from './authentication/authentication.module';
-import { TokenMiddleware } from './utils/middlewares/TokenMiddleware';
+import { TokenMiddleware } from './utils/middlewares/token.middleware';
 
 import { TimelineModule } from './timeline/timeline.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -14,7 +14,7 @@ import { UploadModule } from './upload/upload.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { WalletModule } from './wallet/wallet.module';
 import { WorkoutModule } from './workout/workout.module';
-import { AppDataSource, dataSourceOptions } from './database';
+import { dataSourceOptions } from './database';
 import { FlashCardsModule } from './flashcards/flashcards.module';
 import { GoalsModule } from './goals/goals.module';
 import { HostsModule } from './hosts/hosts.module';
@@ -38,7 +38,7 @@ import { CacheModule } from './utils/services/Cache/cache.module';
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: async () => ({
         ...dataSourceOptions,
       }),
       inject: [ConfigService],

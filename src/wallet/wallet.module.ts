@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   ExpenseEntity,
@@ -26,6 +26,7 @@ import { StatisticsResolver } from './resolvers/statistics.resolver';
 import { StatisticsService } from './services/statistics.service';
 import { ExpensePredictionService } from './services/expense-prediction.service';
 import { UploadModule } from 'src/upload/upload.module';
+import { WalletMiddleware } from 'src/utils/middlewares/wallet.middleware';
 
 @Module({
   imports: [
@@ -62,4 +63,8 @@ import { UploadModule } from 'src/upload/upload.module';
     MoneyLeftSchedulerService,
   ],
 })
-export class WalletModule {}
+export class WalletModule implements NestModule {
+  configure(consumer: any) {
+    consumer.apply(WalletMiddleware).forRoutes('*');
+  }
+}
