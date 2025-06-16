@@ -7,6 +7,7 @@ import { ExpoPushMessage } from 'expo-server-sdk';
 import * as dayjs from 'dayjs';
 import { SubscriptionService } from '../services/subscriptions.service';
 import { BaseScheduler } from './scheduler-base.service';
+import { formatCategory } from 'src/utils/fns/format-category';
 
 @Injectable()
 export class InsightsSchedulerService extends BaseScheduler {
@@ -139,7 +140,7 @@ export class InsightsSchedulerService extends BaseScheduler {
 
         const messageBody = `⏰ You tend to make more purchases around ${timeStr}, spending an average of ${maxAvgAmount.toFixed(
           2,
-        )}zł${topCategory ? `. Most common category: ${topCategory}` : ''}.`;
+        )}zł${topCategory ? `. Most common category: ${formatCategory(topCategory)}` : ''}.`;
 
         const truncatedBody = messageBody.length > 178 ? messageBody.substring(0, 175) + '...' : messageBody;
 
@@ -434,21 +435,21 @@ export class InsightsSchedulerService extends BaseScheduler {
 
           messageBody = `📊 This month vs last: You've spent ${biggestDecrease.change.toFixed(2)}zł less on ${
             biggestDecrease.category
-          } but ${biggestIncrease.change.toFixed(2)}zł more on ${biggestIncrease.category}. Yearly impact: ${
+          } but ${biggestIncrease.change.toFixed(2)}zł more on ${formatCategory(biggestIncrease.category)}. Yearly impact: ${
             yearlyImpact > 0 ? '+' : ''
           }${yearlyImpact.toFixed(0)}zł.`;
         } else if (biggestDecrease.category) {
           const yearlySavings = biggestDecrease.change * 12;
 
-          messageBody = `📉 Great job! You've spent ${biggestDecrease.change.toFixed(2)}zł less on ${
-            biggestDecrease.category
-          } this month. If continued, that's ${yearlySavings.toFixed(0)}zł saved yearly!`;
+          messageBody = `📉 Great job! You've spent ${biggestDecrease.change.toFixed(2)}zł less on ${formatCategory(
+            biggestDecrease.category,
+          )} this month. If continued, that's ${yearlySavings.toFixed(0)}zł saved yearly!`;
         } else if (biggestIncrease.category) {
           const yearlyCost = biggestIncrease.change * 12;
 
-          messageBody = `📈 Spending alert: ${biggestIncrease.change.toFixed(2)}zł increase on ${
-            biggestIncrease.category
-          } this month. If this continues, it adds ${yearlyCost.toFixed(0)}zł yearly to your expenses.`;
+          messageBody = `📈 Spending alert: ${biggestIncrease.change.toFixed(2)}zł increase on ${formatCategory(
+            biggestIncrease.category,
+          )} this month. If this continues, it adds ${yearlyCost.toFixed(0)}zł yearly to your expenses.`;
         }
 
         if (messageBody) {
@@ -696,7 +697,9 @@ export class InsightsSchedulerService extends BaseScheduler {
 
         await this.notificationService.saveNotification(user.userId, notification);
 
-        this.logger.log(`Sent What If analysis for category ${targetCategory.category} to user ${user.userId}`);
+        this.logger.log(
+          `Sent What If analysis for category ${formatCategory(targetCategory.category)} to user ${user.userId}`,
+        );
       } catch (error) {
         this.logger.error(`Error processing what-if analysis for user ${user.userId}: ${error.message}`, error.stack);
       }
@@ -771,9 +774,9 @@ export class InsightsSchedulerService extends BaseScheduler {
             0,
           )}% of your spending is spontaneous! Reducing impulse buys could save ${potentialYearlySavings.toFixed(
             0,
-          )}zł/year. Most common: ${topCategory}.`;
+          )}zł/year. Most common: ${formatCategory(topCategory)}.`;
         } else {
-          messageBody = `💭 Impulse purchases in ${topCategory} totaled ${topCategoryAmount.toFixed(
+          messageBody = `💭 Impulse purchases in ${formatCategory(topCategory)} totaled ${topCategoryAmount.toFixed(
             2,
           )}zł last month. Cutting back could save ${potentialYearlySavings.toFixed(0)}zł/year.`;
         }

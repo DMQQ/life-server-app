@@ -8,6 +8,7 @@ import { ExpenseService } from '../services/expense.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
 import { ExpenseType, LimitRange } from '../entities/wallet.entity';
 import * as dayjs from 'dayjs';
+import { formatCategory } from 'src/utils/fns/format-category';
 
 @Injectable()
 export class AlertsSchedulerService {
@@ -53,7 +54,7 @@ export class AlertsSchedulerService {
               to: user.token,
               sound: 'default',
               title: '⚠️ Budget Alert',
-              body: `💸 ${limit.category} at ${percentUsed.toFixed(0)}% of monthly limit. ${remaining.toFixed(
+              body: `💸 ${formatCategory(limit.category)} at ${percentUsed.toFixed(0)}% of monthly limit. ${remaining.toFixed(
                 2,
               )}zł remaining for the next ${daysLeftInMonth} days.`,
             });
