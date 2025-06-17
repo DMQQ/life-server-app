@@ -26,10 +26,30 @@ export class ExpensePredictionService {
         throw new Error('Wallet not found for user');
       }
 
-      const recentExpenses = await this.expenseEntity
+      const recentExpensesQuery = this.expenseEntity
         .createQueryBuilder('expense')
+        .select(['expense.amount', 'expense.description', 'expense.category', 'expense.type', 'expense.shop'])
         .where('expense.walletId = :walletId', { walletId: wallet.id })
-        .andWhere('expense.schedule = :schedule', { schedule: false })
+        .andWhere('expense.schedule = :schedule', { schedule: false });
+
+      const words = input.split(' ').filter(word => word.length >= 3);
+
+      if (words.length > 0) {
+        recentExpensesQuery.andWhere(qb => {
+          const conditions = words.map((word, index) =>
+            `expense.description LIKE :word${index}`
+          ).join(' OR ');
+
+          const parameters = words.reduce((acc, word, index) => {
+            acc[`word${index}`] = `%${word}%`;
+            return acc;
+          }, {});
+
+          return qb.where(conditions, parameters);
+        });
+      }
+
+      const recentExpenses = await recentExpensesQuery
         .orderBy('expense.date', 'DESC')
         .limit(300)
         .getMany();
