@@ -82,7 +82,12 @@ export class FlashCardResolver {
 
   @Query(() => [AIGeneratedFlashCards])
   @UserCache(3600)
-  async generateAIFlashcards(@Args('content') content: string) {
-    return this.openAIService.generateFlashCards(content);
+  async generateAIFlashcards(
+    @User() userId: string,
+    @Args('content') content: string,
+    @Args('groupId', { type: () => ID, nullable: true }) groupId?: string,
+  ): Promise<AIGeneratedFlashCards[]> {
+    const existing = await this.flashCardService.getFlashCardsTitlesByGroup(groupId, userId);
+    return this.openAIService.generateFlashCards(content, existing);
   }
 }

@@ -2,11 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FlashCard, Group } from './flashcards.entity';
-import {
-  CreateFlashCardInput,
-  ReviewFlashCardInput,
-  UpdateFlashCardInput,
-} from './flashcard.types';
+import { CreateFlashCardInput, ReviewFlashCardInput, UpdateFlashCardInput } from './flashcard.types';
 
 @Injectable()
 export class FlashCardService {
@@ -17,10 +13,7 @@ export class FlashCardService {
     private groupRepository: Repository<Group>,
   ) {}
 
-  async create(
-    input: CreateFlashCardInput,
-    userId: string,
-  ): Promise<FlashCard> {
+  async create(input: CreateFlashCardInput, userId: string): Promise<FlashCard> {
     const group = await this.groupRepository.findOne({
       where: {
         id: input.groupId,
@@ -29,9 +22,7 @@ export class FlashCardService {
     });
 
     if (!group) {
-      throw new NotFoundException(
-        `Group with ID ${input.groupId} not found or doesn't belong to user`,
-      );
+      throw new NotFoundException(`Group with ID ${input.groupId} not found or doesn't belong to user`);
     }
 
     const flashCard = this.flashCardRepository.create({
@@ -74,11 +65,7 @@ export class FlashCardService {
     return flashCard;
   }
 
-  async update(
-    id: string,
-    input: UpdateFlashCardInput,
-    userId: string,
-  ): Promise<FlashCard> {
+  async update(id: string, input: UpdateFlashCardInput, userId: string): Promise<FlashCard> {
     const flashCard = await this.findOne(id, userId);
     Object.assign(flashCard, input);
     return this.flashCardRepository.save(flashCard);
@@ -90,10 +77,7 @@ export class FlashCardService {
     return result.affected > 0;
   }
 
-  async review(
-    input: ReviewFlashCardInput,
-    userId: string,
-  ): Promise<FlashCard> {
+  async review(input: ReviewFlashCardInput, userId: string): Promise<FlashCard> {
     const flashCard = await this.findOne(input.id, userId);
 
     flashCard.timesReviewed++;
@@ -103,8 +87,7 @@ export class FlashCardService {
       flashCard.incorrectAnswers++;
     }
 
-    flashCard.successRate =
-      (flashCard.correctAnswers / flashCard.timesReviewed) * 100;
+    flashCard.successRate = (flashCard.correctAnswers / flashCard.timesReviewed) * 100;
     flashCard.lastReviewedAt = new Date();
 
     return this.flashCardRepository.save(flashCard);
@@ -132,10 +115,22 @@ export class FlashCardService {
 
     return {
       totalCards: cards.length,
-      averageSuccessRate:
-        cards.reduce((acc, card) => acc + card.successRate, 0) / cards.length,
+      averageSuccessRate: cards.reduce((acc, card) => acc + card.successRate, 0) / cards.length,
       totalReviewed: cards.reduce((acc, card) => acc + card.timesReviewed, 0),
       masteredCards: cards.filter((card) => card.successRate >= 80).length,
     };
+  }
+
+  async getFlashCardsTitlesByGroup(groupId: string, userId: string): Promise<string[]> {
+    const cards = await this.flashCardRepository.find({
+      where: { group: { id: groupId }, userId },
+      select: ['question'],
+    });
+
+    if (!cards.length) {
+      return [];
+    }
+
+    return cards.map((card) => card.question);
   }
 }

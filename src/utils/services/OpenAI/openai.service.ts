@@ -118,7 +118,12 @@ export class OpenAIService {
     });
   }
 
-  async generateFlashCards(content: string) {
+  async generateFlashCards(content: string, existingFlashcards: string[] = []) {
+    const existingTopics =
+      existingFlashcards.length > 0
+        ? `\n\nExisting flashcard topics to avoid duplicating:\n${existingFlashcards.map((card, i) => `${i + 1}. ${card}`).join('\n')}`
+        : '';
+
     const response = await this.client.chat.completions.create({
       model: this.config.model,
       max_completion_tokens: this.config.max_tokens * 8,
@@ -128,16 +133,17 @@ export class OpenAIService {
         {
           role: 'system',
           content: `Create educational flashcards from the provided content. Generate comprehensive Q&A pairs that test understanding of key concepts, facts, and details.
-          Rules:
-          - Create 5-20 flashcards depending on content length
-          - Questions should be clear and specific
-          - Answers should be concise but complete
-          - Explanations should provide context or additional insight
-          - Cover main topics, important details, and key relationships
-          - Vary question types: definitions, examples, comparisons, applications
-          - You are allowed to add some additional flashcards in related topics
-          
-          Return JSON: {"flashcards": [{"question": "string", "answer": "string", "explanation": "string"}]}`,
+        Rules:
+        - Create 5-20 flashcards depending on content length
+        - Questions should be clear and specific
+        - Answers should be concise but complete
+        - Explanations should provide context or additional insight
+        - Cover main topics, important details, and key relationships
+        - Vary question types: definitions, examples, comparisons, applications
+        - You are allowed to add some additional flashcards in related topics
+        - DO NOT create flashcards that duplicate or closely resemble existing topics${existingTopics}
+        
+        Return JSON: {"flashcards": [{"question": "string", "answer": "string", "explanation": "string"}]}`,
         },
         {
           role: 'user',

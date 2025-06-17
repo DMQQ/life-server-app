@@ -6,7 +6,7 @@ import { GoalService } from '../goals.service';
 import * as dayjs from 'dayjs';
 
 @Injectable()
-export class AlertsSchedulerService extends BaseScheduler {
+export class GoalReminderScheduler extends BaseScheduler {
   constructor(
     notificationService: NotificationsService,
     private goalService: GoalService,
