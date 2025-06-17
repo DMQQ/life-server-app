@@ -15,6 +15,7 @@ import {
   UserCache,
 } from '../../utils/services/Cache/cache.decorator';
 import { UseInterceptors } from '@nestjs/common';
+import { WalletId } from 'src/utils/decorators/wallet.decorator';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
@@ -25,45 +26,45 @@ export class StatisticsResolver {
   @Query(() => [StatisticsLegend])
   @UserCache(3600)
   async statisticsLegend(
-    @User() userId: string,
+    @WalletId() walletId: string,
     @Args('startDate') startDate: string,
     @Args('endDate') endDate: string,
     @Args('displayMode') displayMode: 'detailed' | 'general',
   ) {
-    return this.statisticsService.legend(userId, startDate, endDate, displayMode);
+    return this.statisticsService.legend(walletId, startDate, endDate, displayMode);
   }
 
   @Query(() => [StatisticsDayOfWeekComparison])
   @UserCache(3600)
   async statisticsDayOfWeek(
-    @User() userId: string,
+    @WalletId() walletId: string,
     @Args('startDate') startDate: string,
     @Args('endDate') endDate: string,
   ) {
-    return this.statisticsService.dayOfWeek(userId, startDate, endDate);
+    return this.statisticsService.dayOfWeek(walletId, startDate, endDate);
   }
 
   @Query(() => [StatisticsDailySpendings])
   @UserCache(3600)
   async statisticsDailySpendings(
-    @User() userId: string,
+    @WalletId() walletId: string,
     @Args('startDate') startDate: string,
     @Args('endDate') endDate: string,
   ) {
-    return this.statisticsService.spendingsByDay(userId, startDate, endDate);
+    return this.statisticsService.spendingsByDay(walletId, startDate, endDate);
   }
 
   @Query(() => ZeroExpenseDays)
   @UserCache(7200)
   async statisticsZeroExpenseDays(
-    @User() userId: string,
+    @WalletId() walletId: string,
     @Args('startDate') startDate: string,
     @Args('endDate') endDate: string,
   ) {
     const [days, avg, streak] = await Promise.all([
-      this.statisticsService.zeroExpensesDays(userId, startDate, endDate),
-      this.statisticsService.avgSpendingsInRange(userId, startDate, endDate),
-      this.statisticsService.noSpendingsStreaks(userId, startDate, endDate),
+      this.statisticsService.zeroExpensesDays(walletId, startDate, endDate),
+      this.statisticsService.avgSpendingsInRange(walletId, startDate, endDate),
+      this.statisticsService.noSpendingsStreaks(walletId, startDate, endDate),
     ]);
 
     const saved = days.length * avg;

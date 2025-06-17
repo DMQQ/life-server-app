@@ -14,25 +14,11 @@ export class StatisticsService {
     @InjectRepository(WalletLimits) private limitsEntity: Repository<WalletLimits>,
   ) {}
 
-  async getWalletId(userId: string) {
-    const wallet = await this.walletEntity.findOne({
-      where: { userId },
-    });
-
-    if (!wallet) {
-      throw new Error('Wallet not found for user');
-    }
-
-    return wallet.id;
-  }
-
   /**
    * Returns legend structure for charts screen in mobile app
    */
-  async legend(userId: string, startDate: string, endDate: string, displayMode: 'general' | 'detailed' = 'detailed') {
+  async legend(walletId: string, startDate: string, endDate: string, displayMode: 'general' | 'detailed' = 'detailed') {
     try {
-      const walletId = await this.getWalletId(userId);
-
       if (!startDate || !endDate) {
         throw new Error('Start date and end date are required');
       }
@@ -70,18 +56,11 @@ export class StatisticsService {
 
       return query.getRawMany();
     } catch (error) {
-      console.log(error, userId, startDate, endDate);
       return [];
     }
   }
 
-  async dayOfWeek(userId: string, startDate: string, endDate: string) {
-    const walletId = await this.getWalletId(userId);
-
-    if (!walletId) {
-      throw new Error('Wallet not found');
-    }
-
+  async dayOfWeek(walletId: string, startDate: string, endDate: string) {
     const basicStats = await this.expenseEntity
       .createQueryBuilder('expense')
       .select([
@@ -132,9 +111,7 @@ export class StatisticsService {
     return amounts.length % 2 === 0 ? (amounts[mid - 1].amount + amounts[mid].amount) / 2 : amounts[mid].amount;
   }
 
-  async spendingsByDay(userId: string, startDate: string, endDate: string) {
-    const walletId = await this.getWalletId(userId);
-
+  async spendingsByDay(walletId: string, startDate: string, endDate: string) {
     return (
       await this.expenseEntity
         .createQueryBuilder('exp')
@@ -153,9 +130,7 @@ export class StatisticsService {
     }));
   }
 
-  async zeroExpensesDays(userId: string, startDate: string, endDate: string) {
-    const walletId = await this.getWalletId(userId);
-
+  async zeroExpensesDays(walletId: string, startDate: string, endDate: string) {
     const query = await this.expenseEntity.query(
       `WITH RECURSIVE date_range AS (
         SELECT ? as date_col
@@ -175,13 +150,7 @@ export class StatisticsService {
     return query.map((q) => q?.expense_date);
   }
 
-  async avgSpendingsInRange(userId: string, startDate: string, endDate: string) {
-    const walletId = await this.getWalletId(userId);
-
-    if (!walletId) {
-      throw new Error('Wallet not found');
-    }
-
+  async avgSpendingsInRange(walletId: string, startDate: string, endDate: string) {
     const result = await this.expenseEntity
       .createQueryBuilder('expense')
       .select('COALESCE(SUM(expense.amount), 0)', 'total')
@@ -198,8 +167,8 @@ export class StatisticsService {
     return result.total / daysInRange;
   }
 
-  async noSpendingsStreaks(userId: string, startDate: string, endDate: string) {
-    const dates = await this.zeroExpensesDays(userId, startDate, endDate);
+  async noSpendingsStreaks(walletId: string, startDate: string, endDate: string) {
+    const dates = await this.zeroExpensesDays(walletId, startDate, endDate);
     if (dates.length === 0) {
       return [];
     }

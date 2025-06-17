@@ -1,8 +1,6 @@
-import { Args, Field, Float, ObjectType, Resolver, Query, Mutation, InputType, ID } from '@nestjs/graphql';
+import { Args, Resolver, Query, Mutation, ID } from '@nestjs/graphql';
 import { LimitRange, WalletLimits } from '../entities/wallet.entity';
 import { LimitsService } from '../services/limits.service';
-import { User } from 'src/utils/decorators/user.decorator';
-import { WalletService } from '../services//wallet.service';
 import {
   CacheInterceptor,
   DefaultCacheModule,
@@ -11,37 +9,19 @@ import {
   UserCache,
 } from '../../utils/services/Cache/cache.decorator';
 import { UseInterceptors } from '@nestjs/common';
+import { WalletId } from 'src/utils/decorators/wallet.decorator';
+import { CreateLimit, LimitsOutput } from '../types/limit.schemas';
 
-@ObjectType()
-export class LimitsOutput extends WalletLimits {
-  @Field(() => Float)
-  current: number;
-}
-
-@InputType()
-class CreateLimit {
-  @Field()
-  category: string;
-
-  @Field(() => Float)
-  amount: number;
-
-  @Field(() => String)
-  type: string;
-}
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
 @Resolver()
 export class LimitsResolver {
-  constructor(
-    private limitService: LimitsService,
-    private walletService: WalletService,
-  ) {}
+  constructor(private limitService: LimitsService) {}
 
   @Query(() => [LimitsOutput])
   @UserCache(3600)
-  async limits(@Args('range', { type: () => String }) range: LimitRange, @User() user: string) {
-    return this.limitService.limits((await this.walletService.findWalletId(user)).id, range);
+  async limits(@Args('range', { type: () => String }) range: LimitRange, @WalletId() walletId: string) {
+    return this.limitService.limits(walletId, range);
   }
 
   @Mutation(() => Boolean)
@@ -56,9 +36,8 @@ export class LimitsResolver {
     @Args('input', { type: () => CreateLimit, nullable: false })
     input: CreateLimit,
 
-    @User() user: string,
+    @WalletId() walletId: string,
   ) {
-    const walletId = (await this.walletService.findWalletId(user)).id;
     return this.limitService.create({
       ...input,
       walletId,
