@@ -443,7 +443,7 @@ export class WalletService {
   }
 
   async getWalletId(userId: string) {
-    return (await this.walletRepository.findOne({ where: { userId } })).id;
+    return (await this.walletRepository.findOne({ where: { userId } }))?.id;
   }
 
   async createExpenseFromAIPrediction(
