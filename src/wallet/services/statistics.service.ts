@@ -209,7 +209,8 @@ export class StatisticsService {
       streaks.push(currentStreak);
     }
 
-    return streaks;
+    // return streaks;
+    return []; // faulty method to be fixed
   }
 
   async spendingsLimits(userId: string, startDate: string, endDate: string) {
