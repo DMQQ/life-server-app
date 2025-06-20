@@ -178,38 +178,38 @@ export class StatisticsService {
 
     for (let i = 0; i < dates.length; i++) {
       const currentDate = dayjs(dates[i]);
-      const nextDate = dayjs(dates[i + 1]);
 
-      if (currentStreak) {
-        if (nextDate.diff(currentDate, 'day') === 1) {
-          currentStreak.end = nextDate.format('YYYY-MM-DD');
-          currentStreak.length++;
-        } else {
-          streaks.push(currentStreak);
-          currentStreak = null;
-        }
-      }
-
-      if (!currentStreak) {
+      if (i === 0) {
         currentStreak = {
           start: currentDate.format('YYYY-MM-DD'),
           end: currentDate.format('YYYY-MM-DD'),
           length: 1,
         };
+      } else {
+        const previousDate = dayjs(dates[i - 1]);
+        const daysDiff = currentDate.diff(previousDate, 'day');
+
+        if (daysDiff === 1) {
+          currentStreak.end = currentDate.format('YYYY-MM-DD');
+          currentStreak.length++;
+        } else {
+          if (currentStreak.length > 1) {
+            streaks.push(currentStreak);
+          }
+          currentStreak = {
+            start: currentDate.format('YYYY-MM-DD'),
+            end: currentDate.format('YYYY-MM-DD'),
+            length: 1,
+          };
+        }
       }
     }
 
-    if (currentStreak) {
+    if (currentStreak && currentStreak.length > 1) {
       streaks.push(currentStreak);
     }
 
-    return streaks
-      .filter((d) => d.length > 1)
-      .map((streak) => ({
-        ...streak,
-        start: dayjs(streak.start).format('YYYY-MM-DD'),
-        end: dayjs(streak.end).format('YYYY-MM-DD'),
-      }));
+    return streaks;
   }
 
   async spendingsLimits(userId: string, startDate: string, endDate: string) {
