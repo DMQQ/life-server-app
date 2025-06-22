@@ -174,43 +174,27 @@ export class StatisticsService {
     }
 
     const streaks: { start: string; end: string; length: number }[] = [];
-    let currentStreak: { start: string; end: string; length: number } | null = null;
 
-    for (let i = 0; i < dates.length; i++) {
+    console.log('Zero expense dates:', dates);
+
+    let currentStreak = { start: dates[0], end: dates[0], length: 1 };
+
+    for (let i = 1; i < dates.length; i++) {
       const currentDate = dayjs(dates[i]);
+      const previousDate = dayjs(dates[i - 1]);
 
-      if (i === 0) {
-        currentStreak = {
-          start: currentDate.format('YYYY-MM-DD'),
-          end: currentDate.format('YYYY-MM-DD'),
-          length: 1,
-        };
+      if (currentDate.diff(previousDate, 'day') === 1) {
+        currentStreak.end = dates[i];
+        currentStreak.length++;
       } else {
-        const previousDate = dayjs(dates[i - 1]);
-        const daysDiff = currentDate.diff(previousDate, 'day');
-
-        if (daysDiff === 1) {
-          currentStreak.end = currentDate.format('YYYY-MM-DD');
-          currentStreak.length++;
-        } else {
-          if (currentStreak.length > 1) {
-            streaks.push(currentStreak);
-          }
-          currentStreak = {
-            start: currentDate.format('YYYY-MM-DD'),
-            end: currentDate.format('YYYY-MM-DD'),
-            length: 1,
-          };
-        }
+        streaks.push(currentStreak);
+        currentStreak = { start: dates[i], end: dates[i], length: 1 };
       }
     }
 
-    if (currentStreak && currentStreak.length > 1) {
-      streaks.push(currentStreak);
-    }
+    streaks.push(currentStreak);
 
-    // return streaks;
-    return []; // faulty method to be fixed
+    return streaks.filter((streak) => streak.length > 1);
   }
 
   async spendingsLimits(userId: string, startDate: string, endDate: string) {
