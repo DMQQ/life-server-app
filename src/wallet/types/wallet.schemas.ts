@@ -143,7 +143,7 @@ export class ExpensePredictionType {
 }
 
 @ObjectType()
-class ZeroExpenseStreak {
+export class ZeroExpenseStreak {
   @Field(() => String)
   start: string;
 
