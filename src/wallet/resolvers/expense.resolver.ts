@@ -1,7 +1,5 @@
 import { Args, Float, Mutation, Parent, ResolveField, Resolver, Query, ID } from '@nestjs/graphql';
 import { ExpenseEntity, ExpenseLocationEntity, ExpenseSubExpense } from '../entities//wallet.entity';
-import { SubscriptionService } from '../services/subscriptions.service';
-import { SubscriptionEntity } from '../entities/subscription.entity';
 import { ExpenseService } from '../services/expense.service';
 import { User } from 'src/utils/decorators/user.decorator';
 import { ExpensePredictionType } from '../types/wallet.schemas';
@@ -28,7 +26,6 @@ import {
 @Resolver(() => ExpenseEntity)
 export class ExpenseResolver {
   constructor(
-    private subscriptionService: SubscriptionService,
     private expenseService: ExpenseService,
 
     private expensePredictionService: ExpensePredictionService,
@@ -38,19 +35,6 @@ export class ExpenseResolver {
   @UserCache(3600)
   expense(@Args('expenseId', { type: () => ID, nullable: false }) expenseId: string) {
     return this.expenseService.getOne(expenseId);
-  }
-
-  @ResolveField('subscription', () => SubscriptionEntity, { nullable: true })
-  async getSubscription(@Parent() { subscriptionId }: ExpenseEntity) {
-    if (!subscriptionId) return null;
-
-    try {
-      const subscription = await this.subscriptionService.getSubscriptionById(subscriptionId);
-
-      return subscription;
-    } catch (error) {
-      return null;
-    }
   }
 
   @ResolveField('subexpenses', () => [ExpenseSubExpense])
@@ -183,13 +167,4 @@ export class ExpenseResolver {
   ) {
     return this.expensePredictionService.predictExpense(user, input, amount);
   }
-
-  @Query(() => [SubscriptionEntity])
-  @UserCache(3600)
-  subscriptions(@User() userId: string) {
-    return this.subscriptionService.getSubscriptions(userId);
-  }
-
-  // @Mutation(() => SubscriptionEntity)
-  // async modifySubscription(@Args('input') input: SubscriptionEntity) {}
 }

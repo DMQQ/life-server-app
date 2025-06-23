@@ -254,35 +254,6 @@ export class WalletResolver {
 
   @Mutation(() => ExpenseEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async createSubscription(
-    @User() user: string,
-    @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
-  ) {
-    try {
-      const wallet = await this.walletService.findWalletId(user);
-      await this.subscriptionService.createSubscription(expenseId, wallet);
-
-      return this.walletService.getExpense(expenseId);
-    } catch (error) {
-      console.log(error);
-      throw new BadRequestException('Subscription creation failed');
-    }
-  }
-
-  @Mutation(() => ExpenseEntity)
-  @InvalidateCache({ invalidateCurrentUser: true })
-  async cancelSubscription(@Args('subscriptionId', { type: () => ID }) subscriptionId: string) {
-    try {
-      await this.subscriptionService.cancelSubscription(subscriptionId);
-
-      return this.subscriptionService.getExpenseBySubscriptionId(subscriptionId);
-    } catch (error) {
-      throw new BadRequestException('Subscription cancelation failed');
-    }
-  }
-
-  @Mutation(() => ExpenseEntity)
-  @InvalidateCache({ invalidateCurrentUser: true })
   async createExpenseFromImage(@Args('image') imageBase64: string, @User() user: string) {
     const prediction = await this.openAiService.extractReceiptContent(imageBase64);
     const receiptData = JSON.parse(prediction.choices[0].message.content) as {

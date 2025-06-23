@@ -27,6 +27,8 @@ import { StatisticsService } from './services/statistics.service';
 import { ExpensePredictionService } from './services/expense-prediction.service';
 import { UploadModule } from 'src/upload/upload.module';
 import { WalletMiddleware } from 'src/utils/middlewares/wallet.middleware';
+import { TextSimilarityModule } from 'src/utils/services/TextSimilarity/text-similarity.module';
+import { SubscriptionResolver } from './resolvers/subscription.resolver';
 
 @Module({
   imports: [
@@ -40,10 +42,12 @@ import { WalletMiddleware } from 'src/utils/middlewares/wallet.middleware';
     ]),
     NotificationsModule,
     UploadModule,
+    TextSimilarityModule,
   ],
   providers: [
     WalletResolver,
     WalletService,
+    SubscriptionResolver,
     SubscriptionService,
     ExpenseResolver,
     ExpenseService,

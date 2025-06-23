@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { BillingCycleEnum, SubscriptionEntity } from '../entities/subscription.entity';
 import * as dayjs from 'dayjs';
 import { ExpenseEntity, WalletEntity } from '../entities/wallet.entity';
+import { TextSimilarityService } from 'src/utils/services/TextSimilarity/text-similarity.service';
 
 @Injectable()
 export class SubscriptionService {
@@ -13,6 +14,8 @@ export class SubscriptionService {
 
     @InjectRepository(ExpenseEntity)
     private expenseRepository: Repository<ExpenseEntity>,
+
+    private readonly textSimilarityService: TextSimilarityService,
   ) {}
 
   async insert(subscription: Partial<SubscriptionEntity>) {
@@ -137,7 +140,7 @@ export class SubscriptionService {
     });
   }
 
-  async createSubscription(expenseId: string, wallet: WalletEntity) {
+  async createSubscription(expenseId: string, walletId: string) {
     const expense = await this.getExpense(expenseId);
 
     let sub = null;
@@ -154,7 +157,7 @@ export class SubscriptionService {
           billingCycle: BillingCycleEnum.MONTHLY,
           nextBillingDate: expense.date,
         }),
-        walletId: wallet.id,
+        walletId: walletId,
       });
       await this.assignSubscription(expenseId, sub.id);
     } else {
@@ -192,7 +195,36 @@ export class SubscriptionService {
     });
   }
 
-  async modifySubscription({ id, ...subscription }: SubscriptionEntity) {
+  async modifySubscription({ id, ...subscription }: Partial<SubscriptionEntity> & { id: string }) {
     return this.subscriptionRepository.update({ id }, subscription);
+  }
+
+  async getPossibleSubscription(expenseId: string, walletId: string) {
+    const expense = await this.expenseRepository.findOne({
+      where: { id: expenseId, walletId },
+    });
+
+    if (!expense) {
+      throw new Error('Expense not found');
+    }
+
+    const subscriptions = await this.subscriptionRepository.find({
+      where: expense.description.split(' ').map((word) => ({
+        description: word,
+        walletId: walletId,
+      })),
+    });
+
+    if (subscriptions.length === 0) {
+      return [];
+    }
+
+    const result = await this.textSimilarityService.findMostSimilar(
+      expense.description,
+      subscriptions,
+      (item) => item.description,
+    );
+
+    return result.map((v) => v.item).slice(0, 3);
   }
 }
