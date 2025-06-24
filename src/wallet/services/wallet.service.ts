@@ -460,7 +460,7 @@ export class WalletService {
     return this.createExpense(
       userId,
       prediction.total_price,
-      prediction.title,
+      prediction.title + ' ' + (prediction.merchant ?? ''),
       ExpenseType.expense,
       prediction.category,
       dayjs(prediction.date).toDate(),

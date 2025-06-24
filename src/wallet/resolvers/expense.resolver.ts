@@ -11,7 +11,7 @@ import {
   InvalidateCacheInterceptor,
   UserCache,
 } from '../../utils/services/Cache/cache.decorator';
-import { UseInterceptors } from '@nestjs/common';
+import { BadRequestException, UseInterceptors } from '@nestjs/common';
 import {
   CreateLocationDto,
   CreateSubExpenseDto,
@@ -20,6 +20,9 @@ import {
   MonthlyHeatMap,
   UpdateSubExpenseDto,
 } from '../types/expense.schemas';
+import { UploadService } from 'src/upload/upload.service';
+import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
+import { WalletService } from '../services/wallet.service';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
@@ -29,6 +32,12 @@ export class ExpenseResolver {
     private expenseService: ExpenseService,
 
     private expensePredictionService: ExpensePredictionService,
+
+    private fileUploadService: UploadService,
+
+    private openAiService: OpenAIService,
+
+    private walletService: WalletService,
   ) {}
 
   @Query(() => ExpenseEntity)
@@ -166,5 +175,49 @@ export class ExpenseResolver {
     @Args('amount', { nullable: true }) amount?: number,
   ) {
     return this.expensePredictionService.predictExpense(user, input, amount);
+  }
+
+  @Mutation(() => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async refundExpense(@User() user: string, @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string) {
+    try {
+      return this.walletService.refundExpense(user, expenseId);
+    } catch (error) {
+      throw new BadRequestException('Refund failed');
+    }
+  }
+
+  @Mutation(() => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async createExpenseFromImage(@Args('image') imageBase64: string, @User() user: string) {
+    const prediction = await this.openAiService.extractReceiptContent(imageBase64);
+    const receiptData = JSON.parse(prediction.choices[0].message.content) as {
+      merchant: string;
+      total_price: number;
+      date: string;
+      subexpenses: { name: string; quantity: number; amount: number; category: string }[];
+      title: string;
+      category: string;
+    };
+
+    const expense = await this.walletService.createExpenseFromAIPrediction(receiptData, user);
+
+    const subexpenses = await this.expenseService.addMultipleSubExpenses(
+      expense.id,
+      receiptData.subexpenses.map((sub) => ({
+        expenseId: expense.id,
+        category: sub.category,
+        description: sub.name + ' ' + sub.quantity + 'x',
+        amount: sub.amount,
+      })),
+    );
+
+    try {
+      expense.files = await this.fileUploadService.saveBase64ToDisk(imageBase64, expense.description, expense.id);
+    } catch (error) {}
+
+    expense.subexpenses = subexpenses;
+
+    return expense;
   }
 }

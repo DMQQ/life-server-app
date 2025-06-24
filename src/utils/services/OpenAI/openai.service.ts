@@ -54,9 +54,9 @@ export class OpenAIService {
               1. merchant: store/restaurant name. If unclear, use general category (shopping, clothes, beer, etc.) + first item name
               2. total_price: final amount paid
               3. date: transaction date (YYYY-MM-DD format) - VERIFY DATE ACCURACY, double-check day/month/year
-              4. title: IN POLISH - If only ONE item purchased, use that item name as title. If multiple items, use generalized category description BUT IF possible to read add Shop name to description otherwise dont (e.g. "Zakupy spożywcze" for groceries, "Odzież" for clothes, "Piwo" for beer items, "Obiad" for restaurant meals, "Leki" for medicines, "Kosmetyki" for cosmetics)
+              4. title: IN POLISH - If only ONE item purchased, use that item name as title. If multiple items, use generalized category description BUT IF possible to read add Shop name to description otherwise dont (e.g. "Zakupy spożywcze" for groceries, "Odzież" for clothes, "Piwo" for beer items, "Obiad" for restaurant meals, "Leki" for medicines, "Kosmetyki" for cosmetics) but add shop name to end if generic name OR first expense name 
               5. category: main expense category from the list
-              6. subexpenses: individual items with name, quantity, amount, and category
+              6. subexpenses: individual items with name, quantity, amount, and category, BE PRECISE IN AMOUNT
               
               Return as JSON:
               {

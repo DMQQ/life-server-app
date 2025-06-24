@@ -83,4 +83,8 @@ export class NotificationsService {
       where: { userId, read: false },
     });
   }
+
+  async readAll(userId: string) {
+    return this.notificationHistoryRepository.update({ userId }, { read: true });
+  }
 }

@@ -1,4 +1,4 @@
-import { Args, Field, InputType, Mutation, Resolver, Query, Int, ID } from '@nestjs/graphql';
+import { Args, Mutation, Resolver, Query, Int, ID } from '@nestjs/graphql';
 import { NotificationsService } from './notifications.service';
 import { User } from 'src/utils/decorators/user.decorator';
 import { BadRequestException, UseGuards } from '@nestjs/common';
@@ -37,5 +37,10 @@ export class NotificationsResolver {
   @Mutation(() => [NotificationsHistoryEntity, Number])
   async unreadNotifications(@User() user: string) {
     return this.notificationsService.unreadNotifications(user);
+  }
+
+  @Mutation(() => Boolean)
+  async readAllNotifications(@User() userId: string) {
+    return (await this.notificationsService.readAll(userId)).affected > 0;
   }
 }
