@@ -11,7 +11,7 @@ import {
 import { UseInterceptors } from '@nestjs/common';
 import { WalletId } from 'src/utils/decorators/wallet.decorator';
 import { CreateLimit, LimitsOutput } from '../types/limit.schemas';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
@@ -24,7 +24,7 @@ export class LimitsResolver {
   async limits(
     @Args('range', { type: () => String }) range: LimitRange,
     @WalletId() walletId: string,
-    @Args('date', { nullable: false }) date: string,
+    @Args('date', { nullable: true, type: () => String }) date: string,
   ) {
     return this.limitService.limits(walletId, range, date || dayjs().format('YYYY-MM-DD'));
   }
