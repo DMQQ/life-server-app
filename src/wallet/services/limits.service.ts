@@ -137,8 +137,8 @@ export class LimitsService {
     return this.walletLimits.find({ where: { walletId, type } });
   }
 
-  async limits(walletId: string, type: LimitRange) {
-    const [from, to] = this.range(type);
+  async limits(walletId: string, type: LimitRange, date: string) {
+    const [from, to] = this.range(type, date);
 
     const expensesByCategory = await this.expenseEntity
       .createQueryBuilder('exp')
@@ -170,23 +170,23 @@ export class LimitsService {
     return Object.values(limitsKeyValue);
   }
 
-  private range(type: LimitRange): [Date, Date] {
+  private range(type: LimitRange, date: string): [Date, Date] {
     switch (type) {
       case LimitRange.daily:
-        return [dayjs().startOf('day').toDate(), dayjs().endOf('day').toDate()];
+        return [dayjs(date).startOf('day').toDate(), dayjs(date).endOf('day').toDate()];
 
       case LimitRange.monthly:
-        return [dayjs().startOf('month').toDate(), dayjs().endOf('month').toDate()];
+        return [dayjs(date).startOf('month').toDate(), dayjs(date).endOf('month').toDate()];
 
       case LimitRange.weekly:
-        return [dayjs().startOf('week').toDate(), dayjs().endOf('week').toDate()];
+        return [dayjs(date).startOf('week').toDate(), dayjs(date).endOf('week').toDate()];
 
       case LimitRange.yearly:
-        return [dayjs().startOf('year').toDate(), dayjs().endOf('year').toDate()];
+        return [dayjs(date).startOf('year').toDate(), dayjs(date).endOf('year').toDate()];
 
       default:
         console.log('Invalid type provided');
-        return [dayjs().startOf('day').toDate(), dayjs().endOf('day').toDate()];
+        return [dayjs(date).startOf('day').toDate(), dayjs(date).endOf('day').toDate()];
     }
   }
 }

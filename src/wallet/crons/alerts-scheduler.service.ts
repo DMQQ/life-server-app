@@ -39,7 +39,11 @@ export class AlertsSchedulerService {
         if (!wallet) continue;
 
         // Get all monthly limits
-        const monthlyLimits = (await this.limitsService.limits(wallet.id, LimitRange.monthly)) as any;
+        const monthlyLimits = (await this.limitsService.limits(
+          wallet.id,
+          LimitRange.monthly,
+          dayjs().format('YYYY-MM-DD'),
+        )) as any;
 
         // Check for limits approaching threshold
         const daysLeftInMonth = dayjs().endOf('month').diff(dayjs(), 'days');
