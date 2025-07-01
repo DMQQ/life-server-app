@@ -67,7 +67,7 @@ export class StatisticsService {
         'COUNT(expense.id) as count',
         'SUM(expense.amount) as total',
         'AVG(expense.amount) as avg',
-        'DAYOFWEEK(expense.date) as day',
+        'WEEKDAY(expense.date) + 1 as day',
       ])
       .where('expense.walletId = :walletId', { walletId })
       .andWhere('expense.date BETWEEN :startDate AND :endDate', {
@@ -81,14 +81,16 @@ export class StatisticsService {
     const results = await Promise.all(
       basicStats.map(async (stat) => {
         const median = await this.getMedianForDay(walletId, startDate, endDate, stat.day);
-        return { ...stat, median, day: Number(stat.day) - 1 };
+        return { ...stat, median, day: Number(stat.day) };
       }),
     );
 
-    const sorted = results.sort((a, b) => a.day - b.day);
-    sorted.push({ ...sorted.shift(), day: 7 });
+    const dayMap = new Map(results.map((r) => [r.day, r]));
 
-    return sorted;
+    return Array.from(
+      { length: 7 },
+      (_, i) => dayMap.get(i + 1) || { count: 0, total: 0, avg: 0, median: 0, day: i + 1 },
+    );
   }
 
   private async getMedianForDay(walletId: string, startDate: string, endDate: string, day: number) {
