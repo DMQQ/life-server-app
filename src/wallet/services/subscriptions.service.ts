@@ -29,7 +29,11 @@ export class SubscriptionService {
   }
 
   async getSubscriptionById(id: string) {
-    return await this.subscriptionRepository.findOne({ where: { id } });
+    return await this.subscriptionRepository.findOne({
+      where: { id },
+      relations: ['expenses'],
+      order: { nextBillingDate: 'desc' },
+    });
   }
 
   async getTodaySubscriptions() {
