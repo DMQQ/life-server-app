@@ -51,7 +51,7 @@ export class OpenAIService {
             {
               type: 'text',
               text: `Analyze this receipt and extract:
-              1. merchant: store/restaurant name. If unclear, use general category (shopping, clothes, beer, etc.) + first item name
+              1. merchant: store/restaurant name. If unclear return empty string 
               2. total_price: final amount paid
               3. date: transaction date (YYYY-MM-DD format) - VERIFY DATE ACCURACY, double-check day/month/year
               4. title: IN POLISH - If only ONE item purchased, use that item name as title. If multiple items, use generalized category description BUT IF possible to read add Shop name to description otherwise dont (e.g. "Zakupy spożywcze" for groceries, "Odzież" for clothes, "Piwo" for beer items, "Obiad" for restaurant meals, "Leki" for medicines, "Kosmetyki" for cosmetics) but add shop name to end if generic name OR first expense name 
