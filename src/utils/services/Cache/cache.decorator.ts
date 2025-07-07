@@ -62,11 +62,8 @@ export class CacheInterceptor implements NestInterceptor {
     try {
       const cachedResult = await this.cacheService.get(cacheKey);
       if (cachedResult !== null) {
-        console.log('Cache HIT for: ' + cacheKey);
         return of(cachedResult);
       }
-
-      console.log('Cache MISS for: ' + cacheKey);
 
       return next.handle().pipe(
         tap(async (result) => {

@@ -157,14 +157,18 @@ export class StatisticsService {
       .createQueryBuilder('expense')
       .select('COALESCE(SUM(expense.amount), 0)', 'total')
       .where('expense.walletId = :walletId', { walletId })
-      .andWhere('expense.date BETWEEN :startDate AND :endDate', {
-        startDate,
-        endDate,
-      })
+      .andWhere('expense.date >= :startDate', { startDate })
+      .andWhere('expense.date <= :endDate', { endDate })
       .andWhere("expense.type = 'expense'")
       .getRawOne();
 
     const daysInRange = dayjs(endDate).diff(dayjs(startDate), 'day') + 1;
+
+    console.log('startDate:', startDate);
+    console.log('endDate:', endDate);
+    console.log('daysInRange:', daysInRange);
+    console.log('total:', result.total);
+    console.log('average:', result.total / daysInRange);
 
     return result.total / daysInRange;
   }
