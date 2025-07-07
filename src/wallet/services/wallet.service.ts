@@ -367,7 +367,7 @@ export class WalletService {
       JOIN walletId w ON e.walletId = w.id
       WHERE e.date >= ? 
         AND e.date <= ? AND e.schedule = 0
-        AND type != 'refunded'
+        AND type = 'expense'
   `,
       [
         userId, // for walletId subquery
