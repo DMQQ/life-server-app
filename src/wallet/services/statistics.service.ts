@@ -157,8 +157,10 @@ export class StatisticsService {
       .createQueryBuilder('expense')
       .select('COALESCE(SUM(expense.amount), 0)', 'total')
       .where('expense.walletId = :walletId', { walletId })
-      .andWhere('expense.date >= :startDate', { startDate })
-      .andWhere('expense.date <= :endDate', { endDate })
+      .andWhere('DATE(expense.date) BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      })
       .andWhere("expense.type = 'expense'")
       .getRawOne();
 
