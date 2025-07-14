@@ -3,7 +3,7 @@
 ### Seting up the server
 
 ```bash
-# ENVS
+# env
 
 - HOST (for database)
 - PORT (for db)
@@ -17,3 +17,5 @@
 
 
 ```
+
+one more test
