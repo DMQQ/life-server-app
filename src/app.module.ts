@@ -65,8 +65,6 @@ import { WorkoutModule } from './workout/workout.module';
 
     HostsModule,
 
-    HealthController,
-
     GraphQLModule.forRoot({
       driver: ApolloDriver,
       autoSchemaFile: true,
@@ -81,6 +79,7 @@ import { WorkoutModule } from './workout/workout.module';
       },
     }),
   ],
+  controllers: [HealthController],
 })
 export class AppModule implements NestModule {
   configure(consumer: any) {
