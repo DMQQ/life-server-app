@@ -1,13 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, Interval } from '@nestjs/schedule';
-import { NotificationsService } from 'src/notifications/notifications.service';
-import { WalletService } from '../services/wallet.service';
-import { ExpenseService } from '../services/expense.service';
-import { ExpoPushMessage } from 'expo-server-sdk';
+import { Injectable } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import * as dayjs from 'dayjs';
-import { SubscriptionService } from '../services/subscriptions.service';
-import { BaseScheduler } from './scheduler-base.service';
+import { ExpoPushMessage } from 'expo-server-sdk';
+import { NotificationsService } from 'src/notifications/notifications.service';
 import { formatCategory } from 'src/utils/fns/format-category';
+import { ExpenseService } from '../services/expense.service';
+import { SubscriptionService } from '../services/subscriptions.service';
+import { WalletService } from '../services/wallet.service';
+import { BaseScheduler } from './scheduler-base.service';
 
 @Injectable()
 export class InsightsSchedulerService extends BaseScheduler {
@@ -120,13 +120,11 @@ export class InsightsSchedulerService extends BaseScheduler {
 
         let maxHour = -1;
         let maxAvgAmount = 0;
-        let maxCount = 0;
 
         for (const hour of hourlyData) {
           if (hour.count >= 5 && hour.avg_amount > maxAvgAmount) {
             maxHour = hour.hour;
             maxAvgAmount = hour.avg_amount;
-            maxCount = hour.count;
           }
         }
 
@@ -303,9 +301,9 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 22 * * 0', {
-    timeZone: 'Europe/Warsaw',
-  })
+  // @Cron('0 22 * * 0', {
+  //   timeZone: 'Europe/Warsaw',
+  // }) disable
   async topSpendingDayAnalysis() {
     this.logger.log('Running top spending day analysis');
     const users = await this.notificationService.findAll();
@@ -551,62 +549,62 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 7 * * 0', {
-    timeZone: 'Europe/Warsaw',
-  })
-  async weeklyFinancialTip() {
-    this.logger.log('Sending weekly financial tip for young adults');
-    const users = await this.notificationService.findAll();
+  // @Cron('0 7 * * 0', {
+  //   timeZone: 'Europe/Warsaw',
+  // })
+  // async weeklyFinancialTip() {
+  //   this.logger.log('Sending weekly financial tip for young adults');
+  //   const users = await this.notificationService.findAll();
 
-    const tips = [
-      '🎓 Student discount hack: Use apps like Unidays or Student Beans to find discounts on everything from clothes to tech.',
-      '🍕 Food budget tip: Meal prep on Sundays can save you up to 70% compared to eating out or ordering in.',
-      '💰 Try the 70/20/10 rule: 70% for living costs, 20% for fun, 10% for future you. Easier than the 50/30/20 rule to start with!',
-      '📱 App subscription audit: Delete unused apps that charge monthly - the average person wastes 250zł yearly on forgotten subscriptions.',
-      '🎮 Gaming tip: Wait for seasonal sales to buy games or use subscription services like Game Pass instead of buying each title.',
-      '💼 Side hustle idea: Turn your social media skills into freelance work - businesses pay well for help with their online presence.',
-      '🏠 Housing hack: Splitting rent with one roommate can save you 40-50% on your biggest monthly expense.',
-      '✈️ Travel smart: Use student flight discounts and hostels to explore Europe for under 1000zł per trip.',
-      '🛍️ Shopping tip: Use browser extensions like Honey to automatically find discount codes at checkout.',
-      '☕ The coffee calculator: Making coffee at home vs buying daily can save you over 2000zł per year.',
-      '🚗 Transport savings: Compare the real cost of car ownership vs public transport + occasional rideshares.',
-      '💻 Tech tip: Buy refurbished electronics with warranties to save 30-50% on phones and laptops.',
-      '👕 Clothing hack: Thrift stores and secondhand apps like Vinted offer trendy clothes at 70-90% off retail.',
-      '📊 Money challenge: Save 5zł on day 1, 10zł on day 2, and so on for 30 days to easily save 2325zł in a month.',
-      '💳 Credit building: Using a credit card for regular expenses and paying it off monthly helps build your credit score.',
-      '🎭 Free fun finder: Follow local event pages for free concerts, exhibitions and activities instead of paying for entertainment.',
-      '📚 Learning hack: Use free resources like YouTube tutorials and library books before paying for courses.',
-      '🏋️ Fitness tip: University gyms, public parks, and free YouTube workouts can replace expensive gym memberships.',
-      '💸 Digital banking tip: Use apps like Revolut or N26 for fee-free currency exchange when traveling.',
-      '🎧 Entertainment hack: Split premium subscriptions like Spotify Family or Netflix with friends to save up to 70%.',
-    ];
+  //   const tips = [
+  //     '🎓 Student discount hack: Use apps like Unidays or Student Beans to find discounts on everything from clothes to tech.',
+  //     '🍕 Food budget tip: Meal prep on Sundays can save you up to 70% compared to eating out or ordering in.',
+  //     '💰 Try the 70/20/10 rule: 70% for living costs, 20% for fun, 10% for future you. Easier than the 50/30/20 rule to start with!',
+  //     '📱 App subscription audit: Delete unused apps that charge monthly - the average person wastes 250zł yearly on forgotten subscriptions.',
+  //     '🎮 Gaming tip: Wait for seasonal sales to buy games or use subscription services like Game Pass instead of buying each title.',
+  //     '💼 Side hustle idea: Turn your social media skills into freelance work - businesses pay well for help with their online presence.',
+  //     '🏠 Housing hack: Splitting rent with one roommate can save you 40-50% on your biggest monthly expense.',
+  //     '✈️ Travel smart: Use student flight discounts and hostels to explore Europe for under 1000zł per trip.',
+  //     '🛍️ Shopping tip: Use browser extensions like Honey to automatically find discount codes at checkout.',
+  //     '☕ The coffee calculator: Making coffee at home vs buying daily can save you over 2000zł per year.',
+  //     '🚗 Transport savings: Compare the real cost of car ownership vs public transport + occasional rideshares.',
+  //     '💻 Tech tip: Buy refurbished electronics with warranties to save 30-50% on phones and laptops.',
+  //     '👕 Clothing hack: Thrift stores and secondhand apps like Vinted offer trendy clothes at 70-90% off retail.',
+  //     '📊 Money challenge: Save 5zł on day 1, 10zł on day 2, and so on for 30 days to easily save 2325zł in a month.',
+  //     '💳 Credit building: Using a credit card for regular expenses and paying it off monthly helps build your credit score.',
+  //     '🎭 Free fun finder: Follow local event pages for free concerts, exhibitions and activities instead of paying for entertainment.',
+  //     '📚 Learning hack: Use free resources like YouTube tutorials and library books before paying for courses.',
+  //     '🏋️ Fitness tip: University gyms, public parks, and free YouTube workouts can replace expensive gym memberships.',
+  //     '💸 Digital banking tip: Use apps like Revolut or N26 for fee-free currency exchange when traveling.',
+  //     '🎧 Entertainment hack: Split premium subscriptions like Spotify Family or Netflix with friends to save up to 70%.',
+  //   ];
 
-    const weekNumber = dayjs().isoWeek();
-    const tipIndex = weekNumber % tips.length;
-    const tip = tips[tipIndex];
+  //   const weekNumber = dayjs().isoWeek();
+  //   const tipIndex = weekNumber % tips.length;
+  //   const tip = tips[tipIndex];
 
-    for (const user of users) {
-      try {
-        if (!user.token || user.isEnable === false) continue;
+  //   for (const user of users) {
+  //     try {
+  //       if (!user.token || user.isEnable === false) continue;
 
-        const notification = {
-          to: user.token,
-          sound: 'default',
-          title: '💡 Smart Money Tip',
-          body: tip,
-        } as ExpoPushMessage;
+  //       const notification = {
+  //         to: user.token,
+  //         sound: 'default',
+  //         title: '💡 Smart Money Tip',
+  //         body: tip,
+  //       } as ExpoPushMessage;
 
-        await this.sendSingleNotification(notification);
-        await this.notificationService.saveNotification(user.userId, notification);
-      } catch (error) {
-        this.logger.error(`Error sending financial tip to user ${user.userId}: ${error.message}`, error.stack);
-      }
-    }
-  }
+  //       await this.sendSingleNotification(notification);
+  //       await this.notificationService.saveNotification(user.userId, notification);
+  //     } catch (error) {
+  //       this.logger.error(`Error sending financial tip to user ${user.userId}: ${error.message}`, error.stack);
+  //     }
+  //   }
+  // }
 
-  @Cron('0 7 */3 * *', {
-    timeZone: 'Europe/Warsaw',
-  })
+  // @Cron('0 7 */3 * *', {
+  //   timeZone: 'Europe/Warsaw',
+  // }) disable
   async whatIfAnalysis() {
     this.logger.log('Running "What If" analysis');
     const users = await this.notificationService.findAll();
