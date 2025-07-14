@@ -7,19 +7,20 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthenticationModule } from './authentication/authentication.module';
 import { TokenMiddleware } from './utils/middlewares/token.middleware';
 
-import { TimelineModule } from './timeline/timeline.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { TimelineModule } from './timeline/timeline.module';
 import { UploadModule } from './upload/upload.module';
 
 import { MulterModule } from '@nestjs/platform-express';
-import { WalletModule } from './wallet/wallet.module';
-import { WorkoutModule } from './workout/workout.module';
+import { HealthController } from './app/app.controller';
 import { dataSourceOptions } from './database';
 import { FlashCardsModule } from './flashcards/flashcards.module';
 import { GoalsModule } from './goals/goals.module';
 import { HostsModule } from './hosts/hosts.module';
-import { OpenAIModule } from './utils/services/OpenAI/openai.module';
 import { CacheModule } from './utils/services/Cache/cache.module';
+import { OpenAIModule } from './utils/services/OpenAI/openai.module';
+import { WalletModule } from './wallet/wallet.module';
+import { WorkoutModule } from './workout/workout.module';
 
 @Module({
   imports: [
@@ -63,6 +64,8 @@ import { CacheModule } from './utils/services/Cache/cache.module';
     GoalsModule,
 
     HostsModule,
+
+    HealthController,
 
     GraphQLModule.forRoot({
       driver: ApolloDriver,
