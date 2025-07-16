@@ -1,7 +1,13 @@
-import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
-import { FlashCardService } from './flashcards.service';
-import { FlashCard } from './flashcards.entity';
 import { UseInterceptors } from '@nestjs/common';
+import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
+import {
+  CacheInterceptor,
+  DefaultCacheModule,
+  InvalidateCache,
+  InvalidateCacheInterceptor,
+  UserCache,
+} from 'src/utils/services/Cache/cache.decorator';
+import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 import { User } from '../utils/decorators/user.decorator';
 import {
   AIGeneratedFlashCards,
@@ -10,14 +16,8 @@ import {
   ReviewFlashCardInput,
   UpdateFlashCardInput,
 } from './flashcard.types';
-import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
-import {
-  CacheInterceptor,
-  DefaultCacheModule,
-  InvalidateCache,
-  InvalidateCacheInterceptor,
-  UserCache,
-} from 'src/utils/services/Cache/cache.decorator';
+import { FlashCard } from './flashcards.entity';
+import { FlashCardService } from './flashcards.service';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('FlashCards', { invalidateCurrentUser: true })
@@ -78,6 +78,12 @@ export class FlashCardResolver {
   @UserCache(3600)
   async groupStats(@Args('groupId', { type: () => ID }) groupId: string, @User() userId: string) {
     return this.flashCardService.getGroupStats(groupId, userId);
+  }
+
+  @Mutation(() => Boolean)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async removeflashCardGroup(@Args('groupId') groupId: string, @User() user: string) {
+    return this.flashCardService.removeGroup(groupId, user);
   }
 
   @Query(() => [AIGeneratedFlashCards])

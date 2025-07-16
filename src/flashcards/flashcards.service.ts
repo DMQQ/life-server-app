@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { FlashCard, Group } from './flashcards.entity';
 import { CreateFlashCardInput, ReviewFlashCardInput, UpdateFlashCardInput } from './flashcard.types';
+import { FlashCard, Group } from './flashcards.entity';
 
 @Injectable()
 export class FlashCardService {
@@ -32,6 +32,26 @@ export class FlashCardService {
     });
 
     return this.flashCardRepository.save(flashCard);
+  }
+
+  async removeGroup(groupId: string, userId: string) {
+    const canRemove = this.groupRepository.findOne({
+      where: {
+        userId,
+        id: groupId,
+      },
+    });
+
+    if (!canRemove) throw new ForbiddenException('User not allowed');
+
+    try {
+      //@ts-ignore
+      await this.flashCardRepository.delete({ group: groupId, userId });
+      await this.groupRepository.delete({ id: groupId });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   async findAll(userId: string, groupId?: string): Promise<FlashCard[]> {
