@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ExpenseEntity, LimitRange, WalletEntity, WalletLimits } from '../entities/wallet.entity';
-import { Repository } from 'typeorm';
 import * as dayjs from 'dayjs';
+import { Repository } from 'typeorm';
+import { ExpenseEntity, LimitRange, WalletEntity, WalletLimits } from '../entities/wallet.entity';
 
 @Injectable()
 export class StatisticsService {
@@ -165,12 +165,6 @@ export class StatisticsService {
       .getRawOne();
 
     const daysInRange = dayjs(endDate).diff(dayjs(startDate), 'day') + 1;
-
-    console.log('startDate:', startDate);
-    console.log('endDate:', endDate);
-    console.log('daysInRange:', daysInRange);
-    console.log('total:', result.total);
-    console.log('average:', result.total / daysInRange);
 
     return result.total / daysInRange;
   }

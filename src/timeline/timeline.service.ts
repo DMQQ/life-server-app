@@ -155,8 +155,8 @@ export class TimelineService {
     return this.timelineTodosRepository.delete({ id });
   }
 
-  async completeTimelineTodo(id: string) {
-    return this.timelineTodosRepository.update({ id }, { isCompleted: true });
+  async completeTimelineTodo(id: string, isCompleted: boolean) {
+    return this.timelineTodosRepository.update({ id }, { isCompleted });
   }
 
   async findTodoById(id: string) {

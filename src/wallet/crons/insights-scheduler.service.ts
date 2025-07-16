@@ -98,64 +98,64 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
   }
 
-  @Cron('0 22 * * 1', {
-    timeZone: 'Europe/Warsaw',
-  })
-  async spendingPatternInsights() {
-    const notifications = await this.notificationService.findAll();
+  // @Cron('0 22 * * 1', {
+  //   timeZone: 'Europe/Warsaw',
+  // })
+  // async spendingPatternInsights() {
+  //   const notifications = await this.notificationService.findAll();
 
-    for (const n of notifications) {
-      try {
-        if (n.isEnable === false || !n.token) continue;
+  //   for (const n of notifications) {
+  //     try {
+  //       if (n.isEnable === false || !n.token) continue;
 
-        const walletId = await this.walletService.getWalletId(n.userId);
-        if (!walletId) continue;
+  //       const walletId = await this.walletService.getWalletId(n.userId);
+  //       if (!walletId) continue;
 
-        const startDate = dayjs().subtract(1, 'month').format('YYYY-MM-DD');
-        const endDate = dayjs().format('YYYY-MM-DD');
+  //       const startDate = dayjs().subtract(1, 'month').format('YYYY-MM-DD');
+  //       const endDate = dayjs().format('YYYY-MM-DD');
 
-        const hourlyData = await this.expenseService.getHourlySpendingPatterns(walletId, [startDate, endDate]);
+  //       const hourlyData = await this.expenseService.getHourlySpendingPatterns(walletId, [startDate, endDate]);
 
-        if (!hourlyData || hourlyData.length === 0) continue;
+  //       if (!hourlyData || hourlyData.length === 0) continue;
 
-        let maxHour = -1;
-        let maxAvgAmount = 0;
+  //       let maxHour = -1;
+  //       let maxAvgAmount = 0;
 
-        for (const hour of hourlyData) {
-          if (hour.count >= 5 && hour.avg_amount > maxAvgAmount) {
-            maxHour = hour.hour;
-            maxAvgAmount = hour.avg_amount;
-          }
-        }
+  //       for (const hour of hourlyData) {
+  //         if (hour.count >= 5 && hour.avg_amount > maxAvgAmount) {
+  //           maxHour = hour.hour;
+  //           maxAvgAmount = hour.avg_amount;
+  //         }
+  //       }
 
-        if (maxHour === -1) continue;
+  //       if (maxHour === -1) continue;
 
-        const topCategory = await this.expenseService.getTopCategoryForHour(walletId, maxHour, [startDate, endDate]);
+  //       const topCategory = await this.expenseService.getTopCategoryForHour(walletId, maxHour, [startDate, endDate]);
 
-        const hour12 = maxHour % 12 || 12;
-        const ampm = maxHour >= 12 ? 'PM' : 'AM';
-        const timeStr = `${hour12}${ampm}`;
+  //       const hour12 = maxHour % 12 || 12;
+  //       const ampm = maxHour >= 12 ? 'PM' : 'AM';
+  //       const timeStr = `${hour12}${ampm}`;
 
-        const messageBody = `⏰ You tend to make more purchases around ${timeStr}, spending an average of ${maxAvgAmount.toFixed(
-          2,
-        )}zł${topCategory ? `. Most common category: ${formatCategory(topCategory)}` : ''}.`;
+  //       const messageBody = `⏰ You tend to make more purchases around ${timeStr}, spending an average of ${maxAvgAmount.toFixed(
+  //         2,
+  //       )}zł${topCategory ? `. Most common category: ${formatCategory(topCategory)}` : ''}.`;
 
-        const truncatedBody = messageBody.length > 178 ? messageBody.substring(0, 175) + '...' : messageBody;
+  //       const truncatedBody = messageBody.length > 178 ? messageBody.substring(0, 175) + '...' : messageBody;
 
-        const notification = {
-          to: n.token,
-          sound: 'default',
-          title: '🔍 Spending Pattern Detected',
-          body: truncatedBody,
-        } as ExpoPushMessage;
+  //       const notification = {
+  //         to: n.token,
+  //         sound: 'default',
+  //         title: '🔍 Spending Pattern Detected',
+  //         body: truncatedBody,
+  //       } as ExpoPushMessage;
 
-        await this.notificationService.sendChunkNotifications([notification]);
-        await this.notificationService.saveNotification(n.userId, notification);
-      } catch (error) {
-        console.error(`Error processing spending patterns for user ${n.userId}:`, error);
-      }
-    }
-  }
+  //       await this.notificationService.sendChunkNotifications([notification]);
+  //       await this.notificationService.saveNotification(n.userId, notification);
+  //     } catch (error) {
+  //       console.error(`Error processing spending patterns for user ${n.userId}:`, error);
+  //     }
+  //   }
+  // }
 
   @Cron('0 22 * * *', {
     timeZone: 'Europe/Warsaw',

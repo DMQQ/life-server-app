@@ -1,9 +1,7 @@
+import { NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { Args, Field, ID, InputType, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
-import { TimelineService } from './timeline.service';
 import { TimelineEntity, TimelineFilesEntity, TimelineTodosEntity } from 'src/timeline/timeline.entity';
 import { User } from 'src/utils/decorators/user.decorator';
-import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
-import { NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import {
   CacheInterceptor,
@@ -12,6 +10,8 @@ import {
   InvalidateCacheInterceptor,
   UserCache,
 } from 'src/utils/services/Cache/cache.decorator';
+import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
+import { TimelineService } from './timeline.service';
 
 @InputType()
 class TimelineTodo {
@@ -144,8 +144,11 @@ export class TimelineResolver {
 
   @Mutation(() => TimelineTodosEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async completeTimelineTodo(@Args('id', { nullable: false, type: () => ID }) id: string) {
-    await this.timelineService.completeTimelineTodo(id);
+  async completeTimelineTodo(
+    @Args('id', { nullable: false, type: () => ID }) id: string,
+    @Args('isCompleted', { type: () => Boolean }) isCompleted: boolean,
+  ) {
+    await this.timelineService.completeTimelineTodo(id, isCompleted);
 
     return this.timelineService.findTodoById(id);
   }
