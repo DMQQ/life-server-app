@@ -1,5 +1,6 @@
 import { UseInterceptors } from '@nestjs/common';
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { SuccessfulRemoval } from 'src/utils/schemas/SuccessfulRemoval';
 import {
   CacheInterceptor,
   DefaultCacheModule,
@@ -56,10 +57,18 @@ export class FlashCardResolver {
     return this.flashCardService.update(input.id, input, userId);
   }
 
-  @Mutation(() => Boolean)
+  @Mutation(() => SuccessfulRemoval)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async removeFlashCard(@Args('id', { type: () => ID }) id: string, @User() userId: string): Promise<boolean> {
-    return this.flashCardService.remove(id, userId);
+  async removeFlashCard(
+    @Args('id', { type: () => ID }) id: string,
+    @User() userId: string,
+  ): Promise<SuccessfulRemoval> {
+    const response = await this.flashCardService.remove(id, userId);
+
+    return {
+      deletedId: id,
+      isDeleted: response,
+    };
   }
 
   @Mutation(() => FlashCard)
@@ -80,10 +89,15 @@ export class FlashCardResolver {
     return this.flashCardService.getGroupStats(groupId, userId);
   }
 
-  @Mutation(() => Boolean)
+  @Mutation(() => SuccessfulRemoval)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async removeflashCardGroup(@Args('groupId') groupId: string, @User() user: string) {
-    return this.flashCardService.removeGroup(groupId, user);
+  async removeflashCardGroup(@Args('groupId') groupId: string, @User() user: string): Promise<SuccessfulRemoval> {
+    const response = await this.flashCardService.removeGroup(groupId, user);
+
+    return {
+      isDeleted: response,
+      deletedId: groupId,
+    };
   }
 
   @Query(() => [AIGeneratedFlashCards])
