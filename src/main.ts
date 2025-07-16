@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import * as express from 'express';
 import * as compression from 'compression';
+import * as express from 'express';
+import { AppModule } from './app.module';
 
 import * as dayjs from 'dayjs';
 import * as advancedFormat from 'dayjs/plugin/advancedFormat';
@@ -12,7 +12,7 @@ dayjs.extend(isoWeek);
 dayjs.extend(isSameOrBefore);
 dayjs.extend(advancedFormat);
 
-const ADDR = '10.1.1.105';
+const ADDR = '192.168.1.20';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

@@ -1,10 +1,8 @@
-import { Resolver, Query, Mutation, Args, ID, Context } from '@nestjs/graphql';
-import { UserGoal, GoalCategory, GoalEntry } from './goals.entity';
-import { GoalService } from './goals.service';
-import { InputType, Field, ObjectType } from '@nestjs/graphql';
-import { IsString, IsNumber, IsDate, IsOptional } from 'class-validator';
-import { User } from 'src/utils/decorators/user.decorator';
 import { UseInterceptors } from '@nestjs/common';
+import { Args, Field, ID, InputType, Mutation, ObjectType, Query, Resolver } from '@nestjs/graphql';
+import { IsDate, IsNumber, IsOptional, IsString } from 'class-validator';
+import { User } from 'src/utils/decorators/user.decorator';
+import { SuccessfulRemoval } from 'src/utils/schemas/SuccessfulRemoval';
 import {
   CacheInterceptor,
   DefaultCacheModule,
@@ -12,6 +10,8 @@ import {
   InvalidateCacheInterceptor,
   UserCache,
 } from 'src/utils/services/Cache/cache.decorator';
+import { GoalCategory, GoalEntry, UserGoal } from './goals.entity';
+import { GoalService } from './goals.service';
 
 // Keep same input types for API compatibility
 @InputType()
@@ -125,11 +125,14 @@ export class GoalResolver {
     return this.goalService.updateGoalCategory(id, input);
   }
 
-  @Mutation(() => Boolean)
+  @Mutation(() => SuccessfulRemoval)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async deleteGoals(@Args('id', { type: () => ID }) id: string) {
+  async deleteGoals(@Args('id', { type: () => ID }) id: string): Promise<SuccessfulRemoval> {
     await this.goalService.deleteGoalCategory(id);
-    return true;
+    return {
+      deletedId: id,
+      isDeleted: true,
+    };
   }
 
   @Mutation(() => GoalStats)
