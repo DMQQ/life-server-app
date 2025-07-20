@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
-import { Between, Brackets, Repository } from 'typeorm';
-import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
 import * as dayjs from 'dayjs';
+import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
+import { Brackets, Repository } from 'typeorm';
+import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
 
 @Injectable()
 export class WalletService {
@@ -460,7 +460,7 @@ export class WalletService {
     return this.createExpense(
       userId,
       prediction.total_price,
-      prediction.title + ' ' + (prediction.merchant ?? ''),
+      prediction.title + ' ',
       ExpenseType.expense,
       prediction.category,
       dayjs(prediction.date).toDate(),

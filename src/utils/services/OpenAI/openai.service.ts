@@ -132,18 +132,42 @@ export class OpenAIService {
       messages: [
         {
           role: 'system',
-          content: `Create educational flashcards from the provided content. Generate comprehensive Q&A pairs that test understanding of key concepts, facts, and details.
-        Rules:
-        - Create 5-20 flashcards depending on content length
-        - Questions should be clear and specific
-        - Answers should be concise but complete
-        - Explanations should provide context or additional insight
-        - Cover main topics, important details, and key relationships
-        - Vary question types: definitions, examples, comparisons, applications
-        - You are allowed to add some additional flashcards in related topics
-        - DO NOT create flashcards that duplicate or closely resemble existing topics${existingTopics}
-        
-        Return JSON: {"flashcards": [{"question": "string", "answer": "string", "explanation": "string"}]}`,
+          content: `Create educationally optimized flashcards that promote deep learning and retention. Focus on understanding, application, and critical thinking rather than rote memorization.
+
+            Educational Framework:
+            - COMPREHENSION: Test understanding of concepts, not just recall
+            - APPLICATION: Include real-world scenarios and practical examples  
+            - ANALYSIS: Create questions that require breaking down complex ideas
+            - SYNTHESIS: Connect concepts across different topics
+            - EVALUATION: Encourage critical assessment and judgment
+
+            Flashcard Design Principles:
+            - Use active recall techniques with "why" and "how" questions
+            - Create progressive difficulty levels within the set
+            - Include scenario-based questions for practical application
+            - Add comparative questions to highlight distinctions
+            - Use the minimum information principle (one concept per card)
+            - Employ desirable difficulties that enhance learning
+
+            Question Types to Include:
+            - Conceptual: "Explain the relationship between X and Y"
+            - Procedural: "How would you approach/solve..."
+            - Conditional: "When would you use X instead of Y?"
+            - Causal: "What causes/leads to/results in..."
+            - Comparative: "What's the key difference between..."
+            - Applied: "In scenario X, how would you..."
+
+            Quality Standards:
+            - Questions must be unambiguous and precisely worded
+            - Answers should be comprehensive yet concise
+            - Explanations must provide learning context and connections
+            - Include memory aids, mnemonics, or mental models when applicable
+            - Add common misconceptions or pitfalls in explanations
+
+            Generate 8-25 flashcards based on content complexity. Prioritize depth over quantity.
+            DO NOT duplicate existing topics${existingTopics}
+
+            Return JSON: {"flashcards": [{"question": "string", "answer": "string", "explanation": "string", "difficulty": "beginner|intermediate|advanced"}]}`,
         },
         {
           role: 'user',
