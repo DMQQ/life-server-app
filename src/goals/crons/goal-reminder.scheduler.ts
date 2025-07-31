@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import * as dayjs from 'dayjs';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { BaseScheduler } from 'src/wallet/crons/scheduler-base.service';
 import { GoalService } from '../goals.service';
-import * as dayjs from 'dayjs';
 
 @Injectable()
 export class GoalReminderScheduler extends BaseScheduler {
@@ -21,18 +21,25 @@ export class GoalReminderScheduler extends BaseScheduler {
 
     for (const user of users) {
       try {
-        const categories = await this.goalService.getUserCategories(user.id);
+        if (user.isEnable === false || !user.token) continue;
+
+        const categories = await this.goalService.getUserCategories(user.userId);
         if (categories.length === 0) continue;
 
         const message = `Good morning! You have ${categories.length} goals to work on today 🎯`;
 
-        await this.sendSingleNotification({
+        const notification = {
           to: user.token,
           title: 'Daily Goals',
           body: message,
           data: { type: 'morning_motivation' },
-        });
-      } catch (error) {}
+        };
+
+        await this.sendSingleNotification(notification);
+        await this.notificationService.saveNotification(user.userId, notification);
+      } catch (error) {
+        this.logger.error(`Error sending morning motivation to user ${user.userId}: ${error.message}`, error.stack);
+      }
     }
   }
 
@@ -43,7 +50,9 @@ export class GoalReminderScheduler extends BaseScheduler {
 
     for (const user of users) {
       try {
-        const reminders = await this.goalService.getGoalReminders(user.id);
+        if (user.isEnable === false || !user.token) continue;
+
+        const reminders = await this.goalService.getGoalReminders(user.userId);
         const completed = reminders.filter((g) => g.isCompleted).length;
         const total = reminders.length;
 
@@ -54,13 +63,18 @@ export class GoalReminderScheduler extends BaseScheduler {
             ? "Haven't started your goals yet? There's still time! 💪"
             : `Great job! ${completed}/${total} goals completed. Keep going! 🔥`;
 
-        await this.sendSingleNotification({
+        const notification = {
           to: user.token,
           title: 'Midday Check-in',
           body: message,
           data: { type: 'midday_checkin', completed, total },
-        });
-      } catch (error) {}
+        };
+
+        await this.sendSingleNotification(notification);
+        await this.notificationService.saveNotification(user.userId, notification);
+      } catch (error) {
+        this.logger.error(`Error sending midday check-in to user ${user.userId}: ${error.message}`, error.stack);
+      }
     }
   }
 
@@ -71,19 +85,26 @@ export class GoalReminderScheduler extends BaseScheduler {
 
     for (const user of users) {
       try {
-        const weeklyStats = await this.goalService.getWeeklyStats(user.id);
+        if (user.isEnable === false || !user.token) continue;
+
+        const weeklyStats = await this.goalService.getWeeklyStats(user.userId);
         if (!weeklyStats) continue;
 
         const { completedDays, totalDays } = weeklyStats;
         const percentage = Math.round((completedDays / totalDays) * 100);
 
-        await this.sendSingleNotification({
+        const notification = {
           to: user.token,
           title: 'Weekly Summary',
           body: `This week: ${percentage}% goal completion rate 📊`,
           data: { type: 'weekly_summary', completedDays, totalDays },
-        });
-      } catch (error) {}
+        };
+
+        await this.sendSingleNotification(notification);
+        await this.notificationService.saveNotification(user.userId, notification);
+      } catch (error) {
+        this.logger.error(`Error sending weekly summary to user ${user.userId}: ${error.message}`, error.stack);
+      }
     }
   }
 
@@ -94,20 +115,27 @@ export class GoalReminderScheduler extends BaseScheduler {
 
     for (const user of users) {
       try {
-        const streaks = await this.goalService.getUserStreaks(user.id);
+        if (user.isEnable === false || !user.token) continue;
+
+        const streaks = await this.goalService.getUserStreaks(user.userId);
         const endangered = streaks.filter((s) => s.days >= 3 && !s.completedToday);
 
         if (endangered.length === 0) continue;
 
         const longestStreak = Math.max(...endangered.map((s) => s.days));
 
-        await this.sendSingleNotification({
+        const notification = {
           to: user.token,
           title: 'Streak Alert! ⚠️',
           body: `Don't break your ${longestStreak}-day streak! 2 hours left.`,
           data: { type: 'streak_warning', endangeredStreaks: endangered },
-        });
-      } catch (error) {}
+        };
+
+        await this.sendSingleNotification(notification);
+        await this.notificationService.saveNotification(user.userId, notification);
+      } catch (error) {
+        this.logger.error(`Error sending streak warning to user ${user.userId}: ${error.message}`, error.stack);
+      }
     }
   }
 
@@ -118,18 +146,25 @@ export class GoalReminderScheduler extends BaseScheduler {
 
     for (const user of users) {
       try {
-        const lastActivity = await this.goalService.getLastActivityDate(user.id);
+        if (user.isEnable === false || !user.token) continue;
+
+        const lastActivity = await this.goalService.getLastActivityDate(user.userId);
         const daysSinceActivity = dayjs().diff(lastActivity, 'day');
 
         if (daysSinceActivity >= 2) {
-          await this.sendSingleNotification({
+          const notification = {
             to: user.token,
             title: 'We miss you! 👋',
             body: `It's been ${daysSinceActivity} days. Ready to get back on track?`,
             data: { type: 'inactivity_reminder', daysSinceActivity },
-          });
+          };
+
+          await this.sendSingleNotification(notification);
+          await this.notificationService.saveNotification(user.userId, notification);
         }
-      } catch (error) {}
+      } catch (error) {
+        this.logger.error(`Error sending inactivity reminder to user ${user.userId}: ${error.message}`, error.stack);
+      }
     }
   }
 }

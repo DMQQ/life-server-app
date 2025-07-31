@@ -12,7 +12,7 @@ dayjs.extend(isoWeek);
 dayjs.extend(isSameOrBefore);
 dayjs.extend(advancedFormat);
 
-const ADDR = '192.168.1.20';
+const ADDR = '0.0.0.0';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -29,7 +29,7 @@ async function bootstrap() {
   if (process.env.NODE_ENV === 'development') {
     await app.listen(process.env.APP_PORT || 3000, ADDR, () => {
       console.log(`Server is running on http://${ADDR}:${process.env.APP_PORT}/`);
-      console.log(`GraphQL is running on http://${ADDR}/graphql`);
+      console.log(`GraphQL is running on http://${ADDR}:${process.env.APP_PORT}/graphql`);
     });
   } else {
     await app.listen(process.env.APP_PORT || 3000, process.env.IPV6, () => {
