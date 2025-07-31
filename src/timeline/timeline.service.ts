@@ -57,12 +57,6 @@ export class TimelineService {
       });
   }
 
-  async findEventsWithDateAndTime(date: string, time: string) {
-    return this.timelineRepository.find({
-      where: { date: Like(`%${date}%`), beginTime: time },
-    });
-  }
-
   async findAllByUserId(opts: {
     userId: string;
     date: string;
@@ -77,6 +71,9 @@ export class TimelineService {
       },
       order: {
         beginTime: 'DESC',
+        todos: {
+          createdAt: 'ASC',
+        },
       },
       relations: ['images', 'todos'],
     });
@@ -90,6 +87,9 @@ export class TimelineService {
         images: {
           createdAt: 'DESC',
         },
+        todos: {
+          createdAt: 'ASC',
+        },
       },
     });
   }
@@ -99,12 +99,11 @@ export class TimelineService {
     return this.timelineRepository.find({
       where: { date: Like(`%${currentDate}%`), userId },
       relations: ['images', 'todos'],
-    });
-  }
-
-  async findOneByDate(date: string) {
-    return this.timelineRepository.findOne({
-      where: { date: Like(`%${date}%`) },
+      order: {
+        todos: {
+          createdAt: 'ASC',
+        },
+      },
     });
   }
 
@@ -225,6 +224,11 @@ export class TimelineService {
     return this.timelineRepository.findOne({
       where: { id: timelineId },
       relations: ['images', 'todos'],
+      order: {
+        todos: {
+          createdAt: 'ASC',
+        },
+      },
     });
   }
 }

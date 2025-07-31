@@ -1,11 +1,13 @@
 import { Field, ID, ObjectType } from '@nestjs/graphql';
 import {
   Column,
+  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 @ObjectType()
@@ -124,4 +126,12 @@ export class TimelineTodosEntity {
   @ManyToOne(() => TimelineEntity, (timeline) => timeline.todos)
   @JoinColumn({ name: 'timelineId' })
   timelineId: string;
+
+  @Field(() => String)
+  @CreateDateColumn()
+  createdAt: string;
+
+  @Field(() => String)
+  @UpdateDateColumn()
+  modifiedAt: string;
 }
