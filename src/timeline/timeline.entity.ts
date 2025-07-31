@@ -129,9 +129,9 @@ export class TimelineTodosEntity {
 
   @Field(() => String)
   @CreateDateColumn()
-  createdAt: string;
+  createdAt: Date;
 
   @Field(() => String)
   @UpdateDateColumn()
-  modifiedAt: string;
+  modifiedAt: Date;
 }
