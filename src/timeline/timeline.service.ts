@@ -72,7 +72,7 @@ export class TimelineService {
       order: {
         beginTime: 'DESC',
         todos: {
-          createdAt: 'ASC',
+          createdAt: 'DESC',
         },
       },
       relations: ['images', 'todos'],
@@ -88,7 +88,7 @@ export class TimelineService {
           createdAt: 'DESC',
         },
         todos: {
-          createdAt: 'ASC',
+          createdAt: 'DESC',
         },
       },
     });
@@ -101,7 +101,7 @@ export class TimelineService {
       relations: ['images', 'todos'],
       order: {
         todos: {
-          createdAt: 'ASC',
+          createdAt: 'DESC',
         },
       },
     });
@@ -226,7 +226,7 @@ export class TimelineService {
       relations: ['images', 'todos'],
       order: {
         todos: {
-          createdAt: 'ASC',
+          createdAt: 'DESC',
         },
       },
     });
