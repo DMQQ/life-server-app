@@ -7,20 +7,21 @@ import { SubscriptionService } from '../services/subscriptions.service';
 import { ExpenseService } from '../services/expense.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
 import { ExpenseType, LimitRange } from '../entities/wallet.entity';
+import { BaseScheduler } from './scheduler-base.service';
 import * as dayjs from 'dayjs';
 import { formatCategory } from 'src/utils/fns/format-category';
 
 @Injectable()
-export class AlertsSchedulerService {
-  private readonly logger = new Logger(AlertsSchedulerService.name);
-
+export class AlertsSchedulerService extends BaseScheduler {
   constructor(
-    private notificationService: NotificationsService,
+    notificationService: NotificationsService,
     private walletService: WalletService,
     private limitsService: LimitsService,
     private subscriptionService: SubscriptionService,
     private expenseService: ExpenseService,
-  ) {}
+  ) {
+    super(notificationService);
+  }
 
   // Budget Alerts at 10 AM
   @Cron('0 7 * * *', {
@@ -29,7 +30,6 @@ export class AlertsSchedulerService {
   async budgetAlerts() {
     this.logger.log('Running budget alerts notifications');
     const users = await this.notificationService.findAll();
-    const notifications = [] as ExpoPushMessage[];
 
     for (const user of users) {
       try {
@@ -54,15 +54,16 @@ export class AlertsSchedulerService {
           if (percentUsed >= 70 && percentUsed < 100) {
             const remaining = limit.amount - limit.current;
 
-            notifications.push({
+            const notification = {
               to: user.token,
               sound: 'default',
               title: '⚠️ Budget Alert',
               body: `💸 ${formatCategory(limit.category)} at ${percentUsed.toFixed(0)}% of monthly limit. ${remaining.toFixed(
                 2,
               )}zł remaining for the next ${daysLeftInMonth} days.`,
-            });
-            await this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
+            } as ExpoPushMessage;
+
+            await this.sendSingleNotification(notification, user.userId);
           }
         }
 
@@ -94,29 +95,22 @@ export class AlertsSchedulerService {
               }
             }
 
-            notifications.push({
+            const notification = {
               to: user.token,
               sound: 'default',
               title: '⚠️ Low Balance Warning',
               body: `💰 ${wallet.balance.toFixed(
                 2,
               )}zł remaining. ${daysToIncome} days until next predicted income. Plan your expenses carefully!`,
-            });
-            this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
+            } as ExpoPushMessage;
+
+            await this.sendSingleNotification(notification, user.userId);
           } catch (error) {
             this.logger.error(`Error processing low balance alert for user ${user.userId}: ${error.message}`);
           }
         }
       } catch (error) {
         this.logger.error(`Error processing budget alerts for user ${user.userId}: ${error.message}`);
-      }
-    }
-
-    if (notifications.length > 0) {
-      try {
-        await this.notificationService.sendChunkNotifications(notifications);
-      } catch (error) {
-        this.logger.error(`Error sending budget alerts notifications: ${error.message}`);
       }
     }
   }
@@ -128,7 +122,6 @@ export class AlertsSchedulerService {
   async subscriptionReminders() {
     this.logger.log('Running subscription reminders notifications');
     const users = await this.notificationService.findAll();
-    const notifications = [] as ExpoPushMessage[];
 
     for (const user of users) {
       try {
@@ -159,15 +152,16 @@ export class AlertsSchedulerService {
 
             if (daysUntilCharge !== 1) continue;
 
-            notifications.push({
+            const notification = {
               to: user.token,
               sound: 'default',
               title: '📆 Subscription Reminder',
               body: `🔄 ${subscription.description} - ${subscription.amount.toFixed(
                 2,
               )}zł will be charged ${'tomorrow'}. Current balance: ${wallet.balance.toFixed(2)}zł.`,
-            });
-            this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
+            } as ExpoPushMessage;
+
+            await this.sendSingleNotification(notification, user.userId);
           } catch (error) {
             this.logger.error(
               `Error processing subscription ${subscription.id} for user ${user.userId}: ${error.message}`,
@@ -176,14 +170,6 @@ export class AlertsSchedulerService {
         }
       } catch (error) {
         this.logger.error(`Error processing subscription reminders for user ${user.userId}: ${error.message}`);
-      }
-    }
-
-    if (notifications.length > 0) {
-      try {
-        await this.notificationService.sendChunkNotifications(notifications);
-      } catch (error) {
-        this.logger.error(`Error sending subscription reminder notifications: ${error.message}`);
       }
     }
   }

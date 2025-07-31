@@ -3,19 +3,20 @@ import { WalletService } from '../services/wallet.service';
 import { ExpenseService } from '../services/expense.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { ExpenseType } from '../entities/wallet.entity';
+import { BaseScheduler } from './scheduler-base.service';
 import * as dayjs from 'dayjs';
 import { Cron, Interval } from '@nestjs/schedule';
 import { ExpoPushMessage } from 'expo-server-sdk';
 
 @Injectable()
-export class ExpenseAnalysisService {
-  private readonly logger = new Logger(ExpenseAnalysisService.name);
-
+export class ExpenseAnalysisService extends BaseScheduler {
   constructor(
+    notificationService: NotificationsService,
     private walletService: WalletService,
     private expenseService: ExpenseService,
-    private notificationService: NotificationsService,
-  ) {}
+  ) {
+    super(notificationService);
+  }
 
   @Cron('0 7 * * 2', {
     // Tuesday at 2 PM
@@ -37,17 +38,14 @@ export class ExpenseAnalysisService {
           continue;
         }
 
-        const notification = [
-          {
-            to: user.token,
-            sound: 'default',
-            title: analysisResult.title,
-            body: analysisResult.body,
-          },
-        ] as ExpoPushMessage[];
-        // Send the notification
-        await this.notificationService.sendChunkNotifications(notification);
-        this.notificationService.saveNotification(user.userId, notification[0]);
+        const notification = {
+          to: user.token,
+          sound: 'default',
+          title: analysisResult.title,
+          body: analysisResult.body,
+        } as ExpoPushMessage;
+
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error processing description analysis for user ${user.userId}: ${error.message}`);
       }

@@ -3,15 +3,17 @@ import { Cron, Interval } from '@nestjs/schedule';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { WalletService } from '../services/wallet.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
+import { BaseScheduler } from './scheduler-base.service';
 import * as dayjs from 'dayjs';
-@Injectable()
-export class ReportSchedulerService {
-  private readonly logger = new Logger(ReportSchedulerService.name);
 
+@Injectable()
+export class ReportSchedulerService extends BaseScheduler {
   constructor(
-    private notificationService: NotificationsService,
+    notificationService: NotificationsService,
     private walletService: WalletService,
-  ) {}
+  ) {
+    super(notificationService);
+  }
 
   @Cron('0 14 * * 0', {
     timeZone: 'Europe/Warsaw',
@@ -24,8 +26,6 @@ export class ReportSchedulerService {
       dayjs().isoWeekday(7).endOf('day').format('YYYY-MM-DD'),
     ] as [string, string];
 
-    const notifications = [] as ExpoPushMessage[];
-
     for (const user of users) {
       try {
         if (!user.token || user.isEnable === false) continue;
@@ -35,7 +35,7 @@ export class ReportSchedulerService {
         if (!statsResult || !statsResult.length) continue;
         const stats = statsResult[0];
 
-        notifications.push({
+        const notification = {
           to: user.token,
           sound: 'default',
           title: '📊 Weekly Spendings Report',
@@ -47,19 +47,11 @@ export class ReportSchedulerService {
             )} in a single transaction 🔽.`,
             `📈 Your average was ${stats.average.toFixed(2)} with a total of ${stats.count} transactions.`,
           ].join('\n'),
-        });
-        await this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
+        } as ExpoPushMessage;
+
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error processing weekly report for user ${user.userId}: ${error.message}`);
-      }
-    }
-
-    if (notifications.length > 0) {
-      try {
-        const response = await this.notificationService.sendChunkNotifications(notifications);
-        this.logger.log(`Weekly report notifications sent: ${response}`);
-      } catch (error) {
-        this.logger.error(`Error sending weekly report notifications: ${error.message}`);
       }
     }
   }
@@ -79,8 +71,6 @@ export class ReportSchedulerService {
       string,
     ];
 
-    const notifications = [] as ExpoPushMessage[];
-
     for (const user of users) {
       try {
         if (!user.token || user.isEnable === false) continue;
@@ -90,23 +80,16 @@ export class ReportSchedulerService {
         if (!statsResult || !statsResult.length) continue;
         const stats = statsResult[0];
 
-        notifications.push({
+        const notification = {
           to: user.token,
           sound: 'default',
           title: '📆 Monthly Spendings Report',
           body: `Hi, You spent ${stats.expense.toFixed(2)}zł this month, on average ${stats.average}zł on ${stats.count} entries, least/most (${stats.min.toFixed(2)}, ${stats.max.toFixed(2)})zł, you earned ${stats.income.toFixed(2)}zł`,
-        });
-        await this.notificationService.saveNotification(user.userId, notifications[notifications.length - 1]);
+        } as ExpoPushMessage;
+
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error processing monthly report for user ${user.userId}: ${error.message}`);
-      }
-    }
-
-    if (notifications.length > 0) {
-      try {
-        await this.notificationService.sendChunkNotifications(notifications);
-      } catch (error) {
-        this.logger.error(`Error sending monthly report notifications: ${error.message}`);
       }
     }
   }

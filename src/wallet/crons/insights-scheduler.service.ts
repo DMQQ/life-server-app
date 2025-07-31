@@ -89,9 +89,7 @@ export class InsightsSchedulerService extends BaseScheduler {
           body: messageBody,
         } as ExpoPushMessage;
 
-        await this.notificationService.sendChunkNotifications([notification]);
-
-        await this.notificationService.saveNotification(n.userId, notification);
+        await this.sendSingleNotification(notification, n.userId);
       } catch (error) {
         console.error(`Error processing insights for user ${n.userId}:`, error);
       }
@@ -205,8 +203,7 @@ export class InsightsSchedulerService extends BaseScheduler {
             body: messageBody,
           } as ExpoPushMessage;
 
-          await this.notificationService.sendChunkNotifications([notification]);
-          await this.notificationService.saveNotification(n.userId, notification);
+          await this.sendSingleNotification(notification, n.userId);
         }
       } catch (error) {
         console.error(`Error processing unusual spending alert for user ${n.userId}:`, error);
@@ -292,8 +289,7 @@ export class InsightsSchedulerService extends BaseScheduler {
             body: this.truncateNotification(messageBody),
           } as ExpoPushMessage;
 
-          await this.sendSingleNotification(notification);
-          await this.notificationService.saveNotification(user.userId, notification);
+          await this.sendSingleNotification(notification, user.userId);
         }
       } catch (error) {
         this.logger.error(`Error processing weekend analysis for user ${user.userId}: ${error.message}`, error.stack);
@@ -366,8 +362,7 @@ export class InsightsSchedulerService extends BaseScheduler {
             body: this.truncateNotification(messageBody),
           } as ExpoPushMessage;
 
-          await this.sendSingleNotification(notification);
-          await this.notificationService.saveNotification(user.userId, notification);
+          await this.sendSingleNotification(notification, user.userId);
         }
       } catch (error) {
         this.logger.error(`Error processing top spending day for user ${user.userId}: ${error.message}`, error.stack);
@@ -457,8 +452,7 @@ export class InsightsSchedulerService extends BaseScheduler {
             title: '📆 Monthly Category Report',
             body: this.truncateNotification(messageBody),
           } as ExpoPushMessage;
-          await this.sendSingleNotification(notification);
-          await this.notificationService.saveNotification(user.userId, notification);
+          await this.sendSingleNotification(notification, user.userId);
         }
       } catch (error) {
         this.logger.error(`Error processing monthly comparison for user ${user.userId}: ${error.message}`, error.stack);
@@ -541,8 +535,7 @@ export class InsightsSchedulerService extends BaseScheduler {
           body: this.truncateNotification(messageBody),
         } as ExpoPushMessage;
 
-        await this.sendSingleNotification(notification);
-        await this.notificationService.saveNotification(user.userId, notification);
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error processing saving rate for user ${user.userId}: ${error.message}`, error.stack);
       }

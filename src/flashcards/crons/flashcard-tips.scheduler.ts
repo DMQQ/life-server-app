@@ -74,10 +74,7 @@ export class FlashcardTipsScheduler extends BaseScheduler {
           },
         };
 
-        await this.sendSingleNotification(notification);
-        await this.notificationService.saveNotification(user.userId, notification);
-
-        this.logger.log(`Sent flashcard tip for group "${randomGroup.name}" to user ${user.userId}`);
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error sending flashcard tip to user ${user.userId}: ${error.message}`, error.stack);
       }
@@ -179,8 +176,7 @@ export class FlashcardTipsScheduler extends BaseScheduler {
           },
         };
 
-        await this.sendSingleNotification(notification);
-        await this.notificationService.saveNotification(user.userId, notification);
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(
           `Error sending weekly flashcard progress to user ${user.userId}: ${error.message}`,

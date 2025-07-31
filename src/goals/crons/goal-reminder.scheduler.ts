@@ -35,8 +35,7 @@ export class GoalReminderScheduler extends BaseScheduler {
           data: { type: 'morning_motivation' },
         };
 
-        await this.sendSingleNotification(notification);
-        await this.notificationService.saveNotification(user.userId, notification);
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error sending morning motivation to user ${user.userId}: ${error.message}`, error.stack);
       }
@@ -70,8 +69,7 @@ export class GoalReminderScheduler extends BaseScheduler {
           data: { type: 'midday_checkin', completed, total },
         };
 
-        await this.sendSingleNotification(notification);
-        await this.notificationService.saveNotification(user.userId, notification);
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error sending midday check-in to user ${user.userId}: ${error.message}`, error.stack);
       }
@@ -100,8 +98,7 @@ export class GoalReminderScheduler extends BaseScheduler {
           data: { type: 'weekly_summary', completedDays, totalDays },
         };
 
-        await this.sendSingleNotification(notification);
-        await this.notificationService.saveNotification(user.userId, notification);
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error sending weekly summary to user ${user.userId}: ${error.message}`, error.stack);
       }
@@ -131,8 +128,7 @@ export class GoalReminderScheduler extends BaseScheduler {
           data: { type: 'streak_warning', endangeredStreaks: endangered },
         };
 
-        await this.sendSingleNotification(notification);
-        await this.notificationService.saveNotification(user.userId, notification);
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error sending streak warning to user ${user.userId}: ${error.message}`, error.stack);
       }
@@ -159,8 +155,7 @@ export class GoalReminderScheduler extends BaseScheduler {
             data: { type: 'inactivity_reminder', daysSinceActivity },
           };
 
-          await this.sendSingleNotification(notification);
-          await this.notificationService.saveNotification(user.userId, notification);
+          await this.sendSingleNotification(notification, user.userId);
         }
       } catch (error) {
         this.logger.error(`Error sending inactivity reminder to user ${user.userId}: ${error.message}`, error.stack);

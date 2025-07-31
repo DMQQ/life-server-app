@@ -154,8 +154,7 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
           title: "📅 Today's Budget",
           body: this.truncateNotification(messageBody),
         } as ExpoPushMessage;
-        await this.sendSingleNotification(notification);
-        await this.notificationService.saveNotification(user.userId, notification);
+        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(
           `Error processing money left notification for user ${user.userId}: ${error.message}`,
