@@ -127,11 +127,11 @@ export class TimelineTodosEntity {
   @JoinColumn({ name: 'timelineId' })
   timelineId: string;
 
-  @Field(() => String)
+  @Field(() => Date)
   @CreateDateColumn()
   createdAt: Date;
 
-  @Field(() => String)
+  @Field(() => Date)
   @UpdateDateColumn()
   modifiedAt: Date;
 }
