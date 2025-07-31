@@ -116,7 +116,7 @@ export class TimelineTodosEntity {
   id: string;
 
   @Field(() => String)
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'varchar' })
   title: string;
 
   @Field(() => Boolean)
