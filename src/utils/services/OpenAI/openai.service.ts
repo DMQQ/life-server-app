@@ -179,4 +179,64 @@ export class OpenAIService {
     const parsedContent = JSON.parse(response.choices[0].message.content);
     return parsedContent.flashcards;
   }
+
+  async generateLanguageLearningTip(content: string, groupName: string): Promise<string> {
+    const response = await this.client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_completion_tokens: 200,
+      temperature: 0.8,
+      messages: [
+        {
+          role: 'system',
+          content: `You are a language learning expert. For language flashcard groups, provide either:
+
+1. **New vocabulary examples** (2-3 short, useful words/phrases with brief explanations)
+2. **Practical language tips** with real examples
+3. **Memory tricks** for the specific language
+
+Format your response as either:
+- "New words: [word] - [meaning], [word] - [meaning]. Try using them today! 📚"
+- "Quick tip: [practical advice with example]. Practice makes perfect! 🗣️"
+- "Memory trick: [mnemonic or association]. Language learning hack! 🧠"
+
+Keep it concise (1-2 sentences max), practical, and motivating. Focus on actionable content.`,
+        },
+        {
+          role: 'user',
+          content: `Generate language learning content for this flashcard group:\n\n${content}`,
+        },
+      ],
+    });
+
+    return response.choices[0]?.message?.content?.trim() || null;
+  }
+
+  async generateGeneralLearningTip(content: string, groupName: string): Promise<string> {
+    const response = await this.client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_completion_tokens: 150,
+      temperature: 0.7,
+      messages: [
+        {
+          role: 'system',
+          content: `You are a learning expert. Generate a practical, actionable study tip based on the flashcard group content. 
+
+Focus on:
+- Specific learning techniques for this subject
+- Memory aids or mnemonics
+- Study schedule suggestions
+- Practice methods
+- Real-world application tips
+
+Keep it concise (1-2 sentences), practical, and motivating. End with an emoji that fits the tip.`,
+        },
+        {
+          role: 'user',
+          content: `Generate a learning tip for this flashcard group:\n\n${content}`,
+        },
+      ],
+    });
+
+    return response.choices[0]?.message?.content?.trim() || null;
+  }
 }

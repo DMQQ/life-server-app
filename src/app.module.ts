@@ -14,7 +14,7 @@ import { UploadModule } from './upload/upload.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { HealthController } from './app/app.controller';
 import { dataSourceOptions } from './database';
-import { FlashCardsModule } from './flashcards/flashcards.module';
+import { FlashcardsModule } from './flashcards/flashcards.module';
 import { GoalsModule } from './goals/goals.module';
 import { HostsModule } from './hosts/hosts.module';
 import { CacheModule } from './utils/services/Cache/cache.module';
@@ -59,7 +59,7 @@ import { WorkoutModule } from './workout/workout.module';
 
     WorkoutModule,
 
-    FlashCardsModule,
+    FlashcardsModule,
 
     GoalsModule,
 

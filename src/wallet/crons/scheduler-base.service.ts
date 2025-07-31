@@ -21,7 +21,6 @@ export class BaseScheduler {
   }
 
   public truncateNotification(body: string): string {
-    const MAX_LENGTH = 178;
-    return body.length > MAX_LENGTH ? body.substring(0, MAX_LENGTH - 3) + '...' : body;
+    return body;
   }
 }
