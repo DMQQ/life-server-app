@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import * as dayjs from 'dayjs';
 import { ExpoPushMessage } from 'expo-server-sdk';
 import { NotificationsService } from 'src/notifications/notifications.service';
@@ -27,20 +28,18 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
 
   private limitsService: LimitsService;
 
-  // @Cron('0 7 * * *', {
-  //   timeZone: 'Europe/Warsaw',
-  // })
+  @Cron('0 7 * * *', {
+    timeZone: 'Europe/Warsaw',
+  })
   async moneyLeftToday() {
     this.logger.log('Running Money Left Today notifications');
-    const users = await this.notificationService.findAll();
-
-    for (const user of users) {
+    
+    this.forEachNotification('moneyLeftToday', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
 
         const wallet = await this.walletService.getWalletByUserId(user.userId);
         const walletId = wallet.id;
-        if (!wallet) continue;
+        if (!wallet) return null;
 
         const today = dayjs().format('YYYY-MM-DD');
 
@@ -146,19 +145,19 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
             )}zł, Monthly: ${remainingMonthlyBudget.toFixed(2)}zł left.`;
           }
         }
-        const notification = {
+        return {
           to: user.token,
           sound: 'default',
           title: "📅 Today's Budget",
           body: this.truncateNotification(messageBody),
         } as ExpoPushMessage;
-        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(
           `Error processing money left notification for user ${user.userId}: ${error.message}`,
           error.stack,
         );
+        return null;
       }
-    }
+    });
   }
 }

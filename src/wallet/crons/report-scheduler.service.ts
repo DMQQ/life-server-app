@@ -19,23 +19,21 @@ export class ReportSchedulerService extends BaseScheduler {
     timeZone: 'Europe/Warsaw',
   })
   async weeklyReport() {
-    const users = await this.notificationService.findAll();
-
     const range = [
       dayjs().isoWeekday(1).startOf('day').format('YYYY-MM-DD'),
       dayjs().isoWeekday(7).endOf('day').format('YYYY-MM-DD'),
     ] as [string, string];
 
-    for (const user of users) {
+    this.forEachNotification('weeklyReport', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
+        if (!user.token) return null;
 
         const statsResult = await this.walletService.getStatistics(user.userId, range);
 
-        if (!statsResult || !statsResult.length) continue;
+        if (!statsResult || !statsResult.length) return null;
         const stats = statsResult[0];
 
-        const notification = {
+        return {
           to: user.token,
           sound: 'default',
           title: '📊 Weekly Spendings Report',
@@ -48,12 +46,11 @@ export class ReportSchedulerService extends BaseScheduler {
             `📈 Your average was ${stats.average.toFixed(2)} with a total of ${stats.count} transactions.`,
           ].join('\n'),
         } as ExpoPushMessage;
-
-        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error processing weekly report for user ${user.userId}: ${error.message}`);
+        return null;
       }
-    }
+    });
   }
 
   @Cron('0 14 28-31 * *', {
@@ -64,33 +61,30 @@ export class ReportSchedulerService extends BaseScheduler {
       return;
     }
 
-    const users = await this.notificationService.findAll();
-
     const range = [dayjs().startOf('month').format('YYYY-MM-DD'), dayjs().endOf('month').format('YYYY-MM-DD')] as [
       string,
       string,
     ];
 
-    for (const user of users) {
+    this.forEachNotification('monthlyReport', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
+        if (!user.token) return null;
 
         const statsResult = await this.walletService.getStatistics(user.userId, range);
 
-        if (!statsResult || !statsResult.length) continue;
+        if (!statsResult || !statsResult.length) return null;
         const stats = statsResult[0];
 
-        const notification = {
+        return {
           to: user.token,
           sound: 'default',
           title: '📆 Monthly Spendings Report',
           body: `Hi, You spent ${stats.expense.toFixed(2)}zł this month, on average ${stats.average}zł on ${stats.count} entries, least/most (${stats.min.toFixed(2)}, ${stats.max.toFixed(2)})zł, you earned ${stats.income.toFixed(2)}zł`,
         } as ExpoPushMessage;
-
-        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error processing monthly report for user ${user.userId}: ${error.message}`);
+        return null;
       }
-    }
+    });
   }
 }

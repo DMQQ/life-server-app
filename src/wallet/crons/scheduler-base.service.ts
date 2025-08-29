@@ -52,8 +52,8 @@ export class BaseScheduler {
 
       const notificationsQueue = {} as Record<string, ExpoPushMessage>;
 
-      users.forEach(async (user) => {
-        if (!this.isNotificationEnabled(user, tag)) return;
+      for (const user of users) {
+        if (!this.isNotificationEnabled(user, tag)) continue;
         try {
           const result = await callback(user);
 
@@ -61,7 +61,7 @@ export class BaseScheduler {
         } catch (error) {
           this.logger.error('forEachNotification failed for user: ' + JSON.stringify(user), error);
         }
-      });
+      }
 
       await Promise.allSettled([
         this.notificationService.sendChunkNotifications(Object.values(notificationsQueue)),

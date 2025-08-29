@@ -24,32 +24,28 @@ export class ExpenseAnalysisService extends BaseScheduler {
   })
   async expenseDescriptionAnalysis() {
     this.logger.log('Running expense description analysis');
-    const users = await this.notificationService.findAll();
-
-    for (const user of users) {
+    
+    this.forEachNotification('expenseAnalysis', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
-
         // Use the dedicated service for analysis
         const analysisResult = await this.analyzeExpenseDescriptions(user.userId);
 
         if (!analysisResult) {
           this.logger.debug(`No analysis results for user ${user.userId}`);
-          continue;
+          return null;
         }
 
-        const notification = {
+        return {
           to: user.token,
           sound: 'default',
           title: analysisResult.title,
           body: analysisResult.body,
         } as ExpoPushMessage;
-
-        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error processing description analysis for user ${user.userId}: ${error.message}`);
+        return null;
       }
-    }
+    });
   }
 
   /**

@@ -31,14 +31,10 @@ export class InsightsSchedulerService extends BaseScheduler {
     timeZone: 'Europe/Warsaw',
   })
   async getDailyInsights() {
-    const notifications = await this.notificationService.findAll();
-
-    for (const n of notifications) {
+    this.forEachNotification('dailyInsights', async (user) => {
       try {
-        if (n.isEnable === false || !n.token) continue;
-
-        const walletId = await this.walletService.getWalletId(n.userId);
-        if (!walletId) continue;
+        const walletId = await this.walletService.getWalletId(user.userId);
+        if (!walletId) return null;
 
         const wallet = await this.walletService.getWallet(walletId);
 
@@ -82,18 +78,17 @@ export class InsightsSchedulerService extends BaseScheduler {
           messageBody = messageBody.substring(0, 175) + '...';
         }
 
-        const notification = {
-          to: n.token,
+        return {
+          to: user.token,
           sound: 'default',
           title: '📱 Daily Finance Update',
           body: messageBody,
         } as ExpoPushMessage;
-
-        await this.sendSingleNotification(notification, n.userId);
       } catch (error) {
-        console.error(`Error processing insights for user ${n.userId}:`, error);
+        console.error(`Error processing insights for user ${user.userId}:`, error);
+        return null;
       }
-    }
+    });
   }
 
   // @Cron('0 22 * * 1', {
@@ -159,14 +154,10 @@ export class InsightsSchedulerService extends BaseScheduler {
     timeZone: 'Europe/Warsaw',
   })
   async unusualSpendingAlert() {
-    const notifications = await this.notificationService.findAll();
-
-    for (const n of notifications) {
+    this.forEachNotification('unusualSpending', async (user) => {
       try {
-        if (n.isEnable === false || !n.token) continue;
-
-        const walletId = await this.walletService.getWalletId(n.userId);
-        if (!walletId) continue;
+        const walletId = await this.walletService.getWalletId(user.userId);
+        if (!walletId) return null;
 
         const todayData = await this.expenseService.getDailyInsights(walletId, [
           dayjs().startOf('day').format('YYYY-MM-DD HH:mm:ss'),
@@ -175,7 +166,7 @@ export class InsightsSchedulerService extends BaseScheduler {
 
         const todayExpense = todayData.expense_sum || 0;
 
-        if (todayExpense <= 0) continue;
+        if (todayExpense <= 0) return null;
 
         const lastMonthStart = dayjs().subtract(30, 'day').format('YYYY-MM-DD');
         const yesterdayEnd = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
@@ -196,19 +187,20 @@ export class InsightsSchedulerService extends BaseScheduler {
             1,
           )}x your daily average of ${averageDaily.toFixed(2)}zł!`;
 
-          const notification = {
-            to: n.token,
+          return {
+            to: user.token,
             sound: 'default',
             title: '⚠️ Unusual Spending Detected',
             body: messageBody,
           } as ExpoPushMessage;
-
-          await this.sendSingleNotification(notification, n.userId);
         }
+
+        return null;
       } catch (error) {
-        console.error(`Error processing unusual spending alert for user ${n.userId}:`, error);
+        console.error(`Error processing unusual spending alert for user ${user.userId}:`, error);
+        return null;
       }
-    }
+    });
   }
 
   @Cron('0 22 * * 6', {
@@ -216,14 +208,12 @@ export class InsightsSchedulerService extends BaseScheduler {
   })
   async weekdayVsWeekendAnalysis() {
     this.logger.log('Running weekday vs weekend analysis');
-    const users = await this.notificationService.findAll();
-
-    for (const user of users) {
+    
+    this.forEachNotification('weekdayWeekendAnalysis', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
 
         const walletId = await this.walletService.getWalletId(user.userId);
-        if (!walletId) continue;
+        if (!walletId) return null;
 
         const startDate = dayjs().subtract(28, 'day').format('YYYY-MM-DD');
         const endDate = dayjs().format('YYYY-MM-DD');
@@ -235,7 +225,7 @@ export class InsightsSchedulerService extends BaseScheduler {
 
         if (!expenses || expenses.length < 10) {
           this.logger.log(`Not enough expenses for user ${user.userId} to analyze weekend patterns`);
-          continue;
+          return null;
         }
 
         const weekdayExpenses = [];
@@ -253,7 +243,7 @@ export class InsightsSchedulerService extends BaseScheduler {
         }
 
         if (weekdayExpenses.length < 5 || weekendExpenses.length < 3) {
-          continue;
+          return null;
         }
 
         const weekdayTotal = weekdayExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
@@ -282,19 +272,20 @@ export class InsightsSchedulerService extends BaseScheduler {
             isMoreOnWeekends ? 'more' : 'less'
           } on weekends than weekdays. ${savingsTip}`;
 
-          const notification = {
+          return {
             to: user.token,
             sound: 'default',
             title: '💰 Spending Pattern Analysis',
             body: this.truncateNotification(messageBody),
           } as ExpoPushMessage;
-
-          await this.sendSingleNotification(notification, user.userId);
         }
+
+        return null;
       } catch (error) {
         this.logger.error(`Error processing weekend analysis for user ${user.userId}: ${error.message}`, error.stack);
+        return null;
       }
-    }
+    });
   }
 
   // @Cron('0 22 * * 0', {

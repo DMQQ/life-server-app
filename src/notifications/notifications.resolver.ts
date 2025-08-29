@@ -45,6 +45,12 @@ export class NotificationsResolver {
     return (await this.notificationsService.readAll(userId)).affected > 0;
   }
 
+  @Query(() => NotificationsEntity)
+  async getNotificationSettings(@User() userId: string) {
+    const userToken = await this.notificationsService.findUserToken(userId);
+    return userToken;
+  }
+
   @Mutation(() => NotificationsEntity)
   async toggleEnabledNotifications(
     @Args('input', { type: () => GraphQLJSON }) input: Record<string, boolean>,

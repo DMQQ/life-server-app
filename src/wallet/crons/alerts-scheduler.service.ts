@@ -59,7 +59,7 @@ export class AlertsSchedulerService extends BaseScheduler {
               )}zł remaining for the next ${daysLeftInMonth} days.`,
             } as ExpoPushMessage;
 
-            await this.sendSingleNotification(notification, user.userId);
+            return notification;
           }
         }
 
@@ -118,14 +118,11 @@ export class AlertsSchedulerService extends BaseScheduler {
   })
   async subscriptionReminders() {
     this.logger.log('Running subscription reminders notifications');
-    const users = await this.notificationService.findAll();
 
-    for (const user of users) {
+    this.forEachNotification('subscriptionReminders', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
-
         const wallet = await this.walletService.findWalletId(user.userId);
-        if (!wallet) continue;
+        if (!wallet) return null;
 
         // Get all active subscriptions
         const now = new Date();
@@ -149,7 +146,7 @@ export class AlertsSchedulerService extends BaseScheduler {
 
             if (daysUntilCharge !== 1) continue;
 
-            const notification = {
+            return {
               to: user.token,
               sound: 'default',
               title: '📆 Subscription Reminder',
@@ -157,17 +154,18 @@ export class AlertsSchedulerService extends BaseScheduler {
                 2,
               )}zł will be charged ${'tomorrow'}. Current balance: ${wallet.balance.toFixed(2)}zł.`,
             } as ExpoPushMessage;
-
-            await this.sendSingleNotification(notification, user.userId);
           } catch (error) {
             this.logger.error(
               `Error processing subscription ${subscription.id} for user ${user.userId}: ${error.message}`,
             );
           }
         }
+
+        return null;
       } catch (error) {
         this.logger.error(`Error processing subscription reminders for user ${user.userId}: ${error.message}`);
+        return null;
       }
-    }
+    });
   }
 }
