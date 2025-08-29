@@ -1,8 +1,8 @@
-import { NotificationsEntity, NotificationsHistoryEntity } from 'src/notifications/notifications.entity';
-import { Repository } from 'typeorm';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
+import { NotificationsEntity, NotificationsHistoryEntity } from 'src/notifications/notifications.entity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class NotificationsService {
@@ -32,6 +32,10 @@ export class NotificationsService {
     }
 
     return tickets;
+  }
+
+  async saveBulkNotifications(notifications: (Record<string, any> & { userId: string })[]) {
+    return this.notificationHistoryRepository.save(notifications.map((n) => ({ ...n, sendAt: new Date() })));
   }
 
   findAll(): Promise<NotificationsEntity[]> {
@@ -86,5 +90,11 @@ export class NotificationsService {
 
   async readAll(userId: string) {
     return this.notificationHistoryRepository.update({ userId }, { read: true });
+  }
+
+  async toggleEnabledNotifications(userId: string, input: Record<string, boolean>) {
+    const result = await this.notificationsRepository.update({ userId }, { enabledNotifications: input });
+
+    return this.notificationsRepository.findOne({ where: { userId } });
   }
 }

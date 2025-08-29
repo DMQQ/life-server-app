@@ -1,6 +1,6 @@
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Field, ID, ObjectType } from '@nestjs/graphql';
 import GraphQLJSON from 'graphql-type-json';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @ObjectType()
 @Entity('notifications')
@@ -20,6 +20,10 @@ export class NotificationsEntity {
   @Field(() => Boolean)
   @Column({ type: 'boolean', default: false })
   isEnable: boolean;
+
+  @Field(() => GraphQLJSON)
+  @Column({ type: 'json', nullable: true })
+  enabledNotifications: Record<string, boolean>;
 }
 
 @ObjectType()

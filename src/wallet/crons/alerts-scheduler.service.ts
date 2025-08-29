@@ -1,15 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, Interval } from '@nestjs/schedule';
+import { Injectable } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+import * as dayjs from 'dayjs';
+import { ExpoPushMessage } from 'expo-server-sdk';
 import { NotificationsService } from 'src/notifications/notifications.service';
-import { WalletService } from '../services/wallet.service';
+import { formatCategory } from 'src/utils/fns/format-category';
+import { ExpenseType, LimitRange } from '../entities/wallet.entity';
+import { ExpenseService } from '../services/expense.service';
 import { LimitsService } from '../services/limits.service';
 import { SubscriptionService } from '../services/subscriptions.service';
-import { ExpenseService } from '../services/expense.service';
-import { ExpoPushMessage } from 'expo-server-sdk';
-import { ExpenseType, LimitRange } from '../entities/wallet.entity';
+import { WalletService } from '../services/wallet.service';
 import { BaseScheduler } from './scheduler-base.service';
-import * as dayjs from 'dayjs';
-import { formatCategory } from 'src/utils/fns/format-category';
 
 @Injectable()
 export class AlertsSchedulerService extends BaseScheduler {
@@ -29,14 +29,10 @@ export class AlertsSchedulerService extends BaseScheduler {
   })
   async budgetAlerts() {
     this.logger.log('Running budget alerts notifications');
-    const users = await this.notificationService.findAll();
 
-    for (const user of users) {
+    this.forEachNotification('budgetAlerts', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
-
         const wallet = await this.walletService.findWalletId(user.userId);
-        if (!wallet) continue;
 
         // Get all monthly limits
         const monthlyLimits = (await this.limitsService.limits(
@@ -104,15 +100,16 @@ export class AlertsSchedulerService extends BaseScheduler {
               )}zł remaining. ${daysToIncome} days until next predicted income. Plan your expenses carefully!`,
             } as ExpoPushMessage;
 
-            await this.sendSingleNotification(notification, user.userId);
+            return notification;
           } catch (error) {
             this.logger.error(`Error processing low balance alert for user ${user.userId}: ${error.message}`);
           }
         }
       } catch (error) {
         this.logger.error(`Error processing budget alerts for user ${user.userId}: ${error.message}`);
+        return null;
       }
-    }
+    });
   }
 
   // Subscription Reminders at 7 AM

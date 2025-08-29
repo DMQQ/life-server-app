@@ -1,10 +1,11 @@
-import { Args, Mutation, Resolver, Query, Int, ID } from '@nestjs/graphql';
-import { NotificationsService } from './notifications.service';
-import { User } from 'src/utils/decorators/user.decorator';
 import { BadRequestException, UseGuards } from '@nestjs/common';
-import { AuthGuard } from 'src/utils/guards/AuthGuard';
+import { Args, ID, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
 import Expo from 'expo-server-sdk';
-import { NotificationsHistoryEntity } from './notifications.entity';
+import GraphQLJSON from 'graphql-type-json';
+import { User } from 'src/utils/decorators/user.decorator';
+import { AuthGuard } from 'src/utils/guards/AuthGuard';
+import { NotificationsEntity, NotificationsHistoryEntity } from './notifications.entity';
+import { NotificationsService } from './notifications.service';
 
 @UseGuards(AuthGuard)
 @Resolver()
@@ -42,5 +43,15 @@ export class NotificationsResolver {
   @Mutation(() => Boolean)
   async readAllNotifications(@User() userId: string) {
     return (await this.notificationsService.readAll(userId)).affected > 0;
+  }
+
+  @Mutation(() => NotificationsEntity)
+  async toggleEnabledNotifications(
+    @Args('input', { type: () => GraphQLJSON }) input: Record<string, boolean>,
+    @User() userId: string,
+  ) {
+    const notifications = await this.notificationsService.toggleEnabledNotifications(userId, input);
+
+    return notifications;
   }
 }
