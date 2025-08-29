@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as dayjs from 'dayjs';
+import { TextSimilarityService } from 'src/utils/services/TextSimilarity/text-similarity.service';
 import { Repository } from 'typeorm';
 import { BillingCycleEnum, SubscriptionEntity } from '../entities/subscription.entity';
-import * as dayjs from 'dayjs';
-import { ExpenseEntity, WalletEntity } from '../entities/wallet.entity';
-import { TextSimilarityService } from 'src/utils/services/TextSimilarity/text-similarity.service';
+import { ExpenseEntity } from '../entities/wallet.entity';
 
 @Injectable()
 export class SubscriptionService {
@@ -195,7 +195,7 @@ export class SubscriptionService {
     return this.subscriptionRepository.find({
       where: { walletId },
       relations: ['expenses'],
-      order: { nextBillingDate: 'desc' },
+      order: { nextBillingDate: 'asc' },
     });
   }
 
