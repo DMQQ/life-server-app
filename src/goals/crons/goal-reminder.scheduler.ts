@@ -15,7 +15,7 @@ export class GoalReminderScheduler extends BaseScheduler {
   }
 
   // Morning motivation (8 AM)
-  @Cron('0 8 * * *', { timeZone: 'Europe/Warsaw' })
+  // @Cron('0 8 * * *', { timeZone: 'Europe/Warsaw' })
   async sendMorningMotivation() {
     const users = await this.notificationService.findAll();
 

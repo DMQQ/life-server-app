@@ -1,13 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, Interval } from '@nestjs/schedule';
-import { NotificationsService } from 'src/notifications/notifications.service';
-import { WalletService } from '../services/wallet.service';
-import { ExpenseService } from '../services/expense.service';
-import { ExpoPushMessage } from 'expo-server-sdk';
-import { ExpenseType, LimitRange } from '../entities/wallet.entity';
+import { Injectable } from '@nestjs/common';
 import * as dayjs from 'dayjs';
+import { ExpoPushMessage } from 'expo-server-sdk';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { LimitRange } from '../entities/wallet.entity';
+import { ExpenseService } from '../services/expense.service';
 import { LimitsService } from '../services/limits.service';
-import { SubscriptionService } from '../services/subscriptions.service';
+import { WalletService } from '../services/wallet.service';
 import { BaseScheduler } from './scheduler-base.service';
 
 @Injectable()
@@ -29,9 +27,9 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
 
   private limitsService: LimitsService;
 
-  @Cron('0 7 * * *', {
-    timeZone: 'Europe/Warsaw',
-  })
+  // @Cron('0 7 * * *', {
+  //   timeZone: 'Europe/Warsaw',
+  // })
   async moneyLeftToday() {
     this.logger.log('Running Money Left Today notifications');
     const users = await this.notificationService.findAll();

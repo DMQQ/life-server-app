@@ -18,7 +18,7 @@ export class FlashcardTipsScheduler extends BaseScheduler {
   }
 
   // Daily flashcard learning tip (9 AM)
-  @Cron('0 9 * * *', { timeZone: 'Europe/Warsaw' })
+  // @Cron('0 9 * * *', { timeZone: 'Europe/Warsaw' })
   async sendDailyFlashcardTip() {
     this.logger.log('Sending daily flashcard learning tips');
     const users = await this.notificationService.findAll();
