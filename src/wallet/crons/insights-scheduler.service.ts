@@ -7,7 +7,7 @@ import { formatCategory } from 'src/utils/fns/format-category';
 import { ExpenseService } from '../services/expense.service';
 import { SubscriptionService } from '../services/subscriptions.service';
 import { WalletService } from '../services/wallet.service';
-import { BaseScheduler } from './scheduler-base.service';
+import { BaseScheduler } from '../../notifications/scheduler-base.service';
 
 @Injectable()
 export class InsightsSchedulerService extends BaseScheduler {
@@ -208,10 +208,9 @@ export class InsightsSchedulerService extends BaseScheduler {
   })
   async weekdayVsWeekendAnalysis() {
     this.logger.log('Running weekday vs weekend analysis');
-    
+
     this.forEachNotification('weekdayWeekendAnalysis', async (user) => {
       try {
-
         const walletId = await this.walletService.getWalletId(user.userId);
         if (!walletId) return null;
 

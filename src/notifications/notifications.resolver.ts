@@ -6,6 +6,7 @@ import { User } from 'src/utils/decorators/user.decorator';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { NotificationsEntity, NotificationsHistoryEntity } from './notifications.entity';
 import { NotificationsService } from './notifications.service';
+import { NotificationTypeDto } from './dto/notification-type.dto';
 
 @UseGuards(AuthGuard)
 @Resolver()
@@ -59,5 +60,10 @@ export class NotificationsResolver {
     const notifications = await this.notificationsService.toggleEnabledNotifications(userId, input);
 
     return notifications;
+  }
+
+  @Query(() => [NotificationTypeDto])
+  async getAvailableNotificationTypes() {
+    return this.notificationsService.getAvailableNotificationTypes();
   }
 }

@@ -9,7 +9,7 @@ import { ExpenseService } from '../services/expense.service';
 import { LimitsService } from '../services/limits.service';
 import { SubscriptionService } from '../services/subscriptions.service';
 import { WalletService } from '../services/wallet.service';
-import { BaseScheduler } from './scheduler-base.service';
+import { BaseScheduler } from '../../notifications/scheduler-base.service';
 
 @Injectable()
 export class AlertsSchedulerService extends BaseScheduler {

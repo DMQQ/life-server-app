@@ -7,7 +7,7 @@ import { LimitRange } from '../entities/wallet.entity';
 import { ExpenseService } from '../services/expense.service';
 import { LimitsService } from '../services/limits.service';
 import { WalletService } from '../services/wallet.service';
-import { BaseScheduler } from './scheduler-base.service';
+import { BaseScheduler } from '../../notifications/scheduler-base.service';
 
 @Injectable()
 export class MoneyLeftSchedulerService extends BaseScheduler {
@@ -33,10 +33,9 @@ export class MoneyLeftSchedulerService extends BaseScheduler {
   })
   async moneyLeftToday() {
     this.logger.log('Running Money Left Today notifications');
-    
+
     this.forEachNotification('moneyLeftToday', async (user) => {
       try {
-
         const wallet = await this.walletService.getWalletByUserId(user.userId);
         const walletId = wallet.id;
         if (!wallet) return null;

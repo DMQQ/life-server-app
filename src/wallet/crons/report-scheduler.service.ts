@@ -3,7 +3,7 @@ import { Cron, Interval } from '@nestjs/schedule';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { WalletService } from '../services/wallet.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
-import { BaseScheduler } from './scheduler-base.service';
+import { BaseScheduler } from '../../notifications/scheduler-base.service';
 import * as dayjs from 'dayjs';
 
 @Injectable()

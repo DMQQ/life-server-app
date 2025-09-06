@@ -3,7 +3,7 @@ import { WalletService } from '../services/wallet.service';
 import { ExpenseService } from '../services/expense.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { ExpenseType } from '../entities/wallet.entity';
-import { BaseScheduler } from './scheduler-base.service';
+import { BaseScheduler } from '../../notifications/scheduler-base.service';
 import * as dayjs from 'dayjs';
 import { Cron, Interval } from '@nestjs/schedule';
 import { ExpoPushMessage } from 'expo-server-sdk';
@@ -24,7 +24,7 @@ export class ExpenseAnalysisService extends BaseScheduler {
   })
   async expenseDescriptionAnalysis() {
     this.logger.log('Running expense description analysis');
-    
+
     this.forEachNotification('expenseAnalysis', async (user) => {
       try {
         // Use the dedicated service for analysis
