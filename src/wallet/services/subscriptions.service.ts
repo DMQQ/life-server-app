@@ -110,6 +110,47 @@ export class SubscriptionService {
     return await this.subscriptionRepository.save(subscription);
   }
 
+  async renewSubscription(subscriptionId: string, walletService: any) {
+    const subscription = await this.getSubscriptionById(subscriptionId);
+
+    if (!subscription) {
+      throw new Error('Subscription not found');
+    }
+
+    const now = new Date();
+    subscription.isActive = true;
+    subscription.dateStart = now;
+    subscription.nextBillingDate = this.formatDate(
+      this.getNextBillingDate({
+        billingCycle: subscription.billingCycle,
+        nextBillingDate: now,
+      }),
+    );
+
+    const updatedSubscription = await this.subscriptionRepository.save(subscription);
+
+    const lastExpense = await walletService.getSubscriptionLastExpense(subscription.id);
+
+    if (!lastExpense) {
+      throw new Error('No previous expense found for this subscription');
+    }
+
+    delete lastExpense.id;
+
+    const newExpense = await walletService.createSubscriptionExpense(subscription.walletId, {
+      ...lastExpense,
+      date: now,
+      subscriptionId: subscription.id,
+      note: 'Subscription renewed',
+      subscription: subscription,
+    });
+
+    return {
+      subscription: updatedSubscription,
+      expense: newExpense,
+    };
+  }
+
   async enableSubscription(subscriptionId: string) {
     await this.subscriptionRepository.update({ id: subscriptionId }, { isActive: true });
     return this.subscriptionRepository.findOne({

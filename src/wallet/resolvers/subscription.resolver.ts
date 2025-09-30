@@ -89,4 +89,17 @@ export class SubscriptionResolver {
       throw new BadRequestException('Subscription cancelation failed');
     }
   }
+
+  @Mutation(() => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async renewSubscription(@Args('subscriptionId', { type: () => ID }) subscriptionId: string) {
+    try {
+      const result = await this.subscriptionService.renewSubscription(subscriptionId, this.walletService);
+      
+      return result.expense;
+    } catch (error) {
+      console.error('Subscription renewal error:', error);
+      throw new BadRequestException('Subscription renewal failed');
+    }
+  }
 }
