@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { TimelineFilesEntity } from 'src/timeline/timeline.entity';
+import { TimelineFilesEntity, TodoFilesEntity } from 'src/timeline/timeline.entity';
 import { In, Repository } from 'typeorm';
 import { File } from './upload.controller';
 import { ExpenseFileEntity } from 'src/wallet/entities/wallet.entity';
@@ -17,6 +17,9 @@ export class UploadService {
 
     @InjectRepository(ExpenseFileEntity)
     private expenseFilesRepository: Repository<ExpenseFileEntity>,
+
+    @InjectRepository(TodoFilesEntity)
+    private todoFilesRepository: Repository<TodoFilesEntity>,
   ) {}
 
   async insertExpenseFile(file: File, expenseId: string) {
@@ -26,6 +29,18 @@ export class UploadService {
     });
 
     return this.expenseFilesRepository.findOne({
+      where: { id: result.identifiers[0].id },
+    });
+  }
+
+  async uploadTodoFile(file: File, todoId: string) {
+    const result = await this.todoFilesRepository.insert({
+      todoId,
+      type: file.type,
+      url: file.path,
+    });
+
+    return this.todoFilesRepository.findOne({
       where: { id: result.identifiers[0].id },
     });
   }

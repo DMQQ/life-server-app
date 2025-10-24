@@ -75,6 +75,72 @@ export class UploadController {
     return result;
   }
 
+  @Post('/todo-file')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: storage,
+      fileFilter: imageFileFilter,
+    }),
+  )
+  async uploadTodoFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('todoId') todoId: string,
+    @Query('compress') compress: string,
+    @Res() response: Response,
+  ) {
+    if (!file) {
+      return response.status(400).send({
+        error: 'No file uploaded',
+        statusCode: 400,
+      });
+    }
+
+    if (!todoId) {
+      return response.status(400).send({
+        error: 'Todo ID is required',
+        statusCode: 400,
+      });
+    }
+
+    try {
+      let processedFile = file;
+
+      if (compress === 'true' && file.mimetype.startsWith('image/')) {
+        const compressedFilePath = await this.compressToFHD(file.path);
+
+        const stats = await fs.stat(compressedFilePath);
+        processedFile = {
+          ...file,
+          size: stats.size,
+          path: compressedFilePath,
+        };
+      }
+
+      const transformedFile = {
+        name: file.originalname,
+        size: processedFile.size,
+        type: file.mimetype,
+        path: processedFile.path.includes('\\')
+          ? processedFile.path.split('\\')[1]
+          : processedFile.path.split('/')[1],
+      };
+
+      const result = await this.uploadService.uploadTodoFile(
+        transformedFile,
+        todoId,
+      );
+
+      return response.send(result);
+    } catch (error) {
+      console.log(error);
+
+      return response.status(400).send({
+        error: 'Error uploading file',
+        statusCode: 400,
+      });
+    }
+  }
+
   @Post('/expense-file')
   @UseInterceptors(
     FileInterceptor('file', {

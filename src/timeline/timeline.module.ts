@@ -4,6 +4,7 @@ import {
   TimelineEntity,
   TimelineFilesEntity,
   TimelineTodosEntity,
+  TodoFilesEntity,
 } from 'src/timeline/timeline.entity';
 import { TimelineService } from './timeline.service';
 import { TimelineResolver } from './timeline.resolver';
@@ -17,6 +18,7 @@ import { TimelineScheduleService } from './timelineSchedule.service';
       TimelineEntity,
       TimelineFilesEntity,
       TimelineTodosEntity,
+      TodoFilesEntity,
     ]),
     NotificationsModule,
   ],

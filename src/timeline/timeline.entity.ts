@@ -127,6 +127,10 @@ export class TimelineTodosEntity {
   @JoinColumn({ name: 'timelineId' })
   timelineId: string;
 
+  @Field(() => [TodoFilesEntity])
+  @OneToMany(() => TodoFilesEntity, (file) => file.todoId)
+  files: TodoFilesEntity[];
+
   @Field(() => Date)
   @CreateDateColumn()
   createdAt: Date;
@@ -134,4 +138,27 @@ export class TimelineTodosEntity {
   @Field(() => Date)
   @UpdateDateColumn()
   modifiedAt: Date;
+}
+
+@ObjectType()
+@Entity('todo_files')
+export class TodoFilesEntity {
+  @Field(() => ID)
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @ManyToOne(() => TimelineTodosEntity, (todo) => todo.files)
+  @JoinColumn({ name: 'todoId' })
+  todoId: string;
+
+  @Field(() => String)
+  @Column({ type: 'varchar', length: 100 })
+  type: string;
+
+  @Field(() => String)
+  @Column({ type: 'varchar', length: 255 })
+  url: string;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt: Date;
 }

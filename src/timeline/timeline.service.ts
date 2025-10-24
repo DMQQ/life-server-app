@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
-import { TimelineEntity, TimelineFilesEntity, TimelineTodosEntity } from 'src/timeline/timeline.entity';
+import { TimelineEntity, TimelineFilesEntity, TimelineTodosEntity, TodoFilesEntity } from 'src/timeline/timeline.entity';
 import { Like, Repository } from 'typeorm';
 import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
 
@@ -28,6 +28,9 @@ export class TimelineService {
 
     @InjectRepository(TimelineTodosEntity)
     private timelineTodosRepository: Repository<TimelineTodosEntity>,
+
+    @InjectRepository(TodoFilesEntity)
+    private todoFilesRepository: Repository<TodoFilesEntity>,
   ) {}
 
   async findUserMonthEvents(userId: string, date: string) {
@@ -76,14 +79,14 @@ export class TimelineService {
           modifiedAt: 'DESC',
         },
       },
-      relations: ['images', 'todos'],
+      relations: ['images', 'todos', 'todos.files'],
     });
   }
 
   async findOneById(id: string, userId: string) {
     return this.timelineRepository.findOne({
       where: { id, userId },
-      relations: ['images', 'todos'],
+      relations: ['images', 'todos', 'todos.files'],
       order: {
         images: {
           createdAt: 'DESC',
@@ -100,7 +103,7 @@ export class TimelineService {
     const currentDate = dayjs().format('YYYY-MM-DD');
     return this.timelineRepository.find({
       where: { date: Like(`%${currentDate}%`), userId },
-      relations: ['images', 'todos'],
+      relations: ['images', 'todos', 'todos.files'],
       order: {
         todos: {
           isCompleted: 'ASC',
@@ -162,7 +165,10 @@ export class TimelineService {
   }
 
   async findTodoById(id: string) {
-    return this.timelineTodosRepository.findOne({ where: { id } });
+    return this.timelineTodosRepository.findOne({ 
+      where: { id },
+      relations: ['files']
+    });
   }
 
   private _generateDates(input: RepeatableTimeline, dayjsType: dayjs.ManipulateType) {
@@ -226,7 +232,7 @@ export class TimelineService {
 
     return this.timelineRepository.findOne({
       where: { id: timelineId },
-      relations: ['images', 'todos'],
+      relations: ['images', 'todos', 'todos.files'],
       order: {
         todos: {
           isCompleted: 'ASC',
@@ -234,5 +240,21 @@ export class TimelineService {
         },
       },
     });
+  }
+
+  async addTodoFile(todoId: string, type: string, url: string) {
+    return this.todoFilesRepository.save({
+      todoId,
+      type,
+      url,
+    });
+  }
+
+  async removeTodoFile(fileId: string) {
+    return this.todoFilesRepository.delete({ id: fileId });
+  }
+
+  async getTodoFileById(fileId: string) {
+    return this.todoFilesRepository.findOne({ where: { id: fileId } });
   }
 }

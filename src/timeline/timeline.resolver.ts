@@ -1,6 +1,6 @@
 import { NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { Args, Field, ID, InputType, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
-import { TimelineEntity, TimelineFilesEntity, TimelineTodosEntity } from 'src/timeline/timeline.entity';
+import { TimelineEntity, TimelineFilesEntity, TimelineTodosEntity, TodoFilesEntity } from 'src/timeline/timeline.entity';
 import { User } from 'src/utils/decorators/user.decorator';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import {
@@ -170,6 +170,23 @@ export class TimelineResolver {
     const result = await this.timelineService.editTimeline(input, timelineId);
 
     return result;
+  }
+
+  @Mutation(() => TodoFilesEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async addTodoFile(
+    @Args('todoId', { type: () => ID }) todoId: string,
+    @Args('type', { type: () => String }) type: string,
+    @Args('url', { type: () => String }) url: string,
+  ) {
+    return this.timelineService.addTodoFile(todoId, type, url);
+  }
+
+  @Mutation(() => Boolean)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async removeTodoFile(@Args('fileId', { type: () => ID }) fileId: string) {
+    await this.timelineService.removeTodoFile(fileId);
+    return true;
   }
 
   @ResolveField('images', () => [TimelineFilesEntity])
