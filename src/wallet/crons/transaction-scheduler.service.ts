@@ -2,8 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { WalletService } from '../services/wallet.service';
 import { SubscriptionService } from '../services/subscriptions.service';
-import * as dayjs from 'dayjs';
+import dayjs from 'dayjs';
 import { BillingCycleEnum, SubscriptionEntity } from '../entities/subscription.entity';
+import { ExpenseType } from '../entities/wallet.entity';
 
 @Injectable()
 export class TransactionSchedulerService {
@@ -78,6 +79,72 @@ export class TransactionSchedulerService {
     } catch (error) {
       this.logger.error(`Error inserting subscriptions: ${error.message}`);
     }
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async processPaychecks() {
+    try {
+      const today = dayjs();
+
+      // Skip weekends
+      if (today.day() === 0 || today.day() === 6) {
+        this.logger.log('Skipping paycheck processing on weekend');
+        return;
+      }
+
+      const walletsWithPaycheck = await this.walletService.getWalletsWithPaycheckDate();
+      this.logger.log(`Processing ${walletsWithPaycheck.length} wallets with paycheck dates`);
+
+      for (const wallet of walletsWithPaycheck) {
+        try {
+          const shouldProcessPaycheck = this.shouldProcessPaycheck(wallet.paycheckDate, today);
+
+          if (shouldProcessPaycheck && wallet.income > 0) {
+            await this.walletService.createExpense(
+              wallet.userId,
+              wallet.income,
+              `Monthly paycheck - ${today.format('MMMM YYYY')}`,
+              ExpenseType.income,
+              'income',
+              today.toDate(),
+              false,
+              null,
+              0,
+            );
+
+            this.logger.log(`Processed paycheck for user ${wallet.userId}: ${wallet.income}`);
+          }
+        } catch (error) {
+          this.logger.error(`Error processing paycheck for wallet ${wallet.id}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error processing paychecks: ${error.message}`);
+    }
+  }
+
+  private shouldProcessPaycheck(paycheckDate: string, today: dayjs.Dayjs): boolean {
+    if (!paycheckDate) return false;
+
+    if (paycheckDate.includes('T')) {
+      const payDate = dayjs(paycheckDate);
+      return today.isSame(payDate, 'day');
+    }
+
+    if (paycheckDate === 'start') {
+      return today.date() === 1;
+    }
+
+    if (paycheckDate === 'end') {
+      return today.isSame(today.endOf('month'), 'day');
+    }
+
+    const dayOfMonth = parseInt(paycheckDate);
+    if (!isNaN(dayOfMonth)) {
+      return today.date() === dayOfMonth;
+    }
+
+    return false;
   }
 
   private createDescriptionText(text: string, subscription: SubscriptionEntity) {

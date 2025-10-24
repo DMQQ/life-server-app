@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import dayjs from 'dayjs';
 import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, Repository, Not, IsNull } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
 
 @Injectable()
@@ -496,5 +496,14 @@ export class WalletService {
       null,
       0.5,
     );
+  }
+
+  async getWalletsWithPaycheckDate() {
+    return this.walletRepository.find({
+      where: [
+        { paycheckDate: Not(IsNull()) },
+      ],
+      select: ['id', 'userId', 'income', 'paycheckDate'],
+    });
   }
 }
