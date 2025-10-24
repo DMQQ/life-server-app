@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
 import { Brackets, Repository, Not, IsNull } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
@@ -32,7 +32,13 @@ export class WalletService {
   ) {
     let wallet = await this.getWalletIdByUserId(userId);
 
-    if (input.amount !== null && input.amount !== undefined && typeof input.amount === 'number' && !isNaN(input.amount) && input.amount >= 0) {
+    if (
+      input.amount !== null &&
+      input.amount !== undefined &&
+      typeof input.amount === 'number' &&
+      !isNaN(input.amount) &&
+      input.amount >= 0
+    ) {
       if (wallet) {
         await this.walletRepository.update(wallet.id, {
           balance: input.amount,
@@ -441,18 +447,31 @@ export class WalletService {
     if (userId === '' || expenseId === '') throw new Error('Invalid args provided to refundExpense');
 
     try {
-      // revert the balance
-      await this.expenseRepository.manager.transaction(async (entity) => {
-        const expense = await entity.findOneOrFail(ExpenseEntity, {
+      await this.expenseRepository.manager.transaction(async (entityManager) => {
+        const expense = await entityManager.findOneOrFail(ExpenseEntity, {
           where: { id: expenseId },
         });
+
+        const wallet = await entityManager.findOne(WalletEntity, {
+          where: { userId },
+        });
+
+        if (!wallet) throw new Error('Wallet not found');
+
+        const originalAmount = expense.amount;
+        const balanceAdjustment = expense.type === ExpenseType.income ? -originalAmount : originalAmount;
+
+        wallet.balance += balanceAdjustment;
+        await entityManager.save(WalletEntity, wallet);
+
         expense.type = ExpenseType.refunded;
         expense.note = `Refunded at ${dayjs().format('YYYY MM DD HH:MM')} \n ${expense.note ?? ''}`;
-        await this.editExpense(expenseId, userId, expense);
+        await entityManager.save(ExpenseEntity, expense);
       });
 
       return this.expenseRepository.findOne({ where: { id: expenseId } });
     } catch (error) {
+      console.error('Refund error:', error);
       throw new Error('Refund failed');
     }
   }
@@ -500,9 +519,7 @@ export class WalletService {
 
   async getWalletsWithPaycheckDate() {
     return this.walletRepository.find({
-      where: [
-        { paycheckDate: Not(IsNull()) },
-      ],
+      where: [{ paycheckDate: Not(IsNull()) }],
       select: ['id', 'userId', 'income', 'paycheckDate'],
     });
   }

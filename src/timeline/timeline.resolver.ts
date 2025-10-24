@@ -1,6 +1,11 @@
 import { NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { Args, Field, ID, InputType, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
-import { TimelineEntity, TimelineFilesEntity, TimelineTodosEntity, TodoFilesEntity } from 'src/timeline/timeline.entity';
+import {
+  TimelineEntity,
+  TimelineFilesEntity,
+  TimelineTodosEntity,
+  TodoFilesEntity,
+} from 'src/timeline/timeline.entity';
 import { User } from 'src/utils/decorators/user.decorator';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import {
@@ -12,6 +17,7 @@ import {
 } from 'src/utils/services/Cache/cache.decorator';
 import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
 import { TimelineService } from './timeline.service';
+import { id } from 'date-fns/locale';
 
 @InputType()
 class TimelineTodo {
@@ -187,6 +193,21 @@ export class TimelineResolver {
   async removeTodoFile(@Args('fileId', { type: () => ID }) fileId: string) {
     await this.timelineService.removeTodoFile(fileId);
     return true;
+  }
+
+  @Query(() => TimelineTodosEntity)
+  @UserCache(3600)
+  async timelineTodo(@Args('id', { type: () => ID }) id: string) {
+    return this.timelineService.getTodo(id);
+  }
+
+  @Mutation(() => Boolean)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async transferTodos(
+    @Args('sourceTimelineId', { type: () => ID }) sourceTimelineId: string,
+    @Args('targetTimelineId', { type: () => ID }) targetTimelineId: string,
+  ) {
+    return this.timelineService.transferTodos(sourceTimelineId, targetTimelineId);
   }
 
   @ResolveField('images', () => [TimelineFilesEntity])

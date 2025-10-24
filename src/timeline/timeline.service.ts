@@ -1,9 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
-import { TimelineEntity, TimelineFilesEntity, TimelineTodosEntity, TodoFilesEntity } from 'src/timeline/timeline.entity';
-import { Like, Repository } from 'typeorm';
+import {
+  TimelineEntity,
+  TimelineFilesEntity,
+  TimelineTodosEntity,
+  TodoFilesEntity,
+} from 'src/timeline/timeline.entity';
+import { EntityManager, In, Like, Repository } from 'typeorm';
 import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
+import { dataSourceOptions } from 'src/database';
 
 interface CreateTimelineProps {
   beginTime: string;
@@ -165,9 +171,9 @@ export class TimelineService {
   }
 
   async findTodoById(id: string) {
-    return this.timelineTodosRepository.findOne({ 
+    return this.timelineTodosRepository.findOne({
       where: { id },
-      relations: ['files']
+      relations: ['files'],
     });
   }
 
@@ -256,5 +262,27 @@ export class TimelineService {
 
   async getTodoFileById(fileId: string) {
     return this.todoFilesRepository.findOne({ where: { id: fileId } });
+  }
+
+  async getTodo(id: string) {
+    return this.timelineTodosRepository.findOne({ where: { id }, relations: ['files'] });
+  }
+  async transferTodos(sourceTimelineId: string, targetTimelineId: string) {
+    const sourceTodos = await this.timelineTodosRepository
+      .createQueryBuilder('todo')
+      .where('todo.timelineId = :sourceId', { sourceId: sourceTimelineId })
+      .getMany();
+
+    if (sourceTodos.length === 0) {
+      return { affected: 0 };
+    }
+
+    const todosToTransfer = sourceTodos.map((todo) => ({
+      timelineId: targetTimelineId,
+      title: todo.title,
+      isCompleted: false,
+    }));
+
+    return this.timelineTodosRepository.insert(todosToTransfer);
   }
 }
