@@ -24,6 +24,10 @@ export class WalletEntity {
   @Column({ type: 'float' })
   monthlyPercentageTarget: number;
 
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'varchar', nullable: true })
+  paycheckDate: string;
+
   @Field((type) => [ExpenseEntity])
   @OneToMany((type) => ExpenseEntity, (expense) => expense.walletId)
   @JoinColumn({ name: 'expenses' })

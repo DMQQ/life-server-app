@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as dayjs from 'dayjs';
+import dayjs from 'dayjs';
 import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
 import { Brackets, Repository } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
@@ -22,31 +22,59 @@ export class WalletService {
     });
   }
 
-  async editUserWalletBalance(userId: string, amount: number) {
+  async editUserWalletBalance(
+    userId: string,
+    input: {
+      amount: number;
+      paycheck?: number;
+      paycheckDate?: string;
+    },
+  ) {
     let wallet = await this.getWalletIdByUserId(userId);
 
-    if (wallet) {
-      await this.walletRepository.update(wallet.id, {
-        balance: amount,
-      });
+    if (input.amount !== null && input.amount !== undefined && typeof input.amount === 'number' && !isNaN(input.amount) && input.amount >= 0) {
+      if (wallet) {
+        await this.walletRepository.update(wallet.id, {
+          balance: input.amount,
+        });
 
-      await this.expenseRepository.insert({
-        amount: 0,
-        description: `Balance edited to ${amount}`,
-        date: new Date(),
-        walletId: wallet.id,
-        type: ExpenseType.income,
-        category: 'edit',
-        balanceBeforeInteraction: wallet.balance,
-      });
-
-      return await this.getWalletIdByUserId(userId);
-    } else {
-      await this.walletRepository.insert({
-        balance: amount,
-        userId,
-      });
+        await this.expenseRepository.insert({
+          amount: 0,
+          description: `Balance edited to ${input.amount}`,
+          date: new Date(),
+          walletId: wallet.id,
+          type: ExpenseType.income,
+          category: 'edit',
+          balanceBeforeInteraction: wallet.balance,
+        });
+      } else {
+        await this.walletRepository.insert({
+          balance: input.amount,
+          userId,
+          income: 0,
+          monthlyPercentageTarget: 0,
+        });
+      }
     }
+
+    if (input.paycheck && !isNaN(input.paycheck) && input.paycheck >= 0) {
+      await this.walletRepository.update(
+        { userId },
+        {
+          income: input.paycheck,
+        },
+      );
+    }
+    if (input.paycheckDate) {
+      await this.walletRepository.update(
+        { userId },
+        {
+          paycheckDate: input.paycheckDate,
+        },
+      );
+    }
+
+    return await this.getWalletByUserId(userId);
   }
 
   async getWalletByUserId(userId: string) {

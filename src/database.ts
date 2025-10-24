@@ -1,10 +1,10 @@
-import { DataSource, DataSourceOptions } from 'typeorm';
+import { DataSource, DataSourceOptions as IDataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
 
-export const dataSourceOptions: DataSourceOptions = {
+export const dataSourceOptions: IDataSourceOptions = {
   type: 'mysql',
   host: process.env.HOST,
   port: +process.env.PORT,
@@ -12,8 +12,8 @@ export const dataSourceOptions: DataSourceOptions = {
   password: process.env.PASS,
   database: process.env.DATABASE,
   entities: ['dist/**/*.entity{.ts,.js}'],
-  migrations: ['migrations/*.{ts,js}'],
+  migrations: ['dist/migrations/*.js'],
   synchronize: process.env.SYNC === 'true' || process.env.NAME === 'true',
 };
 
-export const AppDataSource = new DataSource(dataSourceOptions);
+export default new DataSource(dataSourceOptions);

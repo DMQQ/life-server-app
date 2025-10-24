@@ -138,8 +138,17 @@ export class WalletResolver {
 
   @Mutation(() => WalletEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async editWalletBalance(@User() usrId: string, @Args('amount', { type: () => Int }) amount: number) {
-    return await this.walletService.editUserWalletBalance(usrId, amount);
+  async editWalletBalance(
+    @User() usrId: string,
+    @Args('amount', { type: () => Int, nullable: true }) amount: number,
+    @Args('paycheck', { type: () => Float, nullable: true }) paycheck: number,
+    @Args('paycheckDate', { type: () => String, nullable: true }) paycheckDate: string,
+  ) {
+    return await this.walletService.editUserWalletBalance(usrId, {
+      amount,
+      paycheck,
+      paycheckDate,
+    });
   }
 
   @Mutation(() => ExpenseEntity)
