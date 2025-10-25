@@ -283,7 +283,9 @@ export class TimelineService {
       isCompleted: false,
     }));
 
-    return this.timelineTodosRepository.insert(todosToTransfer);
+    const r = await this.timelineTodosRepository.insert(todosToTransfer);
+
+    return !!r.identifiers.length;
   }
 
   async copyTimeline(timelineId: string, userId: string, newDate?: string) {
