@@ -11,6 +11,7 @@ import { TimelineResolver } from './timeline.resolver';
 import { TimelineSchedule } from './timeline.schedule';
 import { NotificationsModule } from 'src/notifications/notifications.module';
 import { TimelineScheduleService } from './timelineSchedule.service';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { TimelineScheduleService } from './timelineSchedule.service';
       TodoFilesEntity,
     ]),
     NotificationsModule,
+    WalletModule,
   ],
   providers: [
     TimelineService,

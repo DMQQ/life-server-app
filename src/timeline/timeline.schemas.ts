@@ -22,6 +22,12 @@ export class CreateTimelineInput {
 }
 
 @InputType()
+export class CopyTimelineInput {
+  @Field({ nullable: true })
+  newDate?: string;
+}
+
+@InputType()
 export class RepeatableTimeline {
   @Field(() => Int, { nullable: true })
   reapeatCount: number;

@@ -285,4 +285,86 @@ export class TimelineService {
 
     return this.timelineTodosRepository.insert(todosToTransfer);
   }
+
+  async copyTimeline(timelineId: string, userId: string, newDate?: string) {
+    // Find the original timeline with all relations
+    const originalTimeline = await this.timelineRepository.findOne({
+      where: { id: timelineId, userId },
+      relations: ['images', 'todos', 'todos.files'],
+    });
+
+    if (!originalTimeline) {
+      throw new Error('Timeline not found');
+    }
+
+    // Create new timeline with copied properties
+    const timelineData = {
+      title: originalTimeline.title,
+      description: originalTimeline.description,
+      beginTime: originalTimeline.beginTime,
+      endTime: originalTimeline.endTime,
+      date: newDate || originalTimeline.date,
+      tags: originalTimeline.tags,
+      userId: userId,
+      isAllDay: originalTimeline.isAllDay,
+      notification: originalTimeline.notification,
+      isPublic: originalTimeline.isPublic,
+      isRepeat: false, // Reset repeat for copied timeline
+      isCompleted: false, // Reset completion status
+    };
+
+    // Insert new timeline
+    const insertResult = await this.timelineRepository.insert(timelineData);
+    const newTimelineId = insertResult.identifiers[0].id;
+
+    // Copy timeline files
+    if (originalTimeline.images && originalTimeline.images.length > 0) {
+      const filesToCopy = originalTimeline.images.map((file) => ({
+        timelineId: newTimelineId,
+        name: file.name,
+        type: file.type,
+        url: file.url,
+        isPublic: file.isPublic,
+      }));
+
+      await this.timelineFilesRepository.insert(filesToCopy);
+    }
+
+    // Copy todos and their files
+    if (originalTimeline.todos && originalTimeline.todos.length > 0) {
+      for (const originalTodo of originalTimeline.todos) {
+        // Insert todo
+        const todoResult = await this.timelineTodosRepository.insert({
+          timelineId: newTimelineId,
+          title: originalTodo.title,
+          isCompleted: false, // Reset completion status
+        });
+
+        const newTodoId = todoResult.identifiers[0].id;
+
+        // Copy todo files if they exist
+        if (originalTodo.files && originalTodo.files.length > 0) {
+          const todoFilesToCopy = originalTodo.files.map((file) => ({
+            todoId: newTodoId,
+            type: file.type,
+            url: file.url,
+          }));
+
+          await this.todoFilesRepository.insert(todoFilesToCopy);
+        }
+      }
+    }
+
+    // Return the new timeline with all relations
+    return this.timelineRepository.findOne({
+      where: { id: newTimelineId },
+      relations: ['images', 'todos', 'todos.files'],
+      order: {
+        todos: {
+          isCompleted: 'ASC',
+          modifiedAt: 'DESC',
+        },
+      },
+    });
+  }
 }

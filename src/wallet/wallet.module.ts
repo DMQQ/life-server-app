@@ -66,6 +66,10 @@ import { SubscriptionResolver } from './resolvers/subscription.resolver';
     ExpenseAnalysisService,
     MoneyLeftSchedulerService,
   ],
+  exports: [
+    WalletService,
+    ExpenseService,
+  ],
 })
 export class WalletModule implements NestModule {
   configure(consumer: any) {

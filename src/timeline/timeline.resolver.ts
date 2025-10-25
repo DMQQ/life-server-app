@@ -15,7 +15,7 @@ import {
   InvalidateCacheInterceptor,
   UserCache,
 } from 'src/utils/services/Cache/cache.decorator';
-import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
+import { CreateTimelineInput, RepeatableTimeline, CopyTimelineInput } from './timeline.schemas';
 import { TimelineService } from './timeline.service';
 import { id } from 'date-fns/locale';
 
@@ -174,6 +174,20 @@ export class TimelineResolver {
     if (timeline === undefined || timeline == null) throw new NotFoundException('Timeline not found');
 
     const result = await this.timelineService.editTimeline(input, timelineId);
+
+    return result;
+  }
+
+  @Mutation(() => TimelineEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async copyTimeline(
+    @User() userId: string,
+    @Args('timelineId', { type: () => ID }) timelineId: string,
+    @Args('input', { type: () => CopyTimelineInput, nullable: true }) input?: CopyTimelineInput,
+  ) {
+    const result = await this.timelineService.copyTimeline(timelineId, userId, input?.newDate);
+
+    if (!result) throw new NotFoundException('Failed to copy timeline');
 
     return result;
   }

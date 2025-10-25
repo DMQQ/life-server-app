@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as dayjs from 'dayjs';
+import dayjs from 'dayjs';
 import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
 import { Brackets, Repository, Not, IsNull } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
+import { ExpenseFactory } from '../factories/expense.factory';
 
 @Injectable()
 export class WalletService {
@@ -44,15 +45,12 @@ export class WalletService {
           balance: input.amount,
         });
 
-        await this.expenseRepository.insert({
-          amount: 0,
-          description: `Balance edited to ${input.amount}`,
-          date: new Date(),
+        const balanceEditExpense = ExpenseFactory.createBalanceEditExpense({
+          newBalance: input.amount,
           walletId: wallet.id,
-          type: ExpenseType.income,
-          category: 'edit',
-          balanceBeforeInteraction: wallet.balance,
+          currentBalance: wallet.balance,
         });
+        await this.expenseRepository.insert(balanceEditExpense);
       } else {
         await this.walletRepository.insert({
           balance: input.amount,
@@ -187,7 +185,7 @@ export class WalletService {
 
     let walletId = wallet?.id as string;
 
-    const insert = await this.expenseRepository.insert({
+    const newExpense = ExpenseFactory.createExpense({
       amount,
       description,
       walletId: walletId,
@@ -197,8 +195,9 @@ export class WalletService {
       date,
       schedule,
       spontaneousRate: spontaneousRate ?? 0,
-      ...(subscription && { subscriptionId: subscription }),
+      subscriptionId: subscription,
     });
+    const insert = await this.expenseRepository.insert(newExpense);
 
     if (schedule && date > new Date())
       return this.expenseRepository.findOne({
@@ -234,11 +233,16 @@ export class WalletService {
       where: { id: walletId },
     });
 
-    const insert = await this.expenseRepository.insert({
-      ...expense,
+    const subscriptionExpense = ExpenseFactory.createSubscriptionExpense({
+      amount: expense.amount,
+      description: expense.description,
       walletId: walletId,
+      subscriptionId: expense.subscriptionId,
+      category: expense.category,
+      date: expense.date,
       balanceBeforeInteraction: wallet?.balance as number,
     });
+    const insert = await this.expenseRepository.insert(subscriptionExpense);
 
     await this._updateWalletBalance(wallet.userId, expense.amount, ExpenseType.expense);
 
@@ -432,7 +436,7 @@ export class WalletService {
 
     const walletId = walletInsert.identifiers[0].id;
 
-    return this.expenseRepository.insert({
+    const initExpense = ExpenseFactory.createExpense({
       walletId: walletId,
       amount: initialBalance,
       type: initialBalance > 0 ? ExpenseType.income : ExpenseType.expense,
@@ -441,6 +445,7 @@ export class WalletService {
       note: '',
       description: 'Initialized wallet with ' + initialBalance,
     });
+    return this.expenseRepository.insert(initExpense);
   }
 
   async refundExpense(userId: string, expenseId: string) {
@@ -465,7 +470,7 @@ export class WalletService {
         await entityManager.save(WalletEntity, wallet);
 
         expense.type = ExpenseType.refunded;
-        expense.note = `Refunded at ${dayjs().format('YYYY MM DD HH:MM')} \n ${expense.note ?? ''}`;
+        expense.note = `Refunded at ${dayjs().format('YYYY-MM-DD HH:mm')} \n ${expense.note ?? ''}`;
         await entityManager.save(ExpenseEntity, expense);
       });
 
@@ -504,17 +509,31 @@ export class WalletService {
     },
     userId: string,
   ) {
-    return this.createExpense(
+    const wallet = await this.getWalletIdByUserId(userId);
+    const predictionExpense = ExpenseFactory.createExpenseFromPrediction(
+      {
+        merchant: prediction.merchant,
+        total_price: prediction.total_price,
+        date: prediction.date,
+        title: prediction.title + ' ',
+        category: prediction.category,
+      },
+      wallet.id,
+      wallet.balance,
+    );
+    
+    const insert = await this.expenseRepository.insert(predictionExpense);
+    
+    await this._updateWalletBalance(
       userId,
       prediction.total_price,
-      prediction.title + ' ',
       ExpenseType.expense,
-      prediction.category,
-      dayjs(prediction.date).toDate(),
-      false,
-      null,
-      0.5,
     );
+    
+    return this.expenseRepository.findOne({
+      where: { id: insert.identifiers[0].id },
+      relations: ['subexpenses', 'subscription'],
+    });
   }
 
   async getWalletsWithPaycheckDate() {

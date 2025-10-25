@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ExpenseEntity, ExpenseLocationEntity, ExpenseSubExpense, WalletEntity } from '../entities/wallet.entity';
 import { Between, Like, Repository } from 'typeorm';
 import * as dayjs from 'dayjs';
+import { ExpenseFactory } from '../factories/expense.factory';
 
 @Injectable()
 export class ExpenseService {
@@ -44,9 +45,13 @@ export class ExpenseService {
   }
 
   async createLocation(entity: Partial<ExpenseLocationEntity>) {
-    return await this.locationEntity.save({
-      ...entity,
+    const location = ExpenseFactory.createLocation({
+      name: entity.name,
+      kind: entity.kind,
+      longitude: entity.longitude,
+      latitude: entity.latitude,
     });
+    return await this.locationEntity.save(location);
   }
 
   async addExpenseLocation(expenseId: string, locationId: string) {
@@ -61,8 +66,10 @@ export class ExpenseService {
   }
 
   async createSubExpense(expenseId: string, subExpenseData: Partial<ExpenseSubExpense>) {
-    const newSubExpense = this.subExpenseRepository.create({
-      ...subExpenseData,
+    const newSubExpense = ExpenseFactory.createSubExpense({
+      description: subExpenseData.description,
+      amount: subExpenseData.amount,
+      category: subExpenseData.category,
       expenseId,
     });
     return await this.subExpenseRepository.save(newSubExpense);
@@ -104,8 +111,10 @@ export class ExpenseService {
 
   async addMultipleSubExpenses(expenseId: string, subExpenses: Partial<ExpenseSubExpense>[]) {
     const subExpensesToSave = subExpenses.map((subExpense) =>
-      this.subExpenseRepository.create({
-        ...subExpense,
+      ExpenseFactory.createSubExpense({
+        description: subExpense.description,
+        amount: subExpense.amount,
+        category: subExpense.category,
         expenseId,
       }),
     );
