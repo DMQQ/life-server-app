@@ -68,16 +68,27 @@ export class TimelineService {
 
   async findAllByUserId(opts: {
     userId: string;
-    date: string;
+    date?: string;
     pagination?: { skip: number; take: number };
     query?: string;
   }) {
+    const baseWhere = {
+      userId: opts.userId,
+    };
+
+    if (opts.date) {
+      baseWhere['date'] = Like(`%${opts.date}%`);
+    }
+
+    const whereCondition = opts.query
+      ? [
+          { ...baseWhere, title: Like(`%${opts.query}%`) },
+          { ...baseWhere, description: Like(`%${opts.query}%`) },
+        ]
+      : baseWhere;
+
     return this.timelineRepository.find({
-      where: {
-        userId: opts.userId,
-        date: Like(`%${opts.date}%`),
-        ...(opts.query && { title: Like(`%${opts.query}%`) }),
-      },
+      where: whereCondition,
       order: {
         beginTime: 'DESC',
         todos: {

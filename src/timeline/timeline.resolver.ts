@@ -49,9 +49,8 @@ export class TimelineResolver {
   timeline(
     @User() userId: string,
     @Args('date', { nullable: true }) date: string,
+    @Args('query', { nullable: true }) query: string,
     @Args('pagination', { nullable: true, type: () => PaginationInput })
-    @Args('query', { nullable: true })
-    query: string,
     pagination: PaginationInput,
   ) {
     return this.timelineService.findAllByUserId({
