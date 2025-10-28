@@ -1,4 +1,4 @@
-import { NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { Args, Field, ID, InputType, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
 import {
   TimelineEntity,
@@ -113,13 +113,22 @@ export class TimelineResolver {
 
   @Mutation(() => TimelineEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async completeTimeline(@User() usrId: string, @Args('id', { nullable: false, type: () => String }) id: string) {
-    const updateResult = await this.timelineService.completeTimeline(id, usrId);
+  async toggleTimelineCompletion(
+    @User() usrId: string,
+    @Args('id', { nullable: false, type: () => String }) id: string,
+  ) {
+    try {
+      const updateResult = await this.timelineService.toggleTimelineCompletion(id, usrId);
 
-    if (updateResult === null || updateResult === undefined)
-      throw new NotFoundException(`Timeline with id ${id} not found`);
+      if (updateResult === null || updateResult === undefined)
+        throw new NotFoundException(`Timeline with id ${id} not found`);
 
-    return this.timelineService.findOneById(id, usrId);
+      return updateResult;
+    } catch (error) {
+      console.error('Error toggling timeline completion:', error);
+
+      return new BadRequestException('Failed to toggle timeline completion');
+    }
   }
 
   @Mutation(() => Boolean)
@@ -137,7 +146,7 @@ export class TimelineResolver {
   ) {
     const todoInsert = await this.timelineService.createTimelineTodos(todos);
 
-    return this.timelineService.findTodoById(todoInsert.generatedMaps[0].id);
+    return this.timelineService.findTodoById(todoInsert[0].id);
   }
 
   @Mutation(() => Boolean)

@@ -133,11 +133,13 @@ export class TimelineService {
   async removeTimeline(id: string, userId: string) {
     await this.timelineFilesRepository.delete({
       timelineId: id as any,
-    }); // replace it with cascade AND remove files from disk
-
-    await this.timelineTodosRepository.delete({
-      timelineId: id as any,
     });
+
+    const entity = await this.timelineTodosRepository.find({
+      where: { timelineId: id },
+    });
+
+    await this.timelineTodosRepository.remove(entity);
 
     await this.timelineRepository.delete({ id, userId });
   }
@@ -160,8 +162,12 @@ export class TimelineService {
     }
   }
 
-  async completeTimeline(id: string, userId: string) {
-    return this.timelineRepository.update({ id, userId }, { isCompleted: true });
+  async toggleTimelineCompletion(id: string, userId: string) {
+    const entity = await this.timelineRepository.findOne({ where: { id, userId } });
+
+    entity.isCompleted = !entity.isCompleted;
+
+    return this.timelineRepository.save(entity);
   }
 
   async createTimelineTodos(
@@ -170,15 +176,19 @@ export class TimelineService {
       title: string;
     }[],
   ) {
-    return this.timelineTodosRepository.insert(input);
+    return this.timelineTodosRepository.save(input);
   }
 
   async removeTimelineTodo(id: string) {
-    return this.timelineTodosRepository.delete({ id });
+    const entity = await this.timelineTodosRepository.findOne({ where: { id } });
+    return this.timelineTodosRepository.remove(entity);
   }
 
   async completeTimelineTodo(id: string, isCompleted: boolean) {
-    return this.timelineTodosRepository.update({ id }, { isCompleted });
+    const entity = await this.timelineTodosRepository.findOne({ where: { id } });
+    entity.isCompleted = isCompleted;
+
+    return this.timelineTodosRepository.save(entity);
   }
 
   async findTodoById(id: string) {
