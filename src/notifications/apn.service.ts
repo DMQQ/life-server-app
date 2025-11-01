@@ -134,8 +134,8 @@ export class ApnService {
           'content-state': {
             title: timeline.title,
             description: timeline.description,
-            startTime: now.unix(),
-            endTime: now.unix() + 30,
+            startTime: new Date().toISOString(),
+            endTime: new Date(Date.now() + 30000).toISOString(),
             isCompleted: false,
             progress: 1,
           },
