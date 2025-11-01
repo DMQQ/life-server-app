@@ -107,14 +107,6 @@ export class ApnService {
   }
 
   private async constructTimelinePayload(timeline: any) {
-    const now = dayjs();
-
-    const startTime = dayjs(timeline.beginTime, 'HH:mm');
-    const endTime = dayjs(timeline.endTime, 'HH:mm');
-
-    const startDateTime = startTime.isBefore(now) ? startTime.add(1, 'day') : startTime;
-    const endDateTime = endTime.isBefore(now) ? endTime.add(1, 'day') : endTime;
-
     return {
       headers: {
         'apns-topic': 'com.dmq.mylifemobile.push-type.liveactivity',
@@ -124,7 +116,7 @@ export class ApnService {
       },
       payload: {
         aps: {
-          timestamp: now.unix(),
+          timestamp: Math.floor(Date.now() / 1000),
           event: 'start',
           'attributes-type': 'WidgetAttributes',
           attributes: {
@@ -134,8 +126,8 @@ export class ApnService {
           'content-state': {
             title: timeline.title,
             description: timeline.description,
-            startTime: new Date().toISOString(),
-            endTime: new Date(Date.now() + 30000).toISOString(),
+            startTime: timeline.beginTime,
+            endTime: timeline.endTime,
             isCompleted: false,
             progress: 1,
           },
