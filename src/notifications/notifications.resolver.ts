@@ -66,4 +66,12 @@ export class NotificationsResolver {
   async getAvailableNotificationTypes() {
     return this.notificationsService.getAvailableNotificationTypes();
   }
+
+  @Mutation(() => Boolean)
+  setPushToStartToken(
+    @Args('pushToStartToken', { type: () => String }) pushToStartToken: string,
+    @User() userId: string,
+  ) {
+    return this.notificationsService.setPushToStartToken(userId, pushToStartToken);
+  }
 }

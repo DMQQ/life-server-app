@@ -112,6 +112,10 @@ export class NotificationsService {
     }
   }
 
+  setPushToStartToken(userId: string, pushToStartToken: string) {
+    return this.notificationsRepository.update({ userId }, { liveActivityToken: pushToStartToken });
+  }
+
   getAvailableNotificationTypes(): NotificationTypeDto[] {
     return [
       {
