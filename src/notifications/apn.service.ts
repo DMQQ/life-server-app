@@ -25,7 +25,7 @@ export class ApnService {
   }
 
   async sendRequest(body: any, headers: Record<string, string>, deviceToken: string): Promise<any> {
-    const hostname = process.env.NODE_ENV === 'production' ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
+    const hostname = false ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
     const path = `/3/device/${deviceToken}`;
 
     return new Promise((resolve, reject) => {
