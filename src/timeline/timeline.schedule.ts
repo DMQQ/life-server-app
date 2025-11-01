@@ -29,12 +29,14 @@ export class TimelineSchedule extends BaseScheduler {
   async handleCron() {
     const events = await this.timelineScheduleService.findEventsByTypeWithCurrentTime('beginTime');
 
+    console.log(`Found ${events.length} events starting now.`);
+
     for (const event of events) {
       const todos = await this.timelineScheduleService.getUncompletedTodosForUser(event.userId);
 
       if (todos.length > 0) {
         const todosText = todos.map((todo) => `• ${todo.title}`).join('\n');
-        event.description = `${event.description}\n\nTodos:\n${todosText}`;
+        event.description = `${event.description}\nTodos:\n${todosText}`;
       }
 
       const userToken = await this.notificationService.findUserToken(event.userId);

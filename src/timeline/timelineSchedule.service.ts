@@ -34,6 +34,8 @@ export class TimelineScheduleService {
     const currentDate = warsawTime.toISOString().split('T')[0]; // YYYY-MM-DD
     const currentTime = warsawTime.toTimeString().split(' ')[0].substring(0, 5) + ':00'; // HH:mm:00
 
+    console.log(`Current Warsaw Date: ${currentDate}, Time: ${currentTime}`);
+
     return this.timelineRepository.query(
       `
       SELECT 
@@ -51,19 +53,19 @@ export class TimelineScheduleService {
     );
   }
 
-  async getUncompletedTodosForUser(userId: string): Promise<TodoResponse[]> {
+  async getUncompletedTodosForUser(timelineId: string): Promise<TodoResponse[]> {
     return this.timelineRepository.query(
       `
       SELECT 
         tt.id, tt.title, tt.isCompleted, t.userId
       FROM timeline_todos as tt
         INNER JOIN timeline as t ON tt.timelineId = t.id
-      WHERE t.userId = ?
+      WHERE t.id = ?
         AND tt.isCompleted = 0
       ORDER BY tt.createdAt DESC
       LIMIT 20
     `,
-      [userId],
+      [timelineId],
     );
   }
 }
