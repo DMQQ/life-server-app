@@ -25,7 +25,7 @@ export class ApnService {
   }
 
   async sendRequest(body: any, headers: Record<string, string>, deviceToken: string): Promise<any> {
-    const hostname = false ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
+    const hostname = false ? 'api.push.apple.com' : 'api.development.push.apple.com';
     const path = `/3/device/${deviceToken}`;
 
     return new Promise((resolve, reject) => {
@@ -103,7 +103,6 @@ export class ApnService {
 
   public async sendTimelineActivity(notification: NotificationsEntity, timeline: any) {
     const apnPayload = await this.constructTimelinePayload(timeline);
-    console.log('Constructed APNs Payload:', apnPayload, notification.liveActivityToken);
     return this.sendRequest(apnPayload.payload, apnPayload.headers, notification.liveActivityToken);
   }
 
@@ -118,7 +117,7 @@ export class ApnService {
 
     return {
       headers: {
-        'apns-topic': 'com.dmq.mylifemobile.push-type.liveactivity',
+        'apns-topic': 'com.dmq.mylifemobile',
         'apns-push-type': 'liveactivity',
         'apns-priority': '10',
         'apns-expiration': '0',
@@ -135,8 +134,8 @@ export class ApnService {
           'content-state': {
             title: timeline.title,
             description: timeline.description,
-            startTime: startDateTime.valueOf(),
-            endTime: endDateTime.valueOf(),
+            startTime: now.unix(),
+            endTime: now.unix() + 30,
             isCompleted: false,
             progress: 1,
           },
