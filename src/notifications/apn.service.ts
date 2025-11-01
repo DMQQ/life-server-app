@@ -103,6 +103,7 @@ export class ApnService {
 
   public async sendTimelineActivity(notification: NotificationsEntity, timeline: any) {
     const apnPayload = await this.constructTimelinePayload(timeline);
+    console.log('Constructed APNs Payload:', apnPayload, notification.liveActivityToken);
     return this.sendRequest(apnPayload.payload, apnPayload.headers, notification.liveActivityToken);
   }
 
