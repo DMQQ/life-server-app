@@ -29,20 +29,25 @@ export class TimelineScheduleService {
   ) {}
 
   async findEventsByTypeWithCurrentTime(type: 'beginTime' | 'endTime'): Promise<FindEventsResponse[]> {
+    const now = new Date();
+    const warsawTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Warsaw' }));
+    const currentDate = warsawTime.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentTime = warsawTime.toTimeString().split(' ')[0].substring(0, 5) + ':00'; // HH:mm:00
+
     return this.timelineRepository.query(
       `
       SELECT 
         t.id, t.title, t.description, n.token, n.isEnable, t.beginTime, t.endTime, t.userId
       FROM timeline as t
         LEFT JOIN notifications as n ON t.userId = n.userId
-      WHERE FIND_IN_SET(CURDATE(), REPLACE(t.date, ';', ',')) > 0
-        AND ${type} = TIME_FORMAT(CURTIME(), '%H:%i:00')
+      WHERE FIND_IN_SET(?, REPLACE(t.date, ';', ',')) > 0
+        AND ${type} = ?
         AND notification = 1
         AND isCompleted = 0
         AND (n.token IS NOT NULL OR n.token != "")
         AND n.isEnable = 1
     `,
-      [],
+      [currentDate, currentTime],
     );
   }
 

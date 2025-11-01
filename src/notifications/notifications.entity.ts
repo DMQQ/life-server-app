@@ -24,6 +24,10 @@ export class NotificationsEntity {
   @Field(() => GraphQLJSON)
   @Column({ type: 'json', nullable: true })
   enabledNotifications: Record<string, boolean>;
+
+  @Field(() => String)
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  liveActivityToken: string;
 }
 
 @ObjectType()

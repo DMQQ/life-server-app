@@ -29,40 +29,26 @@ export class TimelineSchedule extends BaseScheduler {
   async handleCron() {
     const events = await this.timelineScheduleService.findEventsByTypeWithCurrentTime('beginTime');
 
-    const notificationsToSend = [];
-
     for (const event of events) {
       const todos = await this.timelineScheduleService.getUncompletedTodosForUser(event.userId);
 
-      let description = event.description;
       if (todos.length > 0) {
         const todosText = todos.map((todo) => `• ${todo.title}`).join('\n');
-        description = `${event.description}\n\nTodos:\n${todosText}`;
+        event.description = `${event.description}\n\nTodos:\n${todosText}`;
       }
 
-      const notification: ExpoPushMessage = {
-        badge: 1,
-        to: event.token,
-        subtitle: 'Daily reminder',
-        sound: 'default',
-        title: event.title,
-        body: description,
-        data: {
-          data: 'Your scheduled event is now running!',
-          eventId: event.id,
-          type: 'timeline',
-        },
-      };
+      const userToken = await this.notificationService.findUserToken(event.userId);
 
-      notificationsToSend.push({
-        notification,
-        userId: event.userId,
-      });
-    }
-
-    // Send notifications and save to history
-    for (const { notification, userId } of notificationsToSend) {
-      await this.sendSingleNotification(notification, userId);
+      if (userToken?.liveActivityToken) {
+        try {
+          await this.notificationService.sendTimelineLiveActivity(event.userId, event);
+          console.log(`Live Activity notification sent for event ${event.id}`);
+        } catch (error) {
+          console.error(`Failed to send Live Activity for event ${event.id}:`, error);
+        }
+      } else {
+        console.log(`No live activity token for user ${event.userId}, skipping notification`);
+      }
     }
   }
 
@@ -70,30 +56,23 @@ export class TimelineSchedule extends BaseScheduler {
   async handleEndingEvents() {
     const events = await this.timelineScheduleService.findEventsByTypeWithCurrentTime('endTime');
 
-    const notificationsToSend = [];
-
     for (const event of events) {
-      const notification: ExpoPushMessage = {
-        badge: 1,
-        to: event.token,
-        subtitle: 'Event ending',
-        sound: 'default',
-        title: `${event.title.substring(0, 40)} ending`,
-        body: `Time to wrap up: ${event.description.substring(0, 40)}`,
-        data: {
-          data: 'Your scheduled event is ending!',
-          eventId: event.id,
-        },
-      };
+      // Check if user has live activity token
+      const userToken = await this.notificationService.findUserToken(event.userId);
 
-      notificationsToSend.push({
-        notification,
-        userId: event.userId,
-      });
-    }
-
-    for (const { notification, userId } of notificationsToSend) {
-      await this.sendSingleNotification(notification, userId);
+      if (userToken?.liveActivityToken) {
+        // Send Live Activity end notification
+        try {
+          // Create a copy of event with ending state
+          const endingEvent = { ...event, isCompleted: true };
+          await this.notificationService.sendTimelineLiveActivity(event.userId, endingEvent);
+          console.log(`Live Activity end notification sent for event ${event.id}`);
+        } catch (error) {
+          console.error(`Failed to send Live Activity end for event ${event.id}:`, error);
+        }
+      } else {
+        console.log(`No live activity token for user ${event.userId}, skipping end notification`);
+      }
     }
   }
 }
