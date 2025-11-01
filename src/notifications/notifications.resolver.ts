@@ -68,10 +68,16 @@ export class NotificationsResolver {
   }
 
   @Mutation(() => Boolean)
-  setPushToStartToken(
+  async setPushToStartToken(
     @Args('pushToStartToken', { type: () => String }) pushToStartToken: string,
     @User() userId: string,
   ) {
-    return this.notificationsService.setPushToStartToken(userId, pushToStartToken);
+    try {
+      const result = await this.notificationsService.setPushToStartToken(userId, pushToStartToken);
+
+      return result.affected > 0;
+    } catch (error) {
+      return false;
+    }
   }
 }
