@@ -112,6 +112,16 @@ export class NotificationsService {
     }
   }
 
+  async sendTimelineEndActivity(userId: string, event: any) {
+    const userToken = await this.findUserToken(userId);
+
+    if (userToken) {
+      return this.apnService.endTimelineActivity(userToken, event);
+    } else {
+      console.error(`No notification token found for userId: ${userId}`);
+    }
+  }
+
   setPushToStartToken(userId: string, pushToStartToken: string) {
     return this.notificationsRepository.update({ userId }, { liveActivityToken: pushToStartToken });
   }

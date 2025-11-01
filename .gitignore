@@ -38,3 +38,8 @@ lerna-debug.log*
 
 /uploads
 *.sql
+
+certs
+
+*.p8
+

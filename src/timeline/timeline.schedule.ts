@@ -64,8 +64,7 @@ export class TimelineSchedule extends BaseScheduler {
         // Send Live Activity end notification
         try {
           // Create a copy of event with ending state
-          const endingEvent = { ...event, isCompleted: true };
-          await this.notificationService.sendTimelineLiveActivity(event.userId, endingEvent);
+          await this.notificationService.sendTimelineEndActivity(event.userId, event);
           console.log(`Live Activity end notification sent for event ${event.id}`);
         } catch (error) {
           console.error(`Failed to send Live Activity end for event ${event.id}:`, error);

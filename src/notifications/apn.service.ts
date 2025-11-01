@@ -25,7 +25,7 @@ export class ApnService {
   }
 
   async sendRequest(body: any, headers: Record<string, string>, deviceToken: string): Promise<any> {
-    const hostname = false ? 'api.push.apple.com' : 'api.development.push.apple.com';
+    const hostname = process.env.NODE_ENV === 'production' ? 'api.push.apple.com' : 'api.development.push.apple.com';
     const path = `/3/device/${deviceToken}`;
 
     return new Promise((resolve, reject) => {
@@ -103,6 +103,14 @@ export class ApnService {
 
   public async sendTimelineActivity(notification: NotificationsEntity, timeline: any) {
     const apnPayload = await this.constructTimelinePayload(timeline);
+    return this.sendRequest(apnPayload.payload, apnPayload.headers, notification.liveActivityToken);
+  }
+
+  public async endTimelineActivity(notification: NotificationsEntity, timeline: any) {
+    const apnPayload = await this.constructTimelinePayload(timeline);
+    apnPayload.payload.aps.event = 'end';
+    apnPayload.payload.aps['dismissal-date"'] = Math.floor(Date.now() / 1000) - 10;
+    delete apnPayload.payload.aps['alert'];
     return this.sendRequest(apnPayload.payload, apnPayload.headers, notification.liveActivityToken);
   }
 
