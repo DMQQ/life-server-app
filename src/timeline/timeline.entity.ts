@@ -128,7 +128,7 @@ export class TimelineTodosEntity {
   timelineId: string;
 
   @Field(() => [TodoFilesEntity])
-  @OneToMany(() => TodoFilesEntity, (file) => file.todoId)
+  @OneToMany(() => TodoFilesEntity, (file) => file.todoId, { cascade: true, onDelete: 'CASCADE' })
   files: TodoFilesEntity[];
 
   @Field(() => Date)

@@ -15,6 +15,8 @@ import {
   UserCache,
 } from '../../utils/services/Cache/cache.decorator';
 import { CacheService } from 'src/utils/services/Cache/cache.service';
+import { WalletId } from 'src/utils/decorators/wallet.decorator';
+import { ExpensePredictionService } from '../services/expense-prediction.service';
 
 const parseDate = (dateString: string) => {
   const currentTime = new Date();
@@ -41,6 +43,8 @@ export class WalletResolver {
     private subscriptionService: SubscriptionService,
 
     private cacheService: CacheService,
+
+    private predictionService: ExpensePredictionService,
   ) {}
 
   @Query((returns) => WalletEntity)
@@ -123,6 +127,32 @@ export class WalletResolver {
       schedule,
       subscription ? subscription.id : null,
       spontaneousRate,
+    );
+
+    return expense;
+  }
+
+  @Mutation((returns) => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async createShortcutExpense(
+    @User() usrId: string,
+    @Args('amount', { type: () => Float }) amount: number,
+    @Args('description') description: string,
+  ) {
+    const categoryPrediction = await this.predictionService.predictExpense(usrId, description, amount);
+
+    const category = categoryPrediction ? categoryPrediction.category : 'none';
+
+    const expense = await this.walletService.createExpense(
+      usrId,
+      amount,
+      description,
+      ExpenseType.expense,
+      category,
+      new Date(),
+      false,
+      null,
+      0,
     );
 
     return expense;

@@ -1,9 +1,9 @@
-import { 
-  ExpenseEntity, 
-  ExpenseType, 
-  ExpenseLocationEntity, 
-  ExpenseSubExpense, 
-  ExpenseFileEntity 
+import {
+  ExpenseEntity,
+  ExpenseType,
+  ExpenseLocationEntity,
+  ExpenseSubExpense,
+  ExpenseFileEntity,
 } from '../entities/wallet.entity';
 
 export class ExpenseFactory {
@@ -27,7 +27,7 @@ export class ExpenseFactory {
     expense.description = data.description;
     expense.walletId = data.walletId;
     expense.type = data.type || ExpenseType.expense;
-    expense.category = data.category || 'uncategorized';
+    expense.category = data.category || 'none';
     expense.date = data.date || new Date();
     expense.schedule = data.schedule || false;
     expense.subscriptionId = data.subscriptionId;
@@ -113,23 +113,24 @@ export class ExpenseFactory {
     return location;
   }
 
-  static createExpenseFile(data: {
-    url: string;
-    expenseId: ExpenseEntity;
-  }): ExpenseFileEntity {
+  static createExpenseFile(data: { url: string; expenseId: ExpenseEntity }): ExpenseFileEntity {
     const file = new ExpenseFileEntity();
     file.url = data.url;
     file.expenseId = data.expenseId;
     return file;
   }
 
-  static createExpenseFromPrediction(prediction: {
-    merchant: string;
-    total_price: number;
-    date: string;
-    title: string;
-    category: string;
-  }, walletId: string, balanceBeforeInteraction?: number): ExpenseEntity {
+  static createExpenseFromPrediction(
+    prediction: {
+      merchant: string;
+      total_price: number;
+      date: string;
+      title: string;
+      category: string;
+    },
+    walletId: string,
+    balanceBeforeInteraction?: number,
+  ): ExpenseEntity {
     return this.createExpense({
       amount: prediction.total_price,
       description: prediction.title,
@@ -143,15 +144,17 @@ export class ExpenseFactory {
     });
   }
 
-  static createBulkExpenses(expenses: Array<{
-    amount: number;
-    description: string;
-    walletId: string;
-    type?: ExpenseType;
-    category?: string;
-    date?: Date;
-  }>): ExpenseEntity[] {
-    return expenses.map(expense => this.createExpense(expense));
+  static createBulkExpenses(
+    expenses: Array<{
+      amount: number;
+      description: string;
+      walletId: string;
+      type?: ExpenseType;
+      category?: string;
+      date?: Date;
+    }>,
+  ): ExpenseEntity[] {
+    return expenses.map((expense) => this.createExpense(expense));
   }
 
   static createExpenseWithSubExpenses(
@@ -167,16 +170,16 @@ export class ExpenseFactory {
       description: string;
       amount: number;
       category: string;
-    }>
+    }>,
   ): {
     expense: ExpenseEntity;
     subExpenses: ExpenseSubExpense[];
   } {
     const expense = this.createExpense(mainExpense);
-    
+
     return {
       expense,
-      subExpenses: subExpenses.map(sub => {
+      subExpenses: subExpenses.map((sub) => {
         const subExpense = new ExpenseSubExpense();
         subExpense.description = sub.description;
         subExpense.amount = sub.amount;

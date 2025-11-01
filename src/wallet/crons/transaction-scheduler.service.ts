@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { WalletService } from '../services/wallet.service';
 import { SubscriptionService } from '../services/subscriptions.service';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import { BillingCycleEnum, SubscriptionEntity } from '../entities/subscription.entity';
 import { ExpenseType } from '../entities/wallet.entity';
 

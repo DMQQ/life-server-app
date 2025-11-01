@@ -131,17 +131,30 @@ export class TimelineService {
   }
 
   async removeTimeline(id: string, userId: string) {
-    await this.timelineFilesRepository.delete({
-      timelineId: id as any,
-    });
+    try {
+      const timeline = await this.timelineRepository.findOne({
+        where: { id, userId },
+        relations: ['todos', 'todos.files'],
+      });
 
-    const entity = await this.timelineTodosRepository.find({
-      where: { timelineId: id },
-    });
+      if (!timeline) {
+        throw new Error('Timeline not found');
+      }
 
-    await this.timelineTodosRepository.remove(entity);
+      const files = timeline.todos.flatMap((todo) => todo.files);
 
-    await this.timelineRepository.delete({ id, userId });
+      if (files.length > 0) {
+        await this.todoFilesRepository.remove(files);
+      }
+
+      if (timeline.todos.length > 0) {
+        await this.timelineTodosRepository.remove(timeline.todos);
+      }
+
+      await this.timelineRepository.remove(timeline);
+    } catch (err) {
+      console.log(err);
+    }
   }
 
   async createTimeline(input: CreateTimelineProps & { userId: string }) {
