@@ -2,6 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TimelineEntity } from 'src/timeline/timeline.entity';
 import { Like, Repository } from 'typeorm';
+import * as dayjs from 'dayjs';
+import * as timezone from 'dayjs/plugin/timezone';
+import * as utc from 'dayjs/plugin/utc';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 interface FindEventsResponse {
   title: string;
@@ -29,10 +35,9 @@ export class TimelineScheduleService {
   ) {}
 
   async findEventsByTypeWithCurrentTime(type: 'beginTime' | 'endTime'): Promise<FindEventsResponse[]> {
-    const now = new Date();
-    const warsawTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Warsaw' }));
-    const currentDate = warsawTime.toISOString().split('T')[0]; // YYYY-MM-DD
-    const currentTime = warsawTime.toTimeString().split(' ')[0].substring(0, 5) + ':00'; // HH:mm:00
+    const warsawTime = dayjs().tz('Europe/Warsaw');
+    const currentDate = warsawTime.format('YYYY-MM-DD');
+    const currentTime = warsawTime.format('HH:mm:ss');
 
     console.log(`Current Warsaw Date: ${currentDate}, Time: ${currentTime}`);
 
