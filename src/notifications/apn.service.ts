@@ -117,7 +117,7 @@ export class ApnService {
 
     return {
       headers: {
-        'apns-topic': 'com.dmq.mylifemobile',
+        'apns-topic': 'com.dmq.mylifemobile.push-type.liveactivity',
         'apns-push-type': 'liveactivity',
         'apns-priority': '10',
         'apns-expiration': '0',
