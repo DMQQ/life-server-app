@@ -6,21 +6,23 @@ import {
   TimelineTodosEntity,
   TodoFilesEntity,
 } from 'src/timeline/timeline.entity';
+import { LiveActivityEntity } from './live-activity.entity';
 import { TimelineService } from './timeline.service';
 import { TimelineResolver } from './timeline.resolver';
+import { LiveActivityService } from './live-activity.service';
+import { LiveActivityResolver } from './live-activity.resolver';
 import { TimelineSchedule } from './timeline.schedule';
 import { NotificationsModule } from 'src/notifications/notifications.module';
 import { TimelineScheduleService } from './timelineSchedule.service';
 import { WalletModule } from '../wallet/wallet.module';
 import { TimelineSubscriber } from './timeline.subscriber';
-import { DataSource } from 'typeorm';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([TimelineEntity, TimelineFilesEntity, TimelineTodosEntity, TodoFilesEntity]),
+    TypeOrmModule.forFeature([TimelineEntity, TimelineFilesEntity, TimelineTodosEntity, TodoFilesEntity, LiveActivityEntity]),
     NotificationsModule,
     WalletModule,
   ],
-  providers: [TimelineService, TimelineResolver, TimelineSchedule, TimelineScheduleService, TimelineSubscriber],
+  providers: [TimelineService, TimelineResolver, TimelineSchedule, TimelineScheduleService, TimelineSubscriber, LiveActivityService, LiveActivityResolver],
 })
 export class TimelineModule {}

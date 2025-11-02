@@ -6,9 +6,11 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { LiveActivityEntity } from './live-activity.entity';
 
 @ObjectType()
 @Entity('timeline')
@@ -75,6 +77,9 @@ export class TimelineEntity {
   @Field(() => [TimelineTodosEntity])
   @OneToMany(() => TimelineTodosEntity, (todo) => todo.timelineId)
   todos: TimelineTodosEntity[];
+
+  @OneToOne(() => LiveActivityEntity, (liveActivity) => liveActivity.timeline)
+  liveActivity: LiveActivityEntity;
 }
 
 @ObjectType()
