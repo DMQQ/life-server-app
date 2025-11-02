@@ -13,10 +13,13 @@ import { LiveActivityService } from './live-activity.service';
 @InputType()
 class SetUpdateTokenInput {
   @Field(() => ID)
-  activityId: string;
+  activityId: string; // iOS Live Activity ID (not reliable for DB lookup)
 
   @Field(() => String)
   updateToken: string;
+
+  @Field(() => String, { nullable: true })
+  timelineId?: string; // The eventId from attributes (timeline.id) - reliable identifier
 }
 
 @UseGuards(AuthGuard)
@@ -26,23 +29,40 @@ class SetUpdateTokenInput {
 export class LiveActivityResolver {
   constructor(private liveActivityService: LiveActivityService) {}
 
-  @Mutation(() => LiveActivityEntity)
+  @Mutation(() => Boolean)
   async setLiveActivityUpdateToken(
     @Args('input') input: SetUpdateTokenInput,
     @User() userId: string,
-  ): Promise<LiveActivityEntity> {
-    // Try to find by activity ID first
-    let activity = await this.liveActivityService.findById(input.activityId);
-    
-    // If not found, try to find by timeline ID (for remote activities)
-    if (!activity) {
-      activity = await this.liveActivityService.findActivityByTimelineId(input.activityId);
-    }
-    
-    if (!activity) {
-      throw new Error(`Live activity not found for ID: ${input.activityId}`);
-    }
+  ): Promise<Boolean> {
+    try {
+      let activity: LiveActivityEntity | null = null;
 
-    return this.liveActivityService.setUpdateToken(activity.id, input.updateToken);
+      // First, try to find by timelineId if provided (most reliable)
+      if (input.timelineId) {
+        activity = await this.liveActivityService.findActivityByTimelineId(input.timelineId);
+      }
+
+      // Fallback: try to find by activityId as timelineId
+      if (!activity) {
+        activity = await this.liveActivityService.findActivityByTimelineId(input.activityId);
+      }
+
+      // Last resort: try to find by database ID
+      if (!activity) {
+        activity = await this.liveActivityService.findById(input.activityId);
+      }
+
+      if (!activity) {
+        console.error(`No live activity found for activityId: ${input.activityId}, timelineId: ${input.timelineId}`);
+        return false;
+      }
+
+      await this.liveActivityService.setUpdateToken(activity.id, input.updateToken);
+      console.log(`Successfully set update token for Live Activity ${activity.id} (timeline: ${activity.timelineId})`);
+      return true;
+    } catch (error) {
+      console.error('Error setting Live Activity update token:', error);
+      return false;
+    }
   }
 }
