@@ -148,6 +148,8 @@ export class ApnService {
             todos: timeline.todos || [],
           },
           alert: { title: '', body: '', sound: 'default' },
+
+          'dismissal-date': Math.floor(dayjs(timeline.endTime).add(1, 'minute').valueOf() / 1000),
         },
       },
     };
