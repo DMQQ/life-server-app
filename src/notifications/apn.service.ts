@@ -28,6 +28,13 @@ export class ApnService {
     const hostname = process.env.NODE_ENV === 'production' ? 'api.push.apple.com' : 'api.development.push.apple.com';
     const path = `/3/device/${deviceToken}`;
 
+    console.log('Sending APNs request to:', {
+      hostname,
+      path,
+      headers,
+      body,
+    });
+
     return new Promise((resolve, reject) => {
       const client = http2.connect(`https://${hostname}`);
 
