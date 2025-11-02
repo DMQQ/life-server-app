@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import * as fs from 'fs';
+import * as http2 from 'http2';
 import * as dayjs from 'dayjs';
 import { NotificationsEntity } from './notifications.entity';
 
@@ -25,55 +26,86 @@ export class ApnService {
 
   async sendRequest(body: any, headers: Record<string, string>, deviceToken: string): Promise<any> {
     const hostname = true ? 'api.push.apple.com' : 'api.development.push.apple.com';
-    const url = `https://${hostname}/3/device/${deviceToken}`;
-
-    const requestHeaders = {
-      authorization: `bearer ${this.generateAPNsToken()}`,
-      'content-type': 'application/json',
-      ...headers,
-    };
+    const path = `/3/device/${deviceToken}`;
 
     console.log('Sending APNs request to:', {
-      url,
-      headers: requestHeaders,
+      hostname,
+      path,
+      headers,
       body: JSON.stringify(body, null, 2),
     });
 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: requestHeaders,
-        body: JSON.stringify(body),
+    return new Promise((resolve, reject) => {
+      const client = http2.connect(`https://${hostname}`);
+
+      client.on('error', (err) => {
+        console.error('HTTP/2 client error:', err);
+        client.close();
+        reject(err);
       });
 
-      const responseData = await response.text();
+      const requestHeaders = {
+        ':method': 'POST',
+        ':path': path,
+        ':scheme': 'https',
+        ':authority': hostname,
+        authorization: `bearer ${this.generateAPNsToken()}`,
+        ...headers,
+      };
 
-      console.log('APNs Response:', {
-        status: response.status,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: responseData,
+      const req = client.request(requestHeaders);
+
+      let responseData = '';
+      let statusCode = 0;
+      let responseHeaders = {};
+
+      req.on('response', (headers) => {
+        statusCode = headers[':status'];
+        responseHeaders = headers;
+        console.log('APNs Response Headers:', headers);
       });
 
-      if (response.status === 200) {
-        return { success: true, status: response.status, data: responseData };
-      } else {
-        let errorResponse;
-        try {
-          errorResponse = responseData ? JSON.parse(responseData) : { reason: 'Unknown error' };
-        } catch (e) {
-          errorResponse = { reason: `Parse error: ${responseData}` };
+      req.on('data', (chunk) => {
+        responseData += chunk;
+      });
+
+      req.on('end', () => {
+        client.close();
+
+        console.log('APNs Response:', {
+          status: statusCode,
+          headers: responseHeaders,
+          body: responseData,
+        });
+
+        if (statusCode === 200) {
+          resolve({ success: true, status: statusCode, data: responseData });
+        } else {
+          let errorResponse;
+          try {
+            errorResponse = responseData ? JSON.parse(responseData) : { reason: 'Unknown error' };
+          } catch (e) {
+            errorResponse = { reason: `Parse error: ${responseData}` };
+          }
+
+          resolve({
+            success: false,
+            status: statusCode,
+            error: errorResponse,
+          });
         }
+      });
 
-        return {
-          success: false,
-          status: response.status,
-          error: errorResponse,
-        };
-      }
-    } catch (error) {
-      console.error('Request error:', error);
-      throw error;
-    }
+      req.on('error', (err) => {
+        console.error('Request error:', err);
+        client.close();
+        reject(err);
+      });
+
+      const payloadString = JSON.stringify(body);
+      req.write(payloadString);
+      req.end();
+    });
   }
 
   public async sendTimelineActivity(notification: NotificationsEntity, timeline: any) {
@@ -104,7 +136,7 @@ export class ApnService {
           'attributes-type': 'WidgetAttributes',
           attributes: {
             eventId: timeline.id,
-            deepLinkURL: `mylife://timeline/id/${timeline.id}`,
+            deepLinkURL: `mylife://timeline/${timeline.id}`,
           },
           'content-state': {
             title: timeline.title,
