@@ -159,17 +159,13 @@ export class TimelineService {
 
   async createTimeline(input: CreateTimelineProps & { userId: string }) {
     try {
-      const response = await this.timelineRepository.insert({
+      const response = await this.timelineRepository.save({
         ...input,
         beginTime: excludeSeconds(input.beginTime),
         endTime: excludeSeconds(input.endTime),
       });
 
-      return this.timelineRepository.findOne({
-        where: {
-          id: response.identifiers[0].id,
-        },
-      });
+      return response;
     } catch (error) {
       console.log(error);
     }

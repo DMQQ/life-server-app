@@ -111,19 +111,16 @@ export class ApnService {
 
   public async sendTimelineActivity(notification: NotificationsEntity, timeline: any) {
     const apnPayload = await this.constructTimelinePayload(timeline);
-    console.log('Sending Live Activity with payload:', apnPayload);
     return this.sendRequest(apnPayload.payload, apnPayload.headers, notification.liveActivityToken);
   }
 
   public async updateTimelineActivity(updateToken: string, timeline: any) {
     const apnPayload = await this.constructTimelineUpdatePayload(timeline);
-    console.log('Updating Live Activity with payload:', apnPayload);
     return this.sendRequest(apnPayload.payload, apnPayload.headers, updateToken);
   }
 
   public async endTimelineActivity(updateToken: string, timeline: any) {
     const apnPayload = await this.constructTimelineEndPayload(timeline);
-    console.log('Ending Live Activity with payload:', apnPayload);
     return this.sendRequest(apnPayload.payload, apnPayload.headers, updateToken);
   }
 

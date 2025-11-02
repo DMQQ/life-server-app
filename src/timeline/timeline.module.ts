@@ -15,7 +15,7 @@ import { TimelineSchedule } from './timeline.schedule';
 import { NotificationsModule } from 'src/notifications/notifications.module';
 import { TimelineScheduleService } from './timelineSchedule.service';
 import { WalletModule } from '../wallet/wallet.module';
-import { TimelineSubscriber } from './timeline.subscriber';
+import { TimelineTodosSubscriber, TimelineSubscriber } from './timeline.subscriber';
 
 @Module({
   imports: [
@@ -23,6 +23,6 @@ import { TimelineSubscriber } from './timeline.subscriber';
     NotificationsModule,
     WalletModule,
   ],
-  providers: [TimelineService, TimelineResolver, TimelineSchedule, TimelineScheduleService, TimelineSubscriber, LiveActivityService, LiveActivityResolver],
+  providers: [TimelineService, TimelineResolver, TimelineSchedule, TimelineScheduleService, TimelineTodosSubscriber, TimelineSubscriber, LiveActivityService, LiveActivityResolver],
 })
 export class TimelineModule {}
