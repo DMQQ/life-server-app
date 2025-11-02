@@ -3,6 +3,8 @@ import { Cron } from '@nestjs/schedule';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { ExpoPushMessage } from 'expo-server-sdk';
 import { TimelineScheduleService } from './timelineSchedule.service';
+import * as dayjs from 'dayjs';
+
 interface TodoResponse {
   id: string;
   title: string;
@@ -12,7 +14,6 @@ interface TodoResponse {
 import { BaseScheduler } from '../notifications/scheduler-base.service';
 import { WalletService } from '../wallet/services/wallet.service';
 import { ExpenseService } from '../wallet/services/expense.service';
-import dayjs from 'dayjs';
 
 @Injectable()
 export class TimelineSchedule extends BaseScheduler {

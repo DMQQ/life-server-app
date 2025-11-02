@@ -116,7 +116,7 @@ export class ApnService {
   public async endTimelineActivity(notification: NotificationsEntity, timeline: any) {
     const apnPayload = await this.constructTimelinePayload(timeline);
     apnPayload.payload.aps.event = 'end';
-    apnPayload.payload.aps['dismissal-date"'] = Math.floor(Date.now() / 1000) - 10;
+    apnPayload.payload.aps['dismissal-date'] = Math.floor(Date.now() / 1000) - 10;
     delete apnPayload.payload.aps['alert'];
     return this.sendRequest(apnPayload.payload, apnPayload.headers, notification.liveActivityToken);
   }
@@ -149,7 +149,14 @@ export class ApnService {
           },
           alert: { title: '', body: '', sound: 'default' },
 
-          'dismissal-date': Math.floor(dayjs(timeline.endTime, 'HH:mm:ss').add(1, 'minute').valueOf() / 1000),
+          'dismissal-date': Math.floor(
+            dayjs()
+              .hour(parseInt(timeline.endTime.split(':')[0]))
+              .minute(parseInt(timeline.endTime.split(':')[1]))
+              .second(parseInt(timeline.endTime.split(':')[2] || '0'))
+              .add(1, 'minute')
+              .valueOf() / 1000,
+          ),
         },
       },
     };
