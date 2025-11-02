@@ -42,7 +42,7 @@ export class LiveActivityService {
   ): Promise<LiveActivityEntity> {
     await this.liveActivityRepository.update(id, {
       ...input,
-      lastUpdated: Date.now(),
+      lastUpdated: input.lastUpdated || Date.now(),
     });
 
     return this.liveActivityRepository.findOne({ where: { id } });

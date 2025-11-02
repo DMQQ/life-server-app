@@ -113,12 +113,19 @@ export class NotificationsService {
   }
 
   async sendTimelineEndActivity(userId: string, event: any) {
-    const userToken = await this.findUserToken(userId);
+    // Find the live activity and its update token for this timeline
+    const liveActivity = await this.notificationsRepository.manager
+      .createQueryBuilder()
+      .select('*')
+      .from('live_activities', 'la')
+      .where('la.timelineId = :timelineId', { timelineId: event.id })
+      .andWhere('la.status IN (:...statuses)', { statuses: ['sent', 'update'] })
+      .getRawOne();
 
-    if (userToken) {
-      return this.apnService.endTimelineActivity(userToken, event);
+    if (liveActivity && liveActivity.updateToken) {
+      return this.apnService.endTimelineActivity(liveActivity.updateToken, event);
     } else {
-      console.error(`No notification token found for userId: ${userId}`);
+      console.error(`No active live activity or update token found for timeline: ${event.id}`);
     }
   }
 

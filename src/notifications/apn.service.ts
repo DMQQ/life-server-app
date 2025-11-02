@@ -113,12 +113,14 @@ export class ApnService {
     return this.sendRequest(apnPayload.payload, apnPayload.headers, notification.liveActivityToken);
   }
 
-  public async endTimelineActivity(notification: NotificationsEntity, timeline: any) {
-    const apnPayload = await this.constructTimelinePayload(timeline);
-    apnPayload.payload.aps.event = 'end';
-    apnPayload.payload.aps['dismissal-date'] = Math.floor(Date.now() / 1000) - 10;
-    delete apnPayload.payload.aps['alert'];
-    return this.sendRequest(apnPayload.payload, apnPayload.headers, notification.liveActivityToken);
+  public async updateTimelineActivity(updateToken: string, timeline: any) {
+    const apnPayload = await this.constructTimelineUpdatePayload(timeline);
+    return this.sendRequest(apnPayload.payload, apnPayload.headers, updateToken);
+  }
+
+  public async endTimelineActivity(updateToken: string, timeline: any) {
+    const apnPayload = await this.constructTimelineEndPayload(timeline);
+    return this.sendRequest(apnPayload.payload, apnPayload.headers, updateToken);
   }
 
   private async constructTimelinePayload(timeline: any) {
@@ -148,15 +150,63 @@ export class ApnService {
             todos: timeline.todos || [],
           },
           alert: { title: timeline.title, body: timeline.description, sound: 'default' },
+        },
+      },
+    };
+  }
 
-          // 'dismissal-date': Math.floor(
-          //   dayjs()
-          //     .hour(parseInt(timeline.endTime.split(':')[0]))
-          //     .minute(parseInt(timeline.endTime.split(':')[1]))
-          //     .second(parseInt(timeline.endTime.split(':')[2] || '0'))
-          //     .add(1, 'minute')
-          //     .valueOf() / 1000,
-          // ),
+  private async constructTimelineUpdatePayload(timeline: any) {
+    const completedTodos = timeline.todos ? timeline.todos.filter((todo: any) => todo.isCompleted).length : 0;
+    const totalTodos = timeline.todos ? timeline.todos.length : 0;
+    const progress = totalTodos > 0 ? completedTodos / totalTodos : 1;
+
+    return {
+      headers: {
+        'apns-topic': 'com.dmq.mylifemobile.push-type.liveactivity',
+        'apns-push-type': 'liveactivity',
+        'apns-priority': '10',
+        'apns-expiration': '0',
+      },
+      payload: {
+        aps: {
+          timestamp: Math.floor(Date.now() / 1000),
+          event: 'update',
+          'content-state': {
+            title: timeline.title,
+            description: timeline.description,
+            startTime: timeline.beginTime,
+            endTime: timeline.endTime,
+            isCompleted: timeline.isCompleted === 0 ? false : true,
+            progress: progress,
+            todos: timeline.todos || [],
+          },
+        },
+      },
+    };
+  }
+
+  private async constructTimelineEndPayload(timeline: any) {
+    return {
+      headers: {
+        'apns-topic': 'com.dmq.mylifemobile.push-type.liveactivity',
+        'apns-push-type': 'liveactivity',
+        'apns-priority': '10',
+        'apns-expiration': '0',
+      },
+      payload: {
+        aps: {
+          timestamp: Math.floor(Date.now() / 1000),
+          event: 'end',
+          'content-state': {
+            title: timeline.title,
+            description: timeline.description,
+            startTime: timeline.beginTime,
+            endTime: timeline.endTime,
+            isCompleted: true,
+            progress: 1,
+            todos: timeline.todos || [],
+          },
+          'dismissal-date': Math.floor(Date.now() / 1000) + 10, // Dismiss after 10 seconds
         },
       },
     };

@@ -36,7 +36,7 @@ export class LiveActivityEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   updateToken: string;
 
-  @Column({ type: 'bigint', default: () => 'UNIX_TIMESTAMP() * 1000' })
+  @Column({ type: 'bigint', default: 0 })
   lastUpdated: number;
 
   @Column({ type: 'uuid' })

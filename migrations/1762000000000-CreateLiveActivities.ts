@@ -38,7 +38,7 @@ export class CreateLiveActivities1762000000000 implements MigrationInterface {
           {
             name: 'lastUpdated',
             type: 'bigint',
-            default: 'UNIX_TIMESTAMP() * 1000',
+            default: '0',
           },
           {
             name: 'timelineId',
