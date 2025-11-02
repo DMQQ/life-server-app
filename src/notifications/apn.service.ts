@@ -145,6 +145,7 @@ export class ApnService {
             endTime: timeline.endTime,
             isCompleted: false,
             progress: 1,
+            todos: timeline.todos || [],
           },
           alert: { title: '', body: '', sound: 'default' },
         },

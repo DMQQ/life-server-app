@@ -34,16 +34,20 @@ export class TimelineSchedule extends BaseScheduler {
     for (const event of events) {
       const todos = await this.timelineScheduleService.getUncompletedTodosForUser(event.id);
 
-      if (todos.length > 0) {
-        const todosText = todos.map((todo) => `• ${todo.title}`).join('\n');
-        event.description = `${event.description}\nTodos:\n${todosText}`;
-      }
+      const eventWithTodos = {
+        ...event,
+        todos: todos.map((todo: TodoResponse) => ({
+          id: todo.id,
+          title: todo.title,
+          isCompleted: todo.isCompleted,
+        })),
+      };
 
       const userToken = await this.notificationService.findUserToken(event.userId);
 
       if (userToken?.liveActivityToken) {
         try {
-          await this.notificationService.sendTimelineLiveActivity(event.userId, event);
+          await this.notificationService.sendTimelineLiveActivity(event.userId, eventWithTodos);
           console.log(`Live Activity notification sent for event ${event.id}`);
         } catch (error) {
           console.error(`Failed to send Live Activity for event ${event.id}:`, error);
