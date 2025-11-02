@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey } from 'typeorm';
+import { MigrationInterface, QueryRunner, Table, TableForeignKey, TableIndex } from 'typeorm';
 
 export class CreateLiveActivities1762000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -59,23 +59,12 @@ export class CreateLiveActivities1762000000000 implements MigrationInterface {
         onDelete: 'CASCADE',
       }),
     );
-
-    // Create unique index to ensure one-to-one relationship
-    await queryRunner.createIndex('live_activities', {
-      name: 'IDX_LIVE_ACTIVITIES_TIMELINE_ID_UNIQUE',
-      columnNames: ['timelineId'],
-      isUnique: true,
-    });
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     const table = await queryRunner.getTable('live_activities');
     if (table) {
-      // Drop unique index
-      await queryRunner.dropIndex('live_activities', 'IDX_LIVE_ACTIVITIES_TIMELINE_ID_UNIQUE');
-      
-      // Drop foreign key
-      const foreignKey = table.foreignKeys.find(fk => fk.columnNames.indexOf('timelineId') !== -1);
+      const foreignKey = table.foreignKeys.find((fk) => fk.columnNames.indexOf('timelineId') !== -1);
       if (foreignKey) {
         await queryRunner.dropForeignKey('live_activities', foreignKey);
       }
