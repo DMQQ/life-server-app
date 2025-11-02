@@ -25,7 +25,7 @@ export class ApnService {
   }
 
   async sendRequest(body: any, headers: Record<string, string>, deviceToken: string): Promise<any> {
-    const hostname = process.env.NODE_ENV === 'production' ? 'api.push.apple.com' : 'api.development.push.apple.com';
+    const hostname = false ? 'api.push.apple.com' : 'api.development.push.apple.com';
     const path = `/3/device/${deviceToken}`;
 
     console.log('Sending APNs request to:', {
@@ -143,13 +143,13 @@ export class ApnService {
             description: timeline.description,
             startTime: timeline.beginTime,
             endTime: timeline.endTime,
-            isCompleted: false,
+            isCompleted: timeline.isCompleted,
             progress: 1,
             todos: timeline.todos || [],
           },
           alert: { title: '', body: '', sound: 'default' },
 
-          // 'dismissal-date': Math.floor(dayjs(timeline.endTime).add(1, 'minute').valueOf() / 1000),
+          'dismissal-date': Math.floor(dayjs(timeline.endTime, 'HH:mm:ss').add(1, 'minute').valueOf() / 1000),
         },
       },
     };
