@@ -13,13 +13,13 @@ import { LiveActivityService } from './live-activity.service';
 @InputType()
 class SetUpdateTokenInput {
   @Field(() => ID)
-  activityId: string; // iOS Live Activity ID (not reliable for DB lookup)
+  activityId: string;
 
   @Field(() => String)
   updateToken: string;
 
   @Field(() => String, { nullable: true })
-  timelineId?: string; // The eventId from attributes (timeline.id) - reliable identifier
+  timelineId?: string;
 }
 
 @UseGuards(AuthGuard)
@@ -37,17 +37,14 @@ export class LiveActivityResolver {
     try {
       let activity: LiveActivityEntity | null = null;
 
-      // First, try to find by timelineId if provided (most reliable)
       if (input.timelineId) {
         activity = await this.liveActivityService.findActivityByTimelineId(input.timelineId);
       }
 
-      // Fallback: try to find by activityId as timelineId
       if (!activity) {
         activity = await this.liveActivityService.findActivityByTimelineId(input.activityId);
       }
 
-      // Last resort: try to find by database ID
       if (!activity) {
         activity = await this.liveActivityService.findById(input.activityId);
       }
