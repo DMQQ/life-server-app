@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
 import { Brackets, Repository, Not, IsNull } from 'typeorm';
 import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
@@ -521,15 +521,11 @@ export class WalletService {
       wallet.id,
       wallet.balance,
     );
-    
+
     const insert = await this.expenseRepository.insert(predictionExpense);
-    
-    await this._updateWalletBalance(
-      userId,
-      prediction.total_price,
-      ExpenseType.expense,
-    );
-    
+
+    await this._updateWalletBalance(userId, prediction.total_price, ExpenseType.expense);
+
     return this.expenseRepository.findOne({
       where: { id: insert.identifiers[0].id },
       relations: ['subexpenses', 'subscription'],
