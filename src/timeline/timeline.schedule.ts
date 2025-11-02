@@ -32,7 +32,7 @@ export class TimelineSchedule extends BaseScheduler {
     console.log(`Found ${events.length} events starting now.`);
 
     for (const event of events) {
-      const todos = await this.timelineScheduleService.getUncompletedTodosForUser(event.userId);
+      const todos = await this.timelineScheduleService.getUncompletedTodosForUser(event.id);
 
       if (todos.length > 0) {
         const todosText = todos.map((todo) => `• ${todo.title}`).join('\n');
