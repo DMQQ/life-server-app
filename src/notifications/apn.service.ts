@@ -136,7 +136,7 @@ export class ApnService {
           'attributes-type': 'WidgetAttributes',
           attributes: {
             eventId: timeline.id,
-            deepLinkURL: `mylife://timeline/${timeline.id}`,
+            deepLinkURL: `mylife://timeline/id/${timeline.id}`,
           },
           'content-state': {
             title: timeline.title,
