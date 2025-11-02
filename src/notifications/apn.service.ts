@@ -111,16 +111,19 @@ export class ApnService {
 
   public async sendTimelineActivity(notification: NotificationsEntity, timeline: any) {
     const apnPayload = await this.constructTimelinePayload(timeline);
+    console.log('Sending Live Activity with payload:', apnPayload);
     return this.sendRequest(apnPayload.payload, apnPayload.headers, notification.liveActivityToken);
   }
 
   public async updateTimelineActivity(updateToken: string, timeline: any) {
     const apnPayload = await this.constructTimelineUpdatePayload(timeline);
+    console.log('Updating Live Activity with payload:', apnPayload);
     return this.sendRequest(apnPayload.payload, apnPayload.headers, updateToken);
   }
 
   public async endTimelineActivity(updateToken: string, timeline: any) {
     const apnPayload = await this.constructTimelineEndPayload(timeline);
+    console.log('Ending Live Activity with payload:', apnPayload);
     return this.sendRequest(apnPayload.payload, apnPayload.headers, updateToken);
   }
 
@@ -146,9 +149,9 @@ export class ApnService {
             description: timeline.description,
             startTime: timeline.beginTime,
             endTime: timeline.endTime,
-            isCompleted: timeline.isCompleted === 0 ? false : true,
+            isCompleted: timeline.isCompleted === 1 || timeline.isCompleted === true,
             progress: 1,
-            todos: timeline.todos || [],
+            todos: this.sortTodos(timeline.todos || []),
           },
           alert: { title: timeline.title, body: timeline.description, sound: 'default' },
         },
@@ -177,9 +180,9 @@ export class ApnService {
             description: timeline.description,
             startTime: timeline.beginTime,
             endTime: timeline.endTime,
-            isCompleted: timeline.isCompleted === 0 ? false : true,
+            isCompleted: timeline.isCompleted === 1 || timeline.isCompleted === true,
             progress: progress,
-            todos: timeline.todos || [],
+            todos: this.sortTodos(timeline.todos || []),
           },
         },
       },
@@ -203,13 +206,24 @@ export class ApnService {
             description: timeline.description,
             startTime: timeline.beginTime,
             endTime: timeline.endTime,
-            isCompleted: true,
+            isCompleted: timeline.isCompleted === 1 || timeline.isCompleted === true,
             progress: 1,
-            todos: timeline.todos || [],
+            todos: this.sortTodos(timeline.todos || []),
           },
           'dismissal-date': Math.floor(Date.now() / 1000) + 10, // Dismiss after 10 seconds
         },
       },
     };
+  }
+
+  private sortTodos(todos: any[]): any[] {
+    return [...todos].sort((a, b) => {
+      const aCompleted = a.isCompleted === 1 || a.isCompleted === true;
+      const bCompleted = b.isCompleted === 1 || b.isCompleted === true;
+
+      if (!aCompleted && bCompleted) return -1;
+      if (aCompleted && !bCompleted) return 1;
+      return 0;
+    });
   }
 }
