@@ -32,7 +32,7 @@ export class ApnService {
       hostname,
       path,
       headers,
-      body,
+      body: JSON.stringify(body, null, 2),
     });
 
     return new Promise((resolve, reject) => {
@@ -143,20 +143,20 @@ export class ApnService {
             description: timeline.description,
             startTime: timeline.beginTime,
             endTime: timeline.endTime,
-            isCompleted: timeline.isCompleted,
+            isCompleted: timeline.isCompleted === 0 ? false : true,
             progress: 1,
             todos: timeline.todos || [],
           },
-          alert: { title: '', body: '', sound: 'default' },
+          alert: { title: timeline.title, body: timeline.description, sound: 'default' },
 
-          'dismissal-date': Math.floor(
-            dayjs()
-              .hour(parseInt(timeline.endTime.split(':')[0]))
-              .minute(parseInt(timeline.endTime.split(':')[1]))
-              .second(parseInt(timeline.endTime.split(':')[2] || '0'))
-              .add(1, 'minute')
-              .valueOf() / 1000,
-          ),
+          // 'dismissal-date': Math.floor(
+          //   dayjs()
+          //     .hour(parseInt(timeline.endTime.split(':')[0]))
+          //     .minute(parseInt(timeline.endTime.split(':')[1]))
+          //     .second(parseInt(timeline.endTime.split(':')[2] || '0'))
+          //     .add(1, 'minute')
+          //     .valueOf() / 1000,
+          // ),
         },
       },
     };

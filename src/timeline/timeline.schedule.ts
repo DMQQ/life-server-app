@@ -40,7 +40,8 @@ export class TimelineSchedule extends BaseScheduler {
         todos: todos.map((todo: TodoResponse) => ({
           id: todo.id,
           title: todo.title,
-          isCompleted: todo.isCompleted,
+          //@ts-ignore raw z sqla 0/1 a swift oczekuje true/false
+          isCompleted: todo.isCompleted === 0 ? false : true,
         })),
       };
 

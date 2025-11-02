@@ -44,7 +44,7 @@ export class TimelineScheduleService {
     return this.timelineRepository.query(
       `
       SELECT 
-        t.id, t.title, t.description, n.token, n.isEnable, t.beginTime, t.endTime, t.userId
+        t.id, t.title, t.description, n.token, n.isEnable, t.beginTime, t.endTime, t.userId, t.isCompleted
       FROM timeline as t
         LEFT JOIN notifications as n ON t.userId = n.userId
       WHERE FIND_IN_SET(?, REPLACE(t.date, ';', ',')) > 0
