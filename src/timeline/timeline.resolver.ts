@@ -99,7 +99,7 @@ export class TimelineResolver {
 
   @Mutation(() => TimelineEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
-  createTimeline(
+  async createTimeline(
     @Args('input', { type: () => CreateTimelineInput })
     input: CreateTimelineInput,
 
@@ -108,7 +108,20 @@ export class TimelineResolver {
 
     @User() userId: string,
   ) {
-    return this.timelineService.createRepeatableTimeline({ ...input, userId }, options);
+    const timeline = await this.timelineService.createRepeatableTimeline({ ...input, userId }, options);
+
+    if (!timeline) throw new BadRequestException('Failed to create timeline');
+
+    if (timeline.id && input.todos?.length > 0) {
+      const todosToCreate = input.todos.map((todo) => ({
+        timelineId: timeline.id,
+        title: todo,
+      }));
+
+      const todos = await this.timelineService.createTimelineTodos(todosToCreate);
+    }
+
+    return this.timelineService.findOneById(timeline.id, userId);
   }
 
   @Mutation(() => TimelineEntity)

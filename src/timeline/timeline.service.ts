@@ -254,7 +254,7 @@ export class TimelineService {
     });
   }
 
-  async editTimeline(input: Partial<CreateTimelineInput>, timelineId: string) {
+  async editTimeline(input: Partial<Omit<CreateTimelineInput, 'todos'>>, timelineId: string) {
     await this.timelineRepository.update(
       {
         id: timelineId,

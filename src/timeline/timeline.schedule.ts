@@ -55,18 +55,17 @@ export class TimelineSchedule extends BaseScheduler {
           await this.notificationService.sendTimelineLiveActivity(event.userId, eventWithTodos);
           console.log(`Live Activity notification sent for event ${event.id}`);
 
-          // Create LiveActivity database entry
           const currentDate = dayjs().format('YYYY-MM-DD');
           const beginTime = this.parseTimeToTimestamp(currentDate, event.beginTime);
           const endTime = this.parseTimeToTimestamp(currentDate, event.endTime);
-          
+
           await this.liveActivityService.createActivity({
             timelineId: event.id,
             beginTime,
             endTime,
             status: LiveActivityStatus.SENT,
           });
-          
+
           console.log(`LiveActivity database entry created for event ${event.id}`);
         } catch (error) {
           console.error(`Failed to send Live Activity for event ${event.id}:`, error);
@@ -82,17 +81,13 @@ export class TimelineSchedule extends BaseScheduler {
     const events = await this.timelineScheduleService.findEventsByTypeWithCurrentTime('endTime');
 
     for (const event of events) {
-      // Check if user has live activity token
       const userToken = await this.notificationService.findUserToken(event.userId);
 
       if (userToken?.liveActivityToken) {
-        // Send Live Activity end notification
         try {
-          // Create a copy of event with ending state
           await this.notificationService.sendTimelineEndActivity(event.userId, event);
           console.log(`Live Activity end notification sent for event ${event.id}`);
 
-          // Update LiveActivity database entry to END status
           const existingActivity = await this.liveActivityService.findActivityByTimelineId(event.id);
           if (existingActivity) {
             await this.liveActivityService.updateActivity(existingActivity.id, {

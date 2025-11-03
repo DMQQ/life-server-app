@@ -19,6 +19,9 @@ export class CreateTimelineInput {
 
   @Field()
   tags: string;
+
+  @Field(() => [String], { nullable: true })
+  todos?: string[];
 }
 
 @InputType()
