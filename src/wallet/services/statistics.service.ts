@@ -283,20 +283,24 @@ export class StatisticsService {
 
     // Group by date
     const groupedByDate = result.reduce((acc, item) => {
-      const date = item.date;
-      if (!acc[date]) {
-        acc[date] = {
-          date,
-          dayOfWeek: (dayjs as any)(date).format('ddd'),
+      // Ensure date is a string in YYYY-MM-DD format
+      const dateStr = typeof item.date === 'string'
+        ? item.date.split('T')[0]  // If it has time, remove it
+        : (dayjs as any)(item.date).format('YYYY-MM-DD');  // Otherwise format it
+
+      if (!acc[dateStr]) {
+        acc[dateStr] = {
+          date: dateStr,
+          dayOfWeek: (dayjs as any)(dateStr).format('ddd'),
           categories: [],
           total: 0,
         };
       }
-      acc[date].categories.push({
+      acc[dateStr].categories.push({
         category: item.category,
         amount: parseFloat(item.total),
       });
-      acc[date].total += parseFloat(item.total);
+      acc[dateStr].total += parseFloat(item.total);
       return acc;
     }, {});
 
