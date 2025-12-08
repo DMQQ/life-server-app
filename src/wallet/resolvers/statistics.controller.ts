@@ -49,7 +49,9 @@ export class StatisticsController {
         monthlyPercentageTarget: wallet.monthlyPercentageTarget,
       },
       monthlySpendings: {
-        expense: stats[0].expense,
+        total: stats[0].total || 0,
+        expense: stats[0].expense || 0,
+        income: stats[0].income || 0,
       },
     };
   }
