@@ -1,9 +1,11 @@
-import { Controller, Get, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { StatisticsService } from '../services/statistics.service';
 import { WalletService } from '../services/wallet.service';
+import { ExpensePredictionService } from '../services/expense-prediction.service';
 import { User } from 'src/utils/decorators/user.decorator';
 import { WalletId } from 'src/utils/decorators/wallet.decorator';
+import { ExpenseType } from '../entities/wallet.entity';
 import {
   CacheInterceptor,
   DefaultCacheModule,
@@ -19,6 +21,7 @@ export class StatisticsController {
   constructor(
     private statisticsService: StatisticsService,
     private walletService: WalletService,
+    private predictionService: ExpensePredictionService,
   ) {}
 
   @Get('legend')
@@ -69,5 +72,40 @@ export class StatisticsController {
     @Query('limit') limit: string = '4',
   ) {
     return this.statisticsService.getRecentExpenses(walletId, parseInt(limit, 10));
+  }
+
+  @Post('create-expense')
+  async createExpense(
+    @User() userId: string,
+    @Body() body: {
+      amount: number;
+      description: string;
+      type: 'expense' | 'income';
+      category?: string;
+      date?: string;
+    },
+  ) {
+    const expenseType = body.type === 'income' ? ExpenseType.income : ExpenseType.expense;
+
+    // Predict category if not provided and it's an expense
+    let category = body.category || 'none';
+    if (expenseType === ExpenseType.expense && !body.category) {
+      const categoryPrediction = await this.predictionService.predictExpense(userId, body.description, body.amount);
+      category = categoryPrediction ? categoryPrediction.category : 'none';
+    }
+
+    const expense = await this.walletService.createExpense(
+      userId,
+      body.amount,
+      body.description,
+      expenseType,
+      category,
+      new Date(),
+      false,
+      false,
+      0,
+    );
+
+    return expense;
   }
 }
