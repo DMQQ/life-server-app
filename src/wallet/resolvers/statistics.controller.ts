@@ -22,7 +22,6 @@ export class StatisticsController {
   ) {}
 
   @Get('legend')
-  @UserCache(3600)
   async getStatisticsLegend(
     @WalletId() walletId: string,
     @Query('startDate') startDate: string,
@@ -33,7 +32,6 @@ export class StatisticsController {
   }
 
   @Get('wallet-summary')
-  @UserCache(3600)
   async getWalletSummary(
     @User() userId: string,
     @Query('startDate') startDate: string,
