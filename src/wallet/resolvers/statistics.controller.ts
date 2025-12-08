@@ -62,4 +62,12 @@ export class StatisticsController {
   ) {
     return this.statisticsService.dailyBreakdownByCategory(walletId, startDate, endDate);
   }
+
+  @Get('recent-expenses')
+  async getRecentExpenses(
+    @WalletId() walletId: string,
+    @Query('limit') limit: string = '4',
+  ) {
+    return this.statisticsService.getRecentExpenses(walletId, parseInt(limit, 10));
+  }
 }

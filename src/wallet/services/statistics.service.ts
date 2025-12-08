@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
 import { Repository } from 'typeorm';
-import { ExpenseEntity, LimitRange, WalletEntity, WalletLimits } from '../entities/wallet.entity';
+import { ExpenseEntity, ExpenseType, LimitRange, WalletEntity, WalletLimits } from '../entities/wallet.entity';
 
 @Injectable()
 export class StatisticsService {
@@ -324,5 +324,26 @@ export class StatisticsService {
     }
 
     return allDays;
+  }
+
+  async getRecentExpenses(walletId: string, limit: number) {
+    const expenses = await this.expenseEntity.find({
+      where: {
+        walletId,
+        type: ExpenseType.expense,
+      },
+      order: {
+        date: 'DESC',
+      },
+      take: limit,
+    });
+
+    return expenses.map(exp => ({
+      id: exp.id,
+      amount: exp.amount,
+      category: exp.category,
+      description: exp.description || '',
+      date: (dayjs as any)(exp.date).format('MMM D'),
+    }));
   }
 }
