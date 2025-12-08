@@ -271,7 +271,10 @@ export class StatisticsService {
     const result = await this.expenseEntity
       .createQueryBuilder('exp')
       .select(['DATE(exp.date) as date', 'exp.category as category', 'SUM(exp.amount) as total'])
-      .andWhere('exp.date BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .andWhere('exp.date BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      })
       .andWhere("exp.type = 'expense'")
       .andWhere('exp.walletId = :walletId', { walletId })
       .groupBy('DATE(exp.date), exp.category')
@@ -279,42 +282,24 @@ export class StatisticsService {
       .getRawMany();
 
     // Group by date
-    const groupedByDate = result.reduce(
-      (acc, item) => {
-        const date = item.date;
-        if (!acc[date]) {
-          acc[date] = {
-            date,
-            dayOfWeek: dayjs(date).format('ddd'),
-            categories: [],
-            total: 0,
-          };
-        }
-        acc[date].categories.push({
-          category: item.category,
-          amount: parseFloat(item.total),
-        });
-        acc[date].total += parseFloat(item.total);
-        return acc;
-      },
-      {} as Record<string, any>,
-    );
-
-    // Build full date range
-    const start = dayjs(startDate);
-    const end = dayjs(endDate);
-    const allDays: any[] = [];
-
-    for (let d = start; d.isBefore(end) || d.isSame(end); d = d.add(1, 'day')) {
-      const dayStr = d.format('YYYY-MM-DD');
-      allDays.push({
-        date: dayStr,
-        dayOfWeek: d.format('ddd'),
-        categories: groupedByDate[dayStr]?.categories ?? [],
-        total: groupedByDate[dayStr]?.total ?? 0,
+    const groupedByDate = result.reduce((acc, item) => {
+      const date = item.date;
+      if (!acc[date]) {
+        acc[date] = {
+          date,
+          dayOfWeek: (dayjs as any)(date).format('ddd'),
+          categories: [],
+          total: 0,
+        };
+      }
+      acc[date].categories.push({
+        category: item.category,
+        amount: parseFloat(item.total),
       });
-    }
+      acc[date].total += parseFloat(item.total);
+      return acc;
+    }, {});
 
-    return allDays;
+    return Object.values(groupedByDate);
   }
 }
