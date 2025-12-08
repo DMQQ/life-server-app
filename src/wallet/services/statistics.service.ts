@@ -327,16 +327,13 @@ export class StatisticsService {
   }
 
   async getRecentExpenses(walletId: string, limit: number) {
-    const expenses = await this.expenseEntity.find({
-      where: {
-        walletId,
-        type: ExpenseType.expense,
-      },
-      order: {
-        date: 'DESC',
-      },
-      take: limit,
-    });
+    const expenses = await this.expenseEntity
+      .createQueryBuilder('exp')
+      .where('exp.walletId = :walletId', { walletId })
+      .andWhere('exp.type = :type', { type: ExpenseType.expense })
+      .orderBy('exp.date', 'DESC')
+      .limit(limit)
+      .getMany();
 
     return expenses.map(exp => ({
       id: exp.id,
