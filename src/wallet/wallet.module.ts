@@ -29,6 +29,7 @@ import { UploadModule } from 'src/upload/upload.module';
 import { WalletMiddleware } from 'src/utils/middlewares/wallet.middleware';
 import { TextSimilarityModule } from 'src/utils/services/TextSimilarity/text-similarity.module';
 import { SubscriptionResolver } from './resolvers/subscription.resolver';
+import { StatisticsController } from './resolvers/statistics.controller';
 
 @Module({
   imports: [
@@ -66,10 +67,8 @@ import { SubscriptionResolver } from './resolvers/subscription.resolver';
     ExpenseAnalysisService,
     MoneyLeftSchedulerService,
   ],
-  exports: [
-    WalletService,
-    ExpenseService,
-  ],
+  exports: [WalletService, ExpenseService],
+  controllers: [StatisticsController],
 })
 export class WalletModule implements NestModule {
   configure(consumer: any) {
