@@ -304,6 +304,25 @@ export class StatisticsService {
       return acc;
     }, {});
 
-    return Object.values(groupedByDate);
+    // Ensure all days in the range are included
+    const start = (dayjs as any)(startDate);
+    const end = (dayjs as any)(endDate);
+    const allDays = [];
+
+    let current = start;
+    while (current.isBefore(end) || current.isSame(end, 'day')) {
+      const dateStr = current.format('YYYY-MM-DD');
+      allDays.push(
+        groupedByDate[dateStr] || {
+          date: dateStr,
+          dayOfWeek: current.format('ddd'),
+          categories: [],
+          total: 0,
+        }
+      );
+      current = current.add(1, 'day');
+    }
+
+    return allDays;
   }
 }
