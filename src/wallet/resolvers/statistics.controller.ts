@@ -9,6 +9,7 @@ import { ExpenseType } from '../entities/wallet.entity';
 import {
   CacheInterceptor,
   DefaultCacheModule,
+  InvalidateCache,
   InvalidateCacheInterceptor,
   UserCache,
 } from '../../utils/services/Cache/cache.decorator';
@@ -75,6 +76,7 @@ export class StatisticsController {
   }
 
   @Post('create-expense')
+  @InvalidateCache({ invalidateCurrentUser: true })
   async createExpense(
     @User() userId: string,
     @Body() body: {
@@ -102,7 +104,7 @@ export class StatisticsController {
       category,
       new Date(),
       false,
-      false,
+      null,
       0,
     );
 
