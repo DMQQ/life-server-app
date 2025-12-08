@@ -49,14 +49,27 @@ export class CacheInterceptor implements NestInterceptor {
     }
 
     const classDefaults = this.reflector.get(DEFAULT_CACHE_MODULE_KEY, context.getClass()) || {};
-    const gqlCtx = GqlExecutionContext.create(context);
-    const accountId = gqlCtx.getContext().req.account?.accountId;
-    const gqlArgs = gqlCtx.getArgs();
+
+    // Handle both GraphQL and REST contexts
+    let accountId: string;
+    let args: any;
+
+    if (context.getType() === 'http') {
+      // REST API context
+      const request = context.switchToHttp().getRequest();
+      accountId = request.account?.accountId;
+      args = { ...request.query, ...request.params, ...request.body };
+    } else {
+      // GraphQL context
+      const gqlCtx = GqlExecutionContext.create(context);
+      accountId = gqlCtx.getContext().req.account?.accountId;
+      args = gqlCtx.getArgs();
+    }
 
     const className = context.getClass().name;
     const methodName = context.getHandler().name;
     const module = cacheMetadata.options?.module || classDefaults.module || className;
-    const argsHash = Object.keys(gqlArgs).length > 0 ? JSON.stringify(gqlArgs) : '';
+    const argsHash = args && Object.keys(args).length > 0 ? JSON.stringify(args) : '';
     const cacheKey = `${accountId}:${module}:${methodName}:${argsHash}`;
 
     try {
@@ -94,8 +107,18 @@ export class InvalidateCacheInterceptor implements NestInterceptor {
       tap(async () => {
         try {
           const classDefaults = this.reflector.get(DEFAULT_CACHE_MODULE_KEY, context.getClass()) || {};
-          const gqlCtx = GqlExecutionContext.create(context);
-          const accountId = gqlCtx.getContext().req.account?.accountId;
+
+          // Handle both GraphQL and REST contexts
+          let accountId: string;
+          if (context.getType() === 'http') {
+            // REST API context
+            const request = context.switchToHttp().getRequest();
+            accountId = request.account?.accountId;
+          } else {
+            // GraphQL context
+            const gqlCtx = GqlExecutionContext.create(context);
+            accountId = gqlCtx.getContext().req.account?.accountId;
+          }
 
           const shouldInvalidateCurrentUser =
             invalidateMetadata.invalidateCurrentUser ?? classDefaults.invalidateCurrentUser ?? false;
