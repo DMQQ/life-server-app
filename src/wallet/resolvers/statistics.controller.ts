@@ -53,4 +53,13 @@ export class StatisticsController {
       },
     };
   }
+
+  @Get('daily-breakdown')
+  async getDailyBreakdown(
+    @WalletId() walletId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.statisticsService.dailyBreakdownByCategory(walletId, startDate, endDate);
+  }
 }

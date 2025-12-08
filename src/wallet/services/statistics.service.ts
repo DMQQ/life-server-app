@@ -266,4 +266,44 @@ export class StatisticsService {
 
     return results;
   }
+
+  async dailyBreakdownByCategory(walletId: string, startDate: string, endDate: string) {
+    const result = await this.expenseEntity
+      .createQueryBuilder('exp')
+      .select([
+        'DATE(exp.date) as date',
+        'exp.category as category',
+        'SUM(exp.amount) as total',
+      ])
+      .andWhere('exp.date BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      })
+      .andWhere("exp.type = 'expense'")
+      .andWhere('exp.walletId = :walletId', { walletId })
+      .groupBy('DATE(exp.date), exp.category')
+      .orderBy('DATE(exp.date)', 'ASC')
+      .getRawMany();
+
+    // Group by date
+    const groupedByDate = result.reduce((acc, item) => {
+      const date = item.date;
+      if (!acc[date]) {
+        acc[date] = {
+          date,
+          dayOfWeek: dayjs(date).format('ddd'),
+          categories: [],
+          total: 0,
+        };
+      }
+      acc[date].categories.push({
+        category: item.category,
+        amount: parseFloat(item.total),
+      });
+      acc[date].total += parseFloat(item.total);
+      return acc;
+    }, {});
+
+    return Object.values(groupedByDate);
+  }
 }
