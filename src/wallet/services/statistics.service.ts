@@ -359,7 +359,7 @@ export class StatisticsService {
       .select([
         'MONTH(exp.date) as month',
         'YEAR(exp.date) as year',
-        "SUM(CASE WHEN exp.type = 'expense' THEN exp.amount ELSE 0 END) as totalExpense",
+        "SUM(CASE WHEN exp.type = 'expense' THEN exp.amount * (1 - COALESCE(exp.spontaneousRate, 0)/100) ELSE 0 END) as totalExpense",
         "SUM(CASE WHEN exp.type = 'income' THEN exp.amount ELSE 0 END) as totalIncome",
       ])
       .where('exp.walletId = :walletId', { walletId })
