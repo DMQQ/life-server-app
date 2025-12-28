@@ -201,3 +201,48 @@ export class MonthlyLimitResult {
   @Field(() => [CategoryLimitResult])
   categories: CategoryLimitResult[];
 }
+
+@ObjectType()
+export class BalanceProjection {
+  @Field(() => Int)
+  month: number;
+
+  @Field(() => Int)
+  year: number;
+
+  @Field(() => Int)
+  monthsAhead: number;
+
+  @Field(() => Float)
+  projectedBalance: number;
+
+  @Field(() => Float)
+  avgMonthlyIncome: number;
+
+  @Field(() => Float)
+  avgMonthlyExpense: number;
+
+  @Field(() => Float)
+  avgMonthlyNet: number;
+}
+
+@ObjectType()
+export class WalletBalancePrediction {
+  @Field(() => Float)
+  currentBalance: number;
+
+  @Field(() => Float)
+  avgMonthlyIncome: number;
+
+  @Field(() => Float)
+  avgMonthlyExpense: number;
+
+  @Field(() => Float)
+  avgMonthlyNet: number;
+
+  @Field(() => Int)
+  historicalMonths: number;
+
+  @Field(() => [BalanceProjection])
+  projections: BalanceProjection[];
+}

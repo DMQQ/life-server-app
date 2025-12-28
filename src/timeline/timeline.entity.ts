@@ -11,6 +11,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { LiveActivityEntity } from './live-activity.entity';
+import dataSource from '../database';
 
 @ObjectType()
 @Entity('timeline')

@@ -15,8 +15,8 @@ import {
   UserCache,
 } from '../../utils/services/Cache/cache.decorator';
 import { CacheService } from 'src/utils/services/Cache/cache.service';
-import { WalletId } from 'src/utils/decorators/wallet.decorator';
 import { ExpensePredictionService } from '../services/expense-prediction.service';
+import { Model } from 'src/utils/decorators/model.decorator';
 
 const parseDate = (dateString: string) => {
   const currentTime = new Date();

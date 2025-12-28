@@ -5,6 +5,7 @@ import {
   StatisticsDailySpendings,
   StatisticsDayOfWeekComparison,
   StatisticsLegend,
+  WalletBalancePrediction,
   ZeroExpenseDays,
 } from '../types/wallet.schemas';
 import { StatisticsService } from '../services/statistics.service';
@@ -85,5 +86,11 @@ export class StatisticsResolver {
     @Args('endDate') endDate: string,
   ) {
     return this.statisticsService.spendingsLimits(userId, startDate, endDate);
+  }
+
+  @Query(() => WalletBalancePrediction)
+  @UserCache(7200)
+  async walletBalancePrediction(@WalletId() walletId: string, @Args('toDate', { type: () => String }) toDate: string) {
+    return this.statisticsService.getWalletBalancePrediction(walletId, toDate);
   }
 }

@@ -1,0 +1,1 @@
+{"aps":{"timestamp":1762006189,"event":"start","attributes-type":"WidgetAttributes","attributes":{"eventId":"push-test-002","deepLinkURL":"mylife://test"},"content-state":{"title":"Push-to-Start Test","description":"Created via push notification","startTime":1730568000000,"endTime":1730571600000,"isCompleted":false,"progress":1},"alert":{"title":"","body":"","sound":"default"}}}

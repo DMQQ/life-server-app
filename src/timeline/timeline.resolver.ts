@@ -18,6 +18,7 @@ import {
 import { CreateTimelineInput, RepeatableTimeline, CopyTimelineInput } from './timeline.schemas';
 import { TimelineService } from './timeline.service';
 import { id } from 'date-fns/locale';
+import { Model } from 'src/utils/decorators/model.decorator';
 
 @InputType()
 class TimelineTodo {
@@ -74,11 +75,7 @@ export class TimelineResolver {
 
   @Query(() => TimelineEntity)
   @UserCache(3600)
-  async timelineById(
-    @Args('id', { nullable: false, type: () => String }) id: string,
-
-    @User() userId: string,
-  ) {
+  async timelineById(@Args('id', { nullable: false, type: () => String }) id: string, @User() userId: string) {
     const timeline = await this.timelineService.findOneById(id, userId);
 
     if (timeline === null || timeline === undefined) throw new NotFoundException(`Timeline with id ${id} not found`);
@@ -118,7 +115,7 @@ export class TimelineResolver {
         title: todo,
       }));
 
-      const todos = await this.timelineService.createTimelineTodos(todosToCreate);
+      await this.timelineService.createTimelineTodos(todosToCreate);
     }
 
     return this.timelineService.findOneById(timeline.id, userId);
