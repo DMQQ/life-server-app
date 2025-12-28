@@ -346,6 +346,14 @@ export class StatisticsService {
   }
 
   async getWalletBalancePrediction(walletId: string, toDate: string) {
+    const wallet = await this.walletEntity.findOne({ where: { id: walletId } });
+    const currentBalance = wallet?.balance || 0;
+    const configuredIncome = wallet?.income || 0;
+
+    const lookbackMonths = 12;
+    const fromDate = (dayjs as any)().subtract(lookbackMonths, 'months').startOf('month').format('YYYY-MM-DD');
+    const endDate = (dayjs as any)().format('YYYY-MM-DD');
+
     const monthlyData = await this.expenseEntity
       .createQueryBuilder('exp')
       .select([
@@ -355,13 +363,8 @@ export class StatisticsService {
         "SUM(CASE WHEN exp.type = 'income' THEN exp.amount ELSE 0 END) as totalIncome",
       ])
       .where('exp.walletId = :walletId', { walletId })
-      .andWhere('exp.date <= :toDate', { toDate: (dayjs as any)(toDate).endOf('day').format('YYYY-MM-DD') })
-      .andWhere('exp.date >= :fromDate', {
-        fromDate: (dayjs as any)(toDate)
-          .startOf('month')
-          .subtract((dayjs as any)(toDate).diff((dayjs as any)().startOf('month'), 'month'), 'month')
-          .format('YYYY-MM-DD'),
-      })
+      .andWhere('exp.date >= :fromDate', { fromDate })
+      .andWhere('exp.date <= :endDate', { endDate })
       .groupBy('MONTH(exp.date), YEAR(exp.date)')
       .orderBy('year', 'ASC')
       .addOrderBy('month', 'ASC')
@@ -377,12 +380,9 @@ export class StatisticsService {
       { totalIncome: 0, totalExpense: 0 },
     );
 
-    const avgMonthlyIncome = totalIncome / totalMonths;
+    const avgMonthlyIncome = totalIncome > 0 ? totalIncome / totalMonths : configuredIncome;
     const avgMonthlyExpense = totalExpense / totalMonths;
     const avgMonthlyNet = avgMonthlyIncome - avgMonthlyExpense;
-
-    const wallet = await this.walletEntity.findOne({ where: { id: walletId } });
-    const currentBalance = wallet?.balance || 0;
 
     const projections = [1, 2, 3, 6, 12].map((monthsAhead) => {
       const projectedDate = (dayjs as any)(toDate).add(monthsAhead, 'month');
