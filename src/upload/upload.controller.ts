@@ -11,10 +11,12 @@ import {
   Delete,
   UploadedFile,
   BadRequestException,
+  NotFoundException,
+  StreamableFile,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
-import { createReadStream } from 'fs';
+import { createReadStream, existsSync } from 'fs';
 import { join } from 'path';
 import { unlink } from 'fs';
 import { Response } from 'express';
@@ -137,17 +139,16 @@ export class UploadController {
   }
 
   @Get('images/:img')
-  getUploadedFile(@Param('img') img: string, @Res() res: Response) {
-    if (typeof img === 'undefined') return res.status(HttpStatus.NOT_ACCEPTABLE);
-    const file = createReadStream(join(process.cwd(), `./uploads/${img}`)).on('error', (err) => {
-      res.status(404).send({
-        error: 'Image not found',
-        statusCode: 404,
-        message: ['Image not found'],
-      });
-    });
+  getUploadedFile(@Param('img') img: string): StreamableFile {
+    const safeFileName = path.basename(img);
+    const filePath = join(process.cwd(), 'uploads', safeFileName);
 
-    return file.pipe(res);
+    if (!existsSync(filePath)) {
+      throw new NotFoundException('Image not found');
+    }
+
+    const file = createReadStream(filePath);
+    return new StreamableFile(file);
   }
 
   private validateUploadRequest(file: Express.Multer.File, entityId: string, type: string): void {
