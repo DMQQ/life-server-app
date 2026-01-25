@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
 import { TextSimilarityService } from 'src/utils/services/TextSimilarity/text-similarity.service';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { BillingCycleEnum, SubscriptionEntity } from '../entities/subscription.entity';
 import { ExpenseEntity } from '../entities/wallet.entity';
 
@@ -38,7 +38,13 @@ export class SubscriptionService {
 
   async getTodaySubscriptions() {
     return await this.subscriptionRepository.find({
-      where: { nextBillingDate: this.formatDate(new Date()) },
+      where: [
+        { nextBillingDate: this.formatDate(new Date()), isActive: true },
+        {
+          isActive: true,
+          nextBillingDate: LessThan(this.formatDate(new Date())),
+        },
+      ],
     });
   }
 
@@ -71,7 +77,11 @@ export class SubscriptionService {
   }
 
   async setNextBillingDate(subscription: SubscriptionEntity) {
-    subscription.nextBillingDate = this.formatDate(await this.getNextBillingDate(subscription));
+    const today = this.formatDate(new Date());
+    // Advance billing date until it's in the future (skip missed cycles)
+    do {
+      subscription.nextBillingDate = this.formatDate(this.getNextBillingDate(subscription));
+    } while (subscription.nextBillingDate < today);
     return await this.subscriptionRepository.save(subscription);
   }
 

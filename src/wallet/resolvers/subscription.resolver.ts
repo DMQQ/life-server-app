@@ -95,11 +95,26 @@ export class SubscriptionResolver {
   async renewSubscription(@Args('subscriptionId', { type: () => ID }) subscriptionId: string) {
     try {
       const result = await this.subscriptionService.renewSubscription(subscriptionId, this.walletService);
-      
+
       return result.expense;
     } catch (error) {
       console.error('Subscription renewal error:', error);
       throw new BadRequestException('Subscription renewal failed');
+    }
+  }
+
+  @Mutation(() => ExpenseEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async assignExpenseToSubscription(
+    @Args('expenseId', { type: () => ID }) expenseId: string,
+    @Args('subscriptionId', { type: () => ID, nullable: true }) subscriptionId: string | null,
+  ) {
+    try {
+      await this.subscriptionService.assignSubscription(expenseId, subscriptionId);
+      return this.walletService.getExpense(expenseId);
+    } catch (error) {
+      console.error('Assign expense to subscription error:', error);
+      throw new BadRequestException('Failed to assign expense to subscription');
     }
   }
 }
