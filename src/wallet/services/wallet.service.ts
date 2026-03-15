@@ -170,6 +170,86 @@ export class WalletService {
     return expenses;
   }
 
+  async getExpensesGroupedByMonth(
+    walletId: string,
+    settings?: {
+      where: GetWalletFilters;
+      monthPagination: { skip: number; take: number };
+      isExactCategory?: boolean;
+    },
+  ): Promise<{ month: string; expenses: ExpenseEntity[] }[]> {
+    const skip = settings?.monthPagination?.skip ?? 0;
+    const take = settings?.monthPagination?.take ?? 6;
+    const titleWords = (settings?.where?.title || '').trim().split(/\s+/).filter(Boolean);
+
+    const buildBase = () => {
+      const q = this.expenseRepository
+        .createQueryBuilder('e')
+        .where('e.walletId = :walletId', { walletId })
+        .andWhere('e.schedule = :schedule', { schedule: false })
+        .andWhere('e.date >= :from AND e.date <= :to', {
+          from: settings?.where?.date?.from || '1900-01-01',
+          to: settings?.where?.date?.to || '2100-01-01',
+        })
+        .andWhere('e.amount >= :min AND e.amount <= :max', {
+          min: settings?.where?.amount?.from || 0,
+          max: settings?.where?.amount?.to || 1000000000,
+        })
+        .andWhere('e.type IN(:...type)', {
+          type: settings?.where?.type
+            ? [settings.where.type]
+            : [ExpenseType.expense, ExpenseType.income, ExpenseType.refunded],
+        });
+
+      if (titleWords.length > 0) {
+        const titleConditions = titleWords.map((_, i) => `e.description LIKE :word${i}`).join(' OR ');
+        q.andWhere(`(${titleConditions})`, titleWords.reduce((acc, w, i) => ({ ...acc, [`word${i}`]: `%${w}%` }), {}));
+      }
+
+      if (settings?.where?.category?.length > 0 && !settings?.isExactCategory) {
+        const categories = settings.where.category.map((c) => c.split(':').shift());
+        q.andWhere(
+          new Brackets((qb) => {
+            categories.forEach((cat, i) => qb.orWhere(`e.category LIKE :cat${i}`, { [`cat${i}`]: `%${cat}%` }));
+          }),
+        );
+      } else if (settings?.isExactCategory && settings?.where?.category?.length === 1) {
+        q.andWhere('e.category = :category', { category: settings.where.category[0] });
+      }
+
+      return q;
+    };
+
+    const monthRows = await buildBase()
+      .select("DATE_FORMAT(e.date, '%Y-%m')", 'month')
+      .groupBy('month')
+      .orderBy('month', 'DESC')
+      .offset(skip)
+      .limit(take)
+      .getRawMany<{ month: string }>();
+
+    if (monthRows.length === 0) return [];
+
+    const months = monthRows.map((r) => r.month);
+
+    const expenses = await buildBase()
+      .leftJoinAndSelect('e.subscription', 'subscription')
+      .leftJoinAndSelect('e.files', 'files')
+      .leftJoinAndSelect('e.location', 'location')
+      .leftJoinAndSelect('e.subexpenses', 'subexpenses')
+      .andWhere("DATE_FORMAT(e.date, '%Y-%m') IN (:...months)", { months })
+      .orderBy('e.date', 'DESC')
+      .getMany();
+
+    const monthMap = new Map<string, ExpenseEntity[]>(months.map((m) => [m, []]));
+    for (const expense of expenses) {
+      const month = new Date(expense.date).toISOString().slice(0, 7);
+      monthMap.get(month)?.push(expense);
+    }
+
+    return months.map((month) => ({ month, expenses: monthMap.get(month) ?? [] }));
+  }
+
   async createExpense(
     userId: string,
     amount: number,

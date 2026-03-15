@@ -80,41 +80,31 @@ export class WalletResolver {
   async expenses2(
     @Parent() wallet: WalletEntity,
     @Args('skip', { type: () => Int, nullable: true }) skip: number = 0,
-    @Args('take', { type: () => Int, nullable: true }) take: number = 20,
+    @Args('take', { type: () => Int, nullable: true }) take: number = 6,
     @Args('filters', { nullable: true, type: () => GetWalletFilters })
     filters: GetWalletFilters,
   ): Promise<MonthlyExpenses[]> {
     const cacheKey = `${wallet.userId}:Wallet:expenses2:${JSON.stringify({ skip, take, filters })}`;
     const cached = await this.cacheService.get(cacheKey);
-
     if (cached) return cached as MonthlyExpenses[];
 
-    const expenses = await this.walletService.getExpensesByWalletId(wallet.id, {
-      pagination: { skip, take },
+    const grouped = await this.walletService.getExpensesGroupedByMonth(wallet.id, {
+      monthPagination: { skip, take },
       where: filters,
       isExactCategory: filters?.isExactCategory,
     });
 
-    const monthMap = new Map<string, MonthlyExpenses>();
-
-    for (const expense of expenses) {
-      const month = new Date(expense.date).toISOString().slice(0, 7);
-
-      if (!monthMap.has(month)) {
-        monthMap.set(month, { month, flow: { income: 0, expense: 0 }, expenses: [] });
-      }
-
-      const entry = monthMap.get(month)!;
-      entry.expenses.push(expense);
-
-      if (expense.type === 'income') {
-        entry.flow.income += expense.amount;
-      } else if (expense.type === 'expense') {
-        entry.flow.expense += expense.amount;
-      }
-    }
-
-    const result = Array.from(monthMap.values());
+    const result: MonthlyExpenses[] = grouped.map(({ month, expenses }) => {
+      const flow = expenses.reduce(
+        (acc, e) => {
+          if (e.type === 'income') acc.income += e.amount;
+          else if (e.type === 'expense') acc.expense += e.amount;
+          return acc;
+        },
+        { income: 0, expense: 0 },
+      );
+      return { month, flow, expenses };
+    });
 
     await this.cacheService.set(cacheKey, result, 1800);
     return result;
