@@ -1,5 +1,5 @@
 import { Field, Float, InputType, Int, ObjectType } from '@nestjs/graphql';
-import { ExpenseType } from '../entities/wallet.entity';
+import { ExpenseEntity, ExpenseType } from '../entities/wallet.entity';
 
 @InputType()
 export class RangeDate {
@@ -38,6 +38,27 @@ export class GetWalletFilters {
 
   @Field(() => Boolean, { nullable: true })
   isExactCategory?: boolean;
+}
+
+@ObjectType()
+export class MonthlyFlow {
+  @Field(() => Float)
+  income: number;
+
+  @Field(() => Float)
+  expense: number;
+}
+
+@ObjectType()
+export class MonthlyExpenses {
+  @Field(() => String)
+  month: string;
+
+  @Field(() => MonthlyFlow)
+  flow: MonthlyFlow;
+
+  @Field(() => [ExpenseEntity])
+  expenses: ExpenseEntity[];
 }
 
 @ObjectType()
