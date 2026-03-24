@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { TimelineEntity } from 'src/timeline/timeline.entity';
-import { Like, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import * as dayjs from 'dayjs';
 import * as timezone from 'dayjs/plugin/timezone';
 import * as utc from 'dayjs/plugin/utc';
+import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -30,8 +30,8 @@ interface TodoResponse {
 @Injectable()
 export class TimelineScheduleService {
   constructor(
-    @InjectRepository(TimelineEntity)
-    private timelineRepository: Repository<TimelineEntity>,
+    @InjectRepository(EventOccurrenceEntity)
+    private occurrenceRepo: Repository<EventOccurrenceEntity>,
   ) {}
 
   async findEventsByTypeWithCurrentTime(type: 'beginTime' | 'endTime'): Promise<FindEventsResponse[]> {
@@ -41,36 +41,50 @@ export class TimelineScheduleService {
 
     console.log(`Current Warsaw Date: ${currentDate}, Time: ${currentTime}`);
 
-    return this.timelineRepository.query(
+    const timeField =
+      type === 'beginTime'
+        ? 'COALESCE(o.beginTimeOverride, s.beginTime)'
+        : 'COALESCE(o.endTimeOverride, s.endTime)';
+
+    return this.occurrenceRepo.query(
       `
-      SELECT 
-        t.id, t.title, t.description, n.token, n.isEnable, t.beginTime, t.endTime, t.userId, t.isCompleted
-      FROM timeline as t
-        LEFT JOIN notifications as n ON t.userId = n.userId
-      WHERE FIND_IN_SET(?, REPLACE(t.date, ';', ',')) > 0
-        AND ${type} = ?
-        AND notification = 1
-        AND isCompleted = 0
-        AND (n.token IS NOT NULL OR n.token != "")
+      SELECT
+        o.id,
+        COALESCE(o.titleOverride, s.title) as title,
+        COALESCE(o.descriptionOverride, s.description) as description,
+        n.token, n.isEnable,
+        COALESCE(o.beginTimeOverride, s.beginTime) as beginTime,
+        COALESCE(o.endTimeOverride, s.endTime) as endTime,
+        s.userId, o.isCompleted
+      FROM event_occurrence as o
+        INNER JOIN event_series as s ON o.seriesId = s.id
+        LEFT JOIN notifications as n ON s.userId = n.userId
+      WHERE o.date = ?
+        AND ${timeField} = ?
+        AND s.notification = 1
+        AND o.isCompleted = 0
+        AND o.isSkipped = 0
+        AND (n.token IS NOT NULL AND n.token != "")
         AND n.isEnable = 1
     `,
       [currentDate, currentTime],
     );
   }
 
-  async getUncompletedTodosForUser(timelineId: string): Promise<TodoResponse[]> {
-    return this.timelineRepository.query(
+  async getUncompletedTodosForUser(occurrenceId: string): Promise<TodoResponse[]> {
+    return this.occurrenceRepo.query(
       `
-      SELECT 
-        tt.id, tt.title, tt.isCompleted, t.userId
-      FROM timeline_todos as tt
-        INNER JOIN timeline as t ON tt.timelineId = t.id
-      WHERE t.id = ?
-        AND tt.isCompleted = 0
-      ORDER BY tt.createdAt DESC
+      SELECT
+        ot.id, ot.title, ot.isCompleted, s.userId
+      FROM occurrence_todos as ot
+        INNER JOIN event_occurrence as o ON ot.occurrenceId = o.id
+        INNER JOIN event_series as s ON o.seriesId = s.id
+      WHERE o.id = ?
+        AND ot.isCompleted = 0
+      ORDER BY ot.createdAt DESC
       LIMIT 20
     `,
-      [timelineId],
+      [occurrenceId],
     );
   }
 }

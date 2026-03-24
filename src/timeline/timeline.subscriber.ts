@@ -1,40 +1,35 @@
 import { EventSubscriber, EntitySubscriberInterface, EntityManager } from 'typeorm';
-import { TimelineEntity, TimelineTodosEntity } from './timeline.entity';
+import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
+import { OccurrenceTodoEntity } from './entities/occurrence-todo.entity';
 
-// Shared function for sending Live Activity updates
-async function sendLiveActivityUpdate(manager: EntityManager, timeline: TimelineEntity) {
+async function sendLiveActivityUpdate(manager: EntityManager, occurrence: EventOccurrenceEntity) {
   try {
     const liveActivity = await manager
       .createQueryBuilder()
       .select('*')
       .from('live_activities', 'la')
-      .where('la.timelineId = :timelineId', { timelineId: timeline.id })
+      .where('la.occurrenceId = :occurrenceId', { occurrenceId: occurrence.id })
       .andWhere('la.status IN (:...statuses)', { statuses: ['sent', 'update'] })
       .getRawOne();
 
     if (!liveActivity || !liveActivity.updateToken) {
-      console.log(`No active live activity found for timeline ${timeline.id}`);
+      console.log(`No active live activity found for occurrence ${occurrence.id}`);
       return;
     }
 
-    // Send APN update notification
     const { ApnService } = await import('../notifications/apn.service');
     const apnService = new ApnService();
 
-    console.log(`Sending Live Activity update for timeline ${timeline.id}`);
-    const result = await apnService.updateTimelineActivity(liveActivity.updateToken, timeline);
+    console.log(`Sending Live Activity update for occurrence ${occurrence.id}`);
+    const result = await apnService.updateTimelineActivity(liveActivity.updateToken, occurrence);
 
     if (result.success) {
-      console.log(`Live Activity update sent successfully for timeline ${timeline.id}`);
+      console.log(`Live Activity update sent successfully for occurrence ${occurrence.id}`);
 
-      // Update live activity status and timestamp
       await manager
         .createQueryBuilder()
         .update('live_activities')
-        .set({
-          status: 'update',
-          lastUpdated: Date.now(),
-        })
+        .set({ status: 'update', lastUpdated: Date.now() })
         .where('id = :id', { id: liveActivity.id })
         .execute();
     } else {
@@ -46,9 +41,9 @@ async function sendLiveActivityUpdate(manager: EntityManager, timeline: Timeline
 }
 
 @EventSubscriber()
-export class TimelineTodosSubscriber implements EntitySubscriberInterface<TimelineTodosEntity> {
+export class OccurrenceTodosSubscriber implements EntitySubscriberInterface<OccurrenceTodoEntity> {
   listenTo() {
-    return TimelineTodosEntity;
+    return OccurrenceTodoEntity;
   }
 
   async afterUpdate(event: any) {
@@ -65,56 +60,54 @@ export class TimelineTodosSubscriber implements EntitySubscriberInterface<Timeli
 
   private async handleTodoChange(manager: EntityManager, id: string) {
     try {
-      const [todo] = await manager.queryRunner.query('SELECT * FROM timeline_todos WHERE id = ?', [id]);
+      const [todo] = await manager.queryRunner.query('SELECT * FROM occurrence_todos WHERE id = ?', [id]);
 
       if (!todo) return;
 
-      const timeline = await manager.findOne(TimelineEntity, {
-        where: { id: todo.timelineId },
+      const occurrence = await manager.findOne(EventOccurrenceEntity, {
+        where: { id: todo.occurrenceId },
         relations: ['todos'],
       });
 
-      if (!timeline) return;
+      if (!occurrence) return;
 
-      const areAllCompleted = timeline.todos.every((t) => t.isCompleted) && timeline.todos.length > 0;
+      const areAllCompleted = occurrence.todos.every((t) => t.isCompleted) && occurrence.todos.length > 0;
 
-      if (timeline.isCompleted !== areAllCompleted) {
-        timeline.isCompleted = areAllCompleted;
-        await manager.save(timeline);
+      if (occurrence.isCompleted !== areAllCompleted) {
+        occurrence.isCompleted = areAllCompleted;
+        await manager.save(occurrence);
       }
 
-      await sendLiveActivityUpdate(manager, timeline);
+      await sendLiveActivityUpdate(manager, occurrence);
     } catch (error) {
       console.error('Error handling todo change:', error);
     }
   }
-
 }
 
 @EventSubscriber()
-export class TimelineSubscriber implements EntitySubscriberInterface<TimelineEntity> {
+export class OccurrenceSubscriber implements EntitySubscriberInterface<EventOccurrenceEntity> {
   listenTo() {
-    return TimelineEntity;
+    return EventOccurrenceEntity;
   }
 
   async afterUpdate(event: any) {
-    await this.handleTimelineChange(event.manager, event.entity.id);
+    await this.handleOccurrenceChange(event.manager, event.entity.id);
   }
 
-  private async handleTimelineChange(manager: EntityManager, timelineId: string) {
+  private async handleOccurrenceChange(manager: EntityManager, occurrenceId: string) {
     try {
-      const timeline = await manager.findOne(TimelineEntity, {
-        where: { id: timelineId },
+      const occurrence = await manager.findOne(EventOccurrenceEntity, {
+        where: { id: occurrenceId },
         relations: ['todos'],
       });
 
-      if (!timeline) return;
+      if (!occurrence) return;
 
-      console.log(`Timeline ${timeline.id} updated - sending Live Activity update`);
-      await sendLiveActivityUpdate(manager, timeline);
+      console.log(`Occurrence ${occurrence.id} updated - sending Live Activity update`);
+      await sendLiveActivityUpdate(manager, occurrence);
     } catch (error) {
-      console.error('Error handling timeline change:', error);
+      console.error('Error handling occurrence change:', error);
     }
   }
-
 }

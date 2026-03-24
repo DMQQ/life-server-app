@@ -19,7 +19,7 @@ class SetUpdateTokenInput {
   updateToken: string;
 
   @Field(() => String, { nullable: true })
-  timelineId?: string;
+  occurrenceId?: string;
 }
 
 @UseGuards(AuthGuard)
@@ -37,12 +37,8 @@ export class LiveActivityResolver {
     try {
       let activity: LiveActivityEntity | null = null;
 
-      if (input.timelineId) {
-        activity = await this.liveActivityService.findActivityByTimelineId(input.timelineId);
-      }
-
-      if (!activity) {
-        activity = await this.liveActivityService.findActivityByTimelineId(input.activityId);
+      if (input.occurrenceId) {
+        activity = await this.liveActivityService.findActivityByOccurrenceId(input.occurrenceId);
       }
 
       if (!activity) {
@@ -50,12 +46,12 @@ export class LiveActivityResolver {
       }
 
       if (!activity) {
-        console.error(`No live activity found for activityId: ${input.activityId}, timelineId: ${input.timelineId}`);
+        console.error(`No live activity found for activityId: ${input.activityId}, occurrenceId: ${input.occurrenceId}`);
         return false;
       }
 
       await this.liveActivityService.setUpdateToken(activity.id, input.updateToken);
-      console.log(`Successfully set update token for Live Activity ${activity.id} (timeline: ${activity.timelineId})`);
+      console.log(`Successfully set update token for Live Activity ${activity.id} (occurrence: ${activity.occurrenceId})`);
       return true;
     } catch (error) {
       console.error('Error setting Live Activity update token:', error);

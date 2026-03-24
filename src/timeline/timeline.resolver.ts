@@ -17,8 +17,6 @@ import {
 } from 'src/utils/services/Cache/cache.decorator';
 import { CreateTimelineInput, RepeatableTimeline, CopyTimelineInput } from './timeline.schemas';
 import { TimelineService } from './timeline.service';
-import { id } from 'date-fns/locale';
-import { Model } from 'src/utils/decorators/model.decorator';
 
 @InputType()
 class TimelineTodo {

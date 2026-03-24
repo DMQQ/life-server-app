@@ -6,7 +6,7 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { TimelineEntity } from './timeline.entity';
+import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
 
 export enum LiveActivityStatus {
   PENDING = 'pending',
@@ -40,9 +40,9 @@ export class LiveActivityEntity {
   lastUpdated: number;
 
   @Column({ type: 'uuid' })
-  timelineId: string;
+  occurrenceId: string;
 
-  @OneToOne(() => TimelineEntity)
-  @JoinColumn({ name: 'timelineId' })
-  timeline: TimelineEntity;
+  @OneToOne(() => EventOccurrenceEntity, (occ) => occ.liveActivity)
+  @JoinColumn({ name: 'occurrenceId' })
+  occurrence: EventOccurrenceEntity;
 }

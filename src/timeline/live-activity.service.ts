@@ -4,7 +4,7 @@ import { Between, Repository } from 'typeorm';
 import { LiveActivityEntity, LiveActivityStatus } from './live-activity.entity';
 
 export interface CreateLiveActivityInput {
-  timelineId: string;
+  occurrenceId: string;
   beginTime: number;
   endTime: number;
   status?: LiveActivityStatus;
@@ -26,7 +26,7 @@ export class LiveActivityService {
 
   async createActivity(input: CreateLiveActivityInput): Promise<LiveActivityEntity> {
     const liveActivity = this.liveActivityRepository.create({
-      timelineId: input.timelineId,
+      occurrenceId: input.occurrenceId,
       beginTime: input.beginTime,
       endTime: input.endTime,
       status: input.status || LiveActivityStatus.PENDING,
@@ -36,10 +36,7 @@ export class LiveActivityService {
     return this.liveActivityRepository.save(liveActivity);
   }
 
-  async updateActivity(
-    id: string,
-    input: UpdateLiveActivityInput,
-  ): Promise<LiveActivityEntity> {
+  async updateActivity(id: string, input: UpdateLiveActivityInput): Promise<LiveActivityEntity> {
     await this.liveActivityRepository.update(id, {
       ...input,
       lastUpdated: input.lastUpdated || Date.now(),
@@ -57,42 +54,28 @@ export class LiveActivityService {
     return this.liveActivityRepository.findOne({ where: { id } });
   }
 
-  async findActivityByTimelineId(timelineId: string): Promise<LiveActivityEntity> {
+  async findActivityByOccurrenceId(occurrenceId: string): Promise<LiveActivityEntity> {
     return this.liveActivityRepository.findOne({
-      where: { timelineId },
-      relations: ['timeline'],
+      where: { occurrenceId },
     });
   }
 
-  async findActivitiesInTimeRange(
-    startTime: number,
-    endTime: number,
-  ): Promise<LiveActivityEntity[]> {
+  async findActivitiesInTimeRange(startTime: number, endTime: number): Promise<LiveActivityEntity[]> {
     return this.liveActivityRepository.find({
       where: [
-        {
-          beginTime: Between(startTime, endTime),
-        },
-        {
-          endTime: Between(startTime, endTime),
-        },
+        { beginTime: Between(startTime, endTime) },
+        { endTime: Between(startTime, endTime) },
         {
           beginTime: Between(0, startTime),
           endTime: Between(endTime, Number.MAX_SAFE_INTEGER),
         },
       ],
-      relations: ['timeline'],
-      order: {
-        beginTime: 'ASC',
-      },
+      order: { beginTime: 'ASC' },
     });
   }
 
   async findById(id: string): Promise<LiveActivityEntity> {
-    return this.liveActivityRepository.findOne({
-      where: { id },
-      relations: ['timeline'],
-    });
+    return this.liveActivityRepository.findOne({ where: { id } });
   }
 
   async deleteActivity(id: string): Promise<void> {

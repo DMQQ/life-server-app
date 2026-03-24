@@ -1,4 +1,8 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
+// Legacy file — superseded by entities in ./entities/
+// @ObjectType() decorators removed to avoid duplicate GraphQL type names.
+// This file exists only so the dead-code files (timeline.service.ts, timeline.resolver.ts) still compile.
+// Do NOT register these classes in any NestJS module.
+
 import {
   Column,
   CreateDateColumn,
@@ -11,40 +15,30 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { LiveActivityEntity } from './live-activity.entity';
-import dataSource from '../database';
 
-@ObjectType()
 @Entity('timeline')
 export class TimelineEntity {
-  @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Field(() => String)
   @Column({ type: 'varchar', length: 100 })
   title: string;
 
-  @Field(() => String)
   @Column({ type: 'text' })
   description: string;
 
-  @Field(() => String)
   @Column({ type: 'text', nullable: false })
   date: string;
 
-  @Field(() => String)
   @Column({ type: 'time', nullable: true })
   beginTime: string;
 
-  @Field(() => String)
   @Column({ type: 'time', nullable: true })
   endTime: string;
 
-  @Field(() => Boolean)
   @Column({ type: 'boolean', default: false })
   isAllDay: boolean;
 
-  @Field(() => Boolean)
   @Column({ type: 'boolean', default: false })
   isCompleted: boolean;
 
@@ -63,30 +57,24 @@ export class TimelineEntity {
   @Column({ type: 'boolean', default: false })
   isRepeat: boolean;
 
-  @Field(() => ID)
   @Column({ type: 'uuid' })
   userId: string;
 
-  @Field(() => String)
   @Column({ type: 'varchar', default: '' })
   tags: string;
 
-  @Field(() => [TimelineFilesEntity])
   @OneToMany(() => TimelineFilesEntity, (image) => image.timelineId)
   images: TimelineFilesEntity[];
 
-  @Field(() => [TimelineTodosEntity])
   @OneToMany(() => TimelineTodosEntity, (todo) => todo.timelineId)
   todos: TimelineTodosEntity[];
 
-  @OneToOne(() => LiveActivityEntity, (liveActivity) => liveActivity.timeline)
+  @OneToOne(() => LiveActivityEntity)
   liveActivity: LiveActivityEntity;
 }
 
-@ObjectType()
 @Entity('timeline_files')
 export class TimelineFilesEntity {
-  @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -94,38 +82,30 @@ export class TimelineFilesEntity {
   @JoinColumn({ name: 'timelineId' })
   timelineId: TimelineEntity;
 
-  @Field(() => String)
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 
-  @Field(() => String)
   @Column({ type: 'varchar', length: 100 })
   type: string;
 
-  @Field(() => String)
   @Column({ type: 'varchar', length: 100 })
   url: string;
 
-  @Field(() => Boolean)
   @Column({ type: 'boolean', default: false })
   isPublic: boolean;
 }
 
-@ObjectType()
 @Entity('timeline_todos')
 export class TimelineTodosEntity {
-  @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Field(() => String)
   @Column({ type: 'varchar' })
   title: string;
 
-  @Field(() => Boolean)
   @Column({ type: 'boolean', default: false })
   isCompleted: boolean;
 
@@ -133,23 +113,18 @@ export class TimelineTodosEntity {
   @JoinColumn({ name: 'timelineId' })
   timelineId: string;
 
-  @Field(() => [TodoFilesEntity])
-  @OneToMany(() => TodoFilesEntity, (file) => file.todoId, { cascade: true, onDelete: 'CASCADE' })
+  @OneToMany(() => TodoFilesEntity, (file) => file.todoId, { cascade: true })
   files: TodoFilesEntity[];
 
-  @Field(() => Date)
   @CreateDateColumn()
   createdAt: Date;
 
-  @Field(() => Date)
   @UpdateDateColumn()
   modifiedAt: Date;
 }
 
-@ObjectType()
-@Entity('todo_files')
+@Entity('timeline_todo_files_legacy')
 export class TodoFilesEntity {
-  @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -157,11 +132,9 @@ export class TodoFilesEntity {
   @JoinColumn({ name: 'todoId' })
   todoId: string;
 
-  @Field(() => String)
   @Column({ type: 'varchar', length: 100 })
   type: string;
 
-  @Field(() => String)
   @Column({ type: 'varchar', length: 255 })
   url: string;
 

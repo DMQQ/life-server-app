@@ -1,5 +1,6 @@
 import { ExpenseFileEntity } from 'src/wallet/entities/wallet.entity';
-import { TimelineFilesEntity, TodoFilesEntity } from 'src/timeline/timeline.entity';
+import { OccurrenceFileEntity } from 'src/timeline/entities/occurrence-file.entity';
+import { TodoFilesEntity } from 'src/timeline/entities/occurrence-todo.entity';
 import { ProcessedFile, FileTransformResult } from '../types/upload.types';
 
 export class FileFactory {
@@ -7,14 +8,14 @@ export class FileFactory {
     name: string;
     url: string;
     type: string;
-    timelineId: string;
+    occurrenceId: string;
     isPublic?: boolean;
-  }): TimelineFilesEntity {
-    const file = new TimelineFilesEntity();
+  }): OccurrenceFileEntity {
+    const file = new OccurrenceFileEntity();
     file.name = data.name;
     file.url = data.url;
     file.type = data.type;
-    file.timelineId = data.timelineId as any;
+    file.occurrenceId = data.occurrenceId;
     file.isPublic = data.isPublic || false;
     return file;
   }
@@ -45,28 +46,32 @@ export class FileFactory {
 
   static createBulkTimelineFiles(data: {
     files: ProcessedFile[];
-    timelineId: string;
+    occurrenceId: string;
     isPublic?: boolean;
-  }): TimelineFilesEntity[] {
-    return data.files.map(file => this.createTimelineFile({
-      name: file.name,
-      url: file.path,
-      type: file.type,
-      timelineId: data.timelineId,
-      isPublic: data.isPublic,
-    }));
+  }): OccurrenceFileEntity[] {
+    return data.files.map((file) =>
+      this.createTimelineFile({
+        name: file.name,
+        url: file.path,
+        type: file.type,
+        occurrenceId: data.occurrenceId,
+        isPublic: data.isPublic,
+      }),
+    );
   }
 
   static createBulkExpenseFiles(data: {
     files: ProcessedFile[];
     expenseId: string;
   }): ExpenseFileEntity[] {
-    return data.files.map(file => this.createExpenseFile({
-      url: file.path,
-      expenseId: data.expenseId,
-      name: file.name,
-      type: file.type,
-    }));
+    return data.files.map((file) =>
+      this.createExpenseFile({
+        url: file.path,
+        expenseId: data.expenseId,
+        name: file.name,
+        type: file.type,
+      }),
+    );
   }
 
   static transformUploadedFile(file: Express.Multer.File): FileTransformResult {
@@ -74,14 +79,12 @@ export class FileFactory {
       name: file.originalname,
       size: file.size,
       type: file.mimetype,
-      path: file.path.includes('\\')
-        ? file.path.split('\\').pop()
-        : file.path.split('/').pop(),
+      path: file.path.includes('\\') ? file.path.split('\\').pop() : file.path.split('/').pop(),
     };
   }
 
   static transformUploadedFiles(files: Express.Multer.File[]): FileTransformResult[] {
-    return files.map(file => this.transformUploadedFile(file));
+    return files.map((file) => this.transformUploadedFile(file));
   }
 
   static createProcessedFile(data: {

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { TimelineFilesEntity, TodoFilesEntity } from 'src/timeline/timeline.entity';
+import { OccurrenceFileEntity } from 'src/timeline/entities/occurrence-file.entity';
+import { TodoFilesEntity } from 'src/timeline/entities/occurrence-todo.entity';
 import { In, Repository } from 'typeorm';
 import { ExpenseFileEntity } from 'src/wallet/entities/wallet.entity';
 import { FileFactory } from './factories/file.factory';
@@ -10,8 +11,8 @@ import { FileUploadType, ProcessedFile, UploadOptions } from './types/upload.typ
 @Injectable()
 export class UploadService {
   constructor(
-    @InjectRepository(TimelineFilesEntity)
-    private timelineFilesRepository: Repository<TimelineFilesEntity>,
+    @InjectRepository(OccurrenceFileEntity)
+    private timelineFilesRepository: Repository<OccurrenceFileEntity>,
 
     @InjectRepository(ExpenseFileEntity)
     private expenseFilesRepository: Repository<ExpenseFileEntity>,
@@ -69,12 +70,12 @@ export class UploadService {
     });
   }
 
-  private async insertTimelineFile(file: ProcessedFile, timelineId: string) {
+  private async insertTimelineFile(file: ProcessedFile, occurrenceId: string) {
     const timelineFile = FileFactory.createTimelineFile({
       name: file.name,
       url: file.path,
       type: file.type,
-      timelineId,
+      occurrenceId,
       isPublic: false,
     });
 
@@ -102,10 +103,10 @@ export class UploadService {
     }
   }
 
-  private async insertMultipleTimelineFiles(files: ProcessedFile[], timelineId: string) {
+  private async insertMultipleTimelineFiles(files: ProcessedFile[], occurrenceId: string) {
     const timelineFiles = FileFactory.createBulkTimelineFiles({
       files,
-      timelineId,
+      occurrenceId,
       isPublic: false,
     });
 

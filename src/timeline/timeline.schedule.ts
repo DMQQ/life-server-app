@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { NotificationsService } from 'src/notifications/notifications.service';
-import { ExpoPushMessage } from 'expo-server-sdk';
 import { TimelineScheduleService } from './timelineSchedule.service';
 import * as dayjs from 'dayjs';
+import { BaseScheduler } from '../notifications/scheduler-base.service';
+import { WalletService } from '../wallet/services/wallet.service';
+import { ExpenseService } from '../wallet/services/expense.service';
+import { LiveActivityService } from './live-activity.service';
+import { LiveActivityStatus } from './live-activity.entity';
 
 interface TodoResponse {
   id: string;
@@ -11,11 +15,6 @@ interface TodoResponse {
   isCompleted: boolean;
   userId: string;
 }
-import { BaseScheduler } from '../notifications/scheduler-base.service';
-import { WalletService } from '../wallet/services/wallet.service';
-import { ExpenseService } from '../wallet/services/expense.service';
-import { LiveActivityService } from './live-activity.service';
-import { LiveActivityStatus } from './live-activity.entity';
 
 @Injectable()
 export class TimelineSchedule extends BaseScheduler {
@@ -43,7 +42,7 @@ export class TimelineSchedule extends BaseScheduler {
         todos: todos.map((todo: TodoResponse) => ({
           id: todo.id,
           title: todo.title,
-          //@ts-ignore raw z sqla 0/1 a swift oczekuje true/false
+          //@ts-ignore raw sql returns 0/1 while swift expects true/false
           isCompleted: todo.isCompleted === 0 ? false : true,
         })),
       };
@@ -53,22 +52,22 @@ export class TimelineSchedule extends BaseScheduler {
       if (userToken?.liveActivityToken) {
         try {
           await this.notificationService.sendTimelineLiveActivity(event.userId, eventWithTodos);
-          console.log(`Live Activity notification sent for event ${event.id}`);
+          console.log(`Live Activity notification sent for occurrence ${event.id}`);
 
           const currentDate = dayjs().format('YYYY-MM-DD');
           const beginTime = this.parseTimeToTimestamp(currentDate, event.beginTime);
           const endTime = this.parseTimeToTimestamp(currentDate, event.endTime);
 
           await this.liveActivityService.createActivity({
-            timelineId: event.id,
+            occurrenceId: event.id,
             beginTime,
             endTime,
             status: LiveActivityStatus.SENT,
           });
 
-          console.log(`LiveActivity database entry created for event ${event.id}`);
+          console.log(`LiveActivity database entry created for occurrence ${event.id}`);
         } catch (error) {
-          console.error(`Failed to send Live Activity for event ${event.id}:`, error);
+          console.error(`Failed to send Live Activity for occurrence ${event.id}:`, error);
         }
       } else {
         console.log(`No live activity token for user ${event.userId}, skipping notification`);
@@ -86,17 +85,17 @@ export class TimelineSchedule extends BaseScheduler {
       if (userToken?.liveActivityToken) {
         try {
           await this.notificationService.sendTimelineEndActivity(event.userId, event);
-          console.log(`Live Activity end notification sent for event ${event.id}`);
+          console.log(`Live Activity end notification sent for occurrence ${event.id}`);
 
-          const existingActivity = await this.liveActivityService.findActivityByTimelineId(event.id);
+          const existingActivity = await this.liveActivityService.findActivityByOccurrenceId(event.id);
           if (existingActivity) {
             await this.liveActivityService.updateActivity(existingActivity.id, {
               status: LiveActivityStatus.END,
             });
-            console.log(`LiveActivity database entry updated to END for event ${event.id}`);
+            console.log(`LiveActivity database entry updated to END for occurrence ${event.id}`);
           }
         } catch (error) {
-          console.error(`Failed to send Live Activity end for event ${event.id}:`, error);
+          console.error(`Failed to send Live Activity end for occurrence ${event.id}:`, error);
         }
       } else {
         console.log(`No live activity token for user ${event.userId}, skipping end notification`);
@@ -105,8 +104,6 @@ export class TimelineSchedule extends BaseScheduler {
   }
 
   private parseTimeToTimestamp(date: string, time: string): number {
-    // Combine date and time into a dayjs object and return timestamp in milliseconds
-    const dateTime = dayjs(`${date} ${time}`);
-    return dateTime.valueOf();
+    return dayjs(`${date} ${time}`).valueOf();
   }
 }
