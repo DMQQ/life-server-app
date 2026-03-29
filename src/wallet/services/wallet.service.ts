@@ -260,6 +260,7 @@ export class WalletService {
     schedule: boolean = false,
     subscription: string | null,
     spontaneousRate: number,
+    shop?: string,
   ) {
     const wallet = await this.getWalletIdByUserId(userId);
 
@@ -276,6 +277,7 @@ export class WalletService {
       schedule,
       spontaneousRate: spontaneousRate ?? 0,
       subscriptionId: subscription,
+      shop,
     });
     const insert = await this.expenseRepository.insert(newExpense);
 

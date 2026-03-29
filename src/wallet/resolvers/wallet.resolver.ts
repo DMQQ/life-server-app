@@ -16,6 +16,8 @@ import {
 } from '../../utils/services/Cache/cache.decorator';
 import { CacheService } from 'src/utils/services/Cache/cache.service';
 import { ExpensePredictionService } from '../services/expense-prediction.service';
+import { ExpenseCorrectionService } from '../services/expense-correction.service';
+import { ExpenseService } from '../services/expense.service';
 import { Model } from 'src/utils/decorators/model.decorator';
 
 const parseDate = (dateString: string) => {
@@ -45,6 +47,8 @@ export class WalletResolver {
     private cacheService: CacheService,
 
     private predictionService: ExpensePredictionService,
+    private correctionService: ExpenseCorrectionService,
+    private expenseService: ExpenseService,
   ) {}
 
   @Query((returns) => WalletEntity)
@@ -172,22 +176,44 @@ export class WalletResolver {
     @User() usrId: string,
     @Args('amount', { type: () => Float }) amount: number,
     @Args('description') description: string,
+    @Args('latitude', { type: () => Float, nullable: true }) latitude?: number,
+    @Args('longitude', { type: () => Float, nullable: true }) longitude?: number,
   ) {
     const categoryPrediction = await this.predictionService.predictExpense(usrId, description, amount);
 
-    const category = categoryPrediction ? categoryPrediction.category : 'none';
+    const predictedCategory = categoryPrediction ? categoryPrediction.category : 'none';
+    const predictedShop = categoryPrediction?.shop ?? null;
+
+    const corrected = await this.correctionService.applyCorrections(usrId, {
+      description,
+      shop: predictedShop,
+      category: predictedCategory,
+      amount,
+    });
 
     const expense = await this.walletService.createExpense(
       usrId,
       amount,
-      description,
+      corrected.description,
       ExpenseType.expense,
-      category,
+      corrected.category ?? predictedCategory,
       new Date(),
       false,
       null,
       0,
+      corrected.shop ?? predictedShop,
     );
+
+    if (latitude != null && longitude != null) {
+      const location = await this.expenseService.createLocation({
+        name: corrected.shop ?? corrected.description,
+        kind: 'merchant',
+        latitude,
+        longitude,
+      });
+      await this.expenseService.addExpenseLocation(expense.id, location.id);
+      expense.location = location;
+    }
 
     return expense;
   }

@@ -7,6 +7,9 @@ import {
   WalletEntity,
   WalletLimits,
 } from 'src/wallet/entities/wallet.entity';
+import { ExpenseCorrectionMapEntity } from 'src/wallet/entities/expense-correction-map.entity';
+import { ExpenseCorrectionService } from './services/expense-correction.service';
+import { ExpenseCorrectionResolver } from './resolvers/expense-correction.resolver';
 import { WalletResolver } from './resolvers/wallet.resolver';
 import { WalletService } from './services/wallet.service';
 import { NotificationsModule } from 'src/notifications/notifications.module';
@@ -40,6 +43,7 @@ import { StatisticsController } from './resolvers/statistics.controller';
       ExpenseLocationEntity,
       ExpenseSubExpense,
       WalletLimits,
+      ExpenseCorrectionMapEntity,
     ]),
     NotificationsModule,
     UploadModule,
@@ -59,6 +63,8 @@ import { StatisticsController } from './resolvers/statistics.controller';
     StatisticsService,
 
     ExpensePredictionService,
+    ExpenseCorrectionService,
+    ExpenseCorrectionResolver,
 
     ReportSchedulerService,
     TransactionSchedulerService,
