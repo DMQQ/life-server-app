@@ -136,7 +136,11 @@ export class TransactionSchedulerService {
     }
 
     if (paycheckDate === 'end') {
-      return today.isSame(today.endOf('month'), 'day');
+      const lastDay = today.endOf('month');
+      let lastWorkingDay = lastDay;
+      if (lastDay.day() === 6) lastWorkingDay = lastDay.subtract(1, 'day'); // Saturday → Friday
+      if (lastDay.day() === 0) lastWorkingDay = lastDay.subtract(2, 'day'); // Sunday → Friday
+      return today.isSame(lastWorkingDay, 'day');
     }
 
     const dayOfMonth = parseInt(paycheckDate);
