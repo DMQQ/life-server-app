@@ -30,6 +30,32 @@ export class ExpenseService {
     });
   }
 
+  async getSimilar(expenseId: string, limit?: number) {
+    const target = await this.getOne(expenseId);
+    if (!target) {
+      return [];
+    }
+
+    const query = this.expenseEntity
+      .createQueryBuilder('expense')
+      .where('expense.walletId = :walletId', { walletId: target.walletId })
+      .andWhere('expense.id != :expenseId', { expenseId })
+      .andWhere((qb) => {
+        qb.where('expense.description LIKE :description', { description: `%${target.description}%` }).orWhere(
+          'expense.category = :category',
+          { category: target.category },
+        );
+      })
+      .orderBy('ABS(TIMESTAMPDIFF(SECOND, expense.date, :targetDate))', 'ASC')
+      .setParameter('targetDate', target.date);
+
+    if (limit) {
+      query.limit(limit);
+    }
+
+    return query.getMany();
+  }
+
   async queryLocations(query: string, longitude?: number, latitude?: number) {
     return this.locationEntity.find({
       where: {

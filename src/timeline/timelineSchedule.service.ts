@@ -39,12 +39,8 @@ export class TimelineScheduleService {
     const currentDate = warsawTime.format('YYYY-MM-DD');
     const currentTime = warsawTime.format('HH:mm:ss');
 
-    console.log(`Current Warsaw Date: ${currentDate}, Time: ${currentTime}`);
-
     const timeField =
-      type === 'beginTime'
-        ? 'COALESCE(o.beginTimeOverride, s.beginTime)'
-        : 'COALESCE(o.endTimeOverride, s.endTime)';
+      type === 'beginTime' ? 'COALESCE(o.beginTimeOverride, s.beginTime)' : 'COALESCE(o.endTimeOverride, s.endTime)';
 
     return this.occurrenceRepo.query(
       `

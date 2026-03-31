@@ -46,6 +46,15 @@ export class ExpenseResolver {
     return this.expenseService.getOne(expenseId);
   }
 
+  @Query(() => [ExpenseEntity])
+  @UserCache(3600)
+  similarExpenses(
+    @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
+    @Args('limit', { type: () => Float, nullable: true }) limit?: number,
+  ) {
+    return this.expenseService.getSimilar(expenseId, limit);
+  }
+
   @ResolveField('subexpenses', () => [ExpenseSubExpense])
   async getSubExpenses(@Parent() expense: ExpenseEntity) {
     return this.expenseService.getSubExpenses(expense.id);
