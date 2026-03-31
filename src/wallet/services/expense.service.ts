@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ExpenseEntity, ExpenseLocationEntity, ExpenseSubExpense, WalletEntity } from '../entities/wallet.entity';
-import { Between, Like, Repository } from 'typeorm';
+import { Between, Brackets, Like, Repository } from 'typeorm';
 import * as dayjs from 'dayjs';
 import { ExpenseFactory } from '../factories/expense.factory';
+import { TextSimilarityService } from 'src/utils/services/TextSimilarity/text-similarity.service';
 
 @Injectable()
 export class ExpenseService {
@@ -19,6 +20,8 @@ export class ExpenseService {
 
     @InjectRepository(WalletEntity)
     private walletRepository: Repository<WalletEntity>,
+
+    private textSimilarity: TextSimilarityService,
   ) {}
 
   async getOne(id: string) {
@@ -31,29 +34,74 @@ export class ExpenseService {
   }
 
   async getSimilar(expenseId: string, limit?: number) {
-    const target = await this.getOne(expenseId);
-    if (!target) {
+    const [targetRaw] = await this.expenseEntity.manager.query(
+      'SELECT id, description, category, walletId FROM expense WHERE id = ?',
+      [expenseId],
+    );
+
+    if (!targetRaw?.walletId) {
       return [];
     }
 
-    const query = this.expenseEntity
+    const { description, category, walletId } = targetRaw as {
+      id: string;
+      description: string;
+      category: string;
+      walletId: string;
+    };
+
+    const words = description
+      .replace(/\s+\d+x\s*$/i, '')
+      .replace(/\s+x\d+\s*$/i, '')
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length >= 3);
+
+    const searchTerms = words.length > 0 ? words : [description];
+
+    const effectiveLimit = limit ?? 10;
+    const fetchLimit = effectiveLimit * 3;
+
+    const descQuery = this.expenseEntity
       .createQueryBuilder('expense')
-      .where('expense.walletId = :walletId', { walletId: target.walletId })
+      .where('expense.walletId = :walletId', { walletId })
       .andWhere('expense.id != :expenseId', { expenseId })
-      .andWhere((qb) => {
-        qb.where('expense.description LIKE :description', { description: `%${target.description}%` }).orWhere(
-          'expense.category = :category',
-          { category: target.category },
-        );
-      })
-      .orderBy('ABS(TIMESTAMPDIFF(SECOND, expense.date, :targetDate))', 'ASC')
-      .setParameter('targetDate', target.date);
+      .andWhere(
+        new Brackets((qb) => {
+          searchTerms.forEach((word, i) => {
+            qb.orWhere(`expense.description LIKE :word${i}`, { [`word${i}`]: `%${word}%` });
+          });
+        }),
+      )
+      .orderBy('expense.date', 'DESC')
+      .limit(fetchLimit);
 
-    if (limit) {
-      query.limit(limit);
-    }
+    const descMatches = await descQuery.getMany();
 
-    return query.getMany();
+    const excludeIds = [expenseId, ...descMatches.map((e) => e.id)];
+
+    const catQuery = this.expenseEntity
+      .createQueryBuilder('expense')
+      .where('expense.walletId = :walletId', { walletId })
+      .andWhere('expense.id NOT IN (:...excludeIds)', { excludeIds })
+      .andWhere('expense.category = :category', { category })
+      .orderBy('expense.date', 'DESC')
+      .limit(fetchLimit);
+
+    const catMatches = await catQuery.getMany();
+
+    const allCandidates = [...descMatches, ...catMatches];
+
+    const scored = this.textSimilarity.findMostSimilar(
+      description,
+      allCandidates,
+      (e) => e.description.toLowerCase(),
+      0,
+    );
+
+    const result = scored.slice(0, effectiveLimit).map((r) => r.item);
+
+    return result;
   }
 
   async queryLocations(query: string, longitude?: number, latitude?: number) {
