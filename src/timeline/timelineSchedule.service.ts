@@ -67,6 +67,34 @@ export class TimelineScheduleService {
     );
   }
 
+  async findExpiredEvents(): Promise<{ id: string; title: string; userId: string; token: string }[]> {
+    const warsawTime = dayjs().tz('Europe/Warsaw');
+    const today = warsawTime.format('YYYY-MM-DD');
+    const twoDaysAgo = warsawTime.subtract(2, 'day').format('YYYY-MM-DD');
+
+    return this.occurrenceRepo.query(
+      `
+      SELECT
+        o.id,
+        COALESCE(o.titleOverride, s.title) as title,
+        s.userId,
+        n.token
+      FROM event_occurrence as o
+        INNER JOIN event_series as s ON o.seriesId = s.id
+        LEFT JOIN notifications as n ON s.userId = n.userId
+      WHERE o.date >= ?
+        AND o.date < ?
+        AND o.isCompleted = 0
+        AND o.isSkipped = 0
+        AND s.notification = 1
+        AND (n.token IS NOT NULL AND n.token != "")
+        AND n.isEnable = 1
+      ORDER BY s.userId, o.date DESC
+    `,
+      [twoDaysAgo, today],
+    );
+  }
+
   async getUncompletedTodosForUser(occurrenceId: string): Promise<TodoResponse[]> {
     return this.occurrenceRepo.query(
       `

@@ -32,8 +32,6 @@ export class TimelineSchedule extends BaseScheduler {
   async handleCron() {
     const events = await this.timelineScheduleService.findEventsByTypeWithCurrentTime('beginTime');
 
-    console.log(`Found ${events.length} events starting now.`);
-
     for (const event of events) {
       const todos = await this.timelineScheduleService.getUncompletedTodosForUser(event.id);
 
@@ -49,7 +47,7 @@ export class TimelineSchedule extends BaseScheduler {
 
       const userToken = await this.notificationService.findUserToken(event.userId);
 
-      if (userToken?.liveActivityToken) {
+      if (userToken?.liveActivityToken && this.isNotificationEnabled(userToken, 'timeline_live_activity')) {
         try {
           await this.notificationService.sendTimelineLiveActivity(event.userId, eventWithTodos);
           console.log(`Live Activity notification sent for occurrence ${event.id}`);
@@ -82,7 +80,7 @@ export class TimelineSchedule extends BaseScheduler {
     for (const event of events) {
       const userToken = await this.notificationService.findUserToken(event.userId);
 
-      if (userToken?.liveActivityToken) {
+      if (userToken?.liveActivityToken && this.isNotificationEnabled(userToken, 'timeline_live_activity')) {
         try {
           await this.notificationService.sendTimelineEndActivity(event.userId, event);
           console.log(`Live Activity end notification sent for occurrence ${event.id}`);
@@ -99,6 +97,47 @@ export class TimelineSchedule extends BaseScheduler {
         }
       } else {
         console.log(`No live activity token for user ${event.userId}, skipping end notification`);
+      }
+    }
+  }
+
+  // Runs daily at 9 PM Warsaw time
+  @Cron('0 0 21 * * *', { timeZone: 'Europe/Warsaw' })
+  async handleExpiredEventReminders() {
+    const events = await this.timelineScheduleService.findExpiredEvents();
+
+    if (events.length === 0) return;
+
+    // Group by userId
+    const byUser = new Map<string, { token: string; titles: string[] }>();
+    for (const event of events) {
+      if (!byUser.has(event.userId)) {
+        byUser.set(event.userId, { token: event.token, titles: [] });
+      }
+      byUser.get(event.userId).titles.push(event.title);
+    }
+
+    for (const [userId, { token, titles }] of byUser) {
+      const userToken = await this.notificationService.findUserToken(userId);
+      if (!this.isNotificationEnabled(userToken, 'expired_event_reminders')) continue;
+
+      if (titles.length <= 2) {
+        for (const title of titles) {
+          await this.sendSingleNotification(
+            { to: token, title: 'Missed event', body: title, sound: 'default' },
+            userId,
+          );
+        }
+      } else {
+        await this.sendSingleNotification(
+          {
+            to: token,
+            title: `${titles.length} missed events`,
+            body: titles.join(', '),
+            sound: 'default',
+          },
+          userId,
+        );
       }
     }
   }

@@ -95,15 +95,45 @@ export class ExpenseCorrectionService {
     return result;
   }
 
+  /**
+   * Matches a value against a pattern.
+   * - `/pattern/flags` → regex
+   * - Pattern with `*` or `?` → glob wildcard (full-string match)
+   * - Otherwise → case-insensitive substring
+   */
+  private matchesPattern(value: string, pattern: string): boolean {
+    const regexLiteral = pattern.match(/^\/(.+)\/([gimsuy]*)$/);
+    if (regexLiteral) {
+      try {
+        const re = new RegExp(regexLiteral[1], regexLiteral[2] || 'i');
+        return re.test(value);
+      } catch {
+        // fall through to substring
+      }
+    }
+
+    if (pattern.includes('*') || pattern.includes('?')) {
+      try {
+        const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+        const re = new RegExp(`^${escaped}$`, 'i');
+        return re.test(value);
+      } catch {
+        // fall through to substring
+      }
+    }
+
+    return value.toLowerCase().includes(pattern.toLowerCase());
+  }
+
   private matches(input: CorrectionInput, map: ExpenseCorrectionMapEntity): boolean {
     if (map.matchShop !== null) {
-      const target = (input.shop ?? input.description ?? '').toLowerCase();
-      if (!target.includes(map.matchShop.toLowerCase())) return false;
+      const target = input.shop ?? input.description ?? '';
+      if (!this.matchesPattern(target, map.matchShop)) return false;
     }
 
     if (map.matchDescription !== null) {
-      const desc = (input.description ?? '').toLowerCase();
-      if (!desc.includes(map.matchDescription.toLowerCase())) return false;
+      const desc = input.description ?? '';
+      if (!this.matchesPattern(desc, map.matchDescription)) return false;
     }
 
     if (map.matchCategory !== null) {

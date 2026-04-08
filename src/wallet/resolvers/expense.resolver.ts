@@ -47,13 +47,12 @@ export class ExpenseResolver {
   }
 
   @Query(() => [ExpenseEntity])
-  // @UserCache(3600)
+  @UserCache(3600)
   async similarExpenses(
     @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
     @Args('limit', { type: () => Float, nullable: true }) limit?: number,
   ) {
     const similar = await this.expenseService.getSimilar(expenseId, limit);
-    console.log(`Found ${similar.length} similar expenses for expense ${expenseId}`, { similar });
     return similar;
   }
 

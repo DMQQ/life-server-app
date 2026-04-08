@@ -128,7 +128,6 @@ export class InvalidateCacheInterceptor implements NestInterceptor {
             await this.cacheService.flushAll();
           } else if (shouldInvalidateCurrentUser && accountId) {
             if (targetModule) {
-              console.log('Invalidate pattern ', `${accountId}:${targetModule}:*`);
               await this.cacheService.invalidatePattern(`${accountId}:${targetModule}:*`);
             } else {
               await this.cacheService.invalidateUser(accountId);

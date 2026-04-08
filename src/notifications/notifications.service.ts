@@ -283,6 +283,20 @@ export class NotificationsService {
         category: 'Flashcards',
         schedule: 'Sunday at 10 AM',
       },
+      {
+        key: 'timeline_live_activity',
+        title: 'Timeline Live Activity',
+        description: 'Live activity updates when timeline events start and end',
+        category: 'Timeline',
+        schedule: 'Real-time',
+      },
+      {
+        key: 'expired_event_reminders',
+        title: 'Missed Event Reminders',
+        description: 'Daily reminder about timeline events you missed',
+        category: 'Timeline',
+        schedule: 'Daily at 9 PM',
+      },
     ];
   }
 }
