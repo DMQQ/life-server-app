@@ -47,6 +47,10 @@ export class EventSeriesEntity {
   @Column({ type: 'varchar', length: 50, default: '' })
   tags: string;
 
+  @Field(() => Int)
+  @Column({ type: 'int', default: 0 })
+  priority: number;
+
   @Field(() => ID)
   @Index()
   @Column({ type: 'uuid' })

@@ -14,12 +14,15 @@ import {
   CopyOccurrenceInput,
   EditOccurrenceInput,
   MonthDay,
-  OccurrenceTodoView,
   OccurrenceView,
   RepeatInput,
 } from './timeline.schemas';
 import { EventOccurrenceService } from './event-occurrence.service';
 import { OccurrenceTodoEntity, TodoFilesEntity } from './entities/occurrence-todo.entity';
+import { ExtractTasksArgs, ExtractTasksResponse } from './dto/timeline.dto';
+import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
+import dayjs from 'dayjs';
+import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 
 @InputType()
 class PaginationInput {
@@ -35,7 +38,10 @@ class PaginationInput {
 @DefaultCacheModule('Timeline', { invalidateCurrentUser: true })
 @Resolver(() => OccurrenceView)
 export class EventOccurrenceResolver {
-  constructor(private occurrenceService: EventOccurrenceService) {}
+  constructor(
+    private occurrenceService: EventOccurrenceService,
+    private openAIService: OpenAIService,
+  ) {}
 
   // ─── Queries ─────────────────────────────────────────────────────────────────
 
@@ -52,19 +58,13 @@ export class EventOccurrenceResolver {
 
   @Query(() => [MonthDay])
   @UserCache(3600)
-  async occurrenceMonth(
-    @User() userId: string,
-    @Args('date', { nullable: false }) date: string,
-  ) {
+  async occurrenceMonth(@User() userId: string, @Args('date', { nullable: false }) date: string) {
     return this.occurrenceService.findMonthOccurrences(userId, date);
   }
 
   @Query(() => OccurrenceView)
   @UserCache(3600)
-  async occurrenceById(
-    @Args('id', { type: () => String }) id: string,
-    @User() userId: string,
-  ) {
+  async occurrenceById(@Args('id', { type: () => String }) id: string, @User() userId: string) {
     return this.occurrenceService.findById(id, userId);
   }
 
@@ -187,5 +187,42 @@ export class EventOccurrenceResolver {
     @Args('targetOccurrenceId', { type: () => ID }) targetOccurrenceId: string,
   ) {
     return this.occurrenceService.transferTodos(sourceOccurrenceId, targetOccurrenceId);
+  }
+
+  @Mutation(() => ExtractTasksResponse)
+  async timelineExtractTasks(@Args() args: ExtractTasksArgs): Promise<ExtractTasksResponse> {
+    console.log('Extracting tasks with args:', args);
+    const { content, currentDate, history } = args;
+
+    const referenceDate = currentDate || dayjs().format('YYYY-MM-DD');
+
+    const result = await this.openAIService.extractTasks(content, referenceDate, history);
+
+    console.log('Extracted tasks result:', result);
+
+    const tasks: EventOccurrenceEntity[] = (result.tasks || []).map((t: any) => {
+      const occ = new EventOccurrenceEntity();
+      occ.titleOverride = t.titleOverride ?? null;
+      occ.descriptionOverride = t.descriptionOverride ?? null;
+      occ.date = t.date ?? null;
+      occ.beginTimeOverride = t.beginTimeOverride ?? null;
+      occ.endTimeOverride = t.endTimeOverride ?? null;
+      occ.isCompleted = false;
+      occ.isSkipped = false;
+      occ.position = 0;
+      occ.isRepeat = t.isRepeat ?? false;
+      occ.repeatFrequency = t.repeatFrequency ?? null;
+      occ.repeatEveryNth = t.repeatEveryNth ?? null;
+      occ.repeatCount = t.repeatCount ?? null;
+      occ.todos = (t.todos || []).map((title: string) => {
+        const todo = new OccurrenceTodoEntity();
+        todo.title = title;
+        todo.isCompleted = false;
+        return todo;
+      });
+      return occ;
+    });
+
+    return { message: result.message, tasks };
   }
 }

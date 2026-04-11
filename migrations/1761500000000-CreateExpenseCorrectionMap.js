@@ -3,7 +3,7 @@ module.exports = class CreateExpenseCorrectionMap1761500000000 {
 
   async up(queryRunner) {
     await queryRunner.query(`
-      CREATE TABLE \`expense_correction_map\` (
+      CREATE TABLE IF NOT EXISTS \`expense_correction_map\` (
         \`id\`                  VARCHAR(36)    NOT NULL,
         \`walletId\`            VARCHAR(36)    NOT NULL,
         \`matchShop\`           VARCHAR(255)   NULL,

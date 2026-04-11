@@ -38,6 +38,7 @@ function buildView(
     isAllDay: series.isAllDay,
     isRepeat: series.isRepeat,
     tags: series.tags,
+    priority: series.priority,
     todos: (occurrence.todos || []).map((t) => ({
       id: t.id,
       title: t.title,
@@ -126,7 +127,7 @@ export class EventOccurrenceService {
       .addOrderBy('todos.modifiedAt', 'DESC');
 
     if (opts.date) {
-      qb.andWhere('o.date = :date', { date: opts.date });
+      qb.andWhere('(o.date = :date OR o.date IS NULL)', { date: opts.date });
     }
 
     if (opts.query) {
@@ -218,6 +219,7 @@ export class EventOccurrenceService {
         ...(input.beginTime !== undefined && { beginTime: input.beginTime }),
         ...(input.endTime !== undefined && { endTime: input.endTime }),
         ...(input.tags !== undefined && { tags: input.tags }),
+        ...(input.priority !== undefined && { priority: input.priority }),
       });
       await this.seriesService.clearAllOverrides(occ.seriesId);
     }

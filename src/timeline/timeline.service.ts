@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
 import {
   TimelineEntity,
@@ -7,9 +7,8 @@ import {
   TimelineTodosEntity,
   TodoFilesEntity,
 } from 'src/timeline/timeline.entity';
-import { EntityManager, In, Like, Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { CreateTimelineInput, RepeatableTimeline } from './timeline.schemas';
-import { dataSourceOptions } from 'src/database';
 
 interface CreateTimelineProps {
   beginTime: string;

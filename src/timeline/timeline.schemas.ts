@@ -18,11 +18,14 @@ export class CreateEventInput {
   @Field()
   endTime: string;
 
-  @Field()
-  date: string;
+  @Field({ nullable: true })
+  date?: string;
 
   @Field()
   tags: string;
+
+  @Field(() => Int, { nullable: true })
+  priority?: number;
 
   @Field(() => [String], { nullable: true })
   todos?: string[];
@@ -62,6 +65,9 @@ export class EditOccurrenceInput {
 
   @Field({ nullable: true })
   tags?: string;
+
+  @Field(() => Int, { nullable: true })
+  priority?: number;
 }
 
 @InputType()
@@ -119,8 +125,8 @@ export class OccurrenceView {
   @Field(() => ID)
   seriesId: string;
 
-  @Field()
-  date: string;
+  @Field({ nullable: true })
+  date: string | null;
 
   @Field(() => Int)
   position: number;
@@ -151,6 +157,9 @@ export class OccurrenceView {
 
   @Field()
   tags: string;
+
+  @Field(() => Int)
+  priority: number;
 
   @Field(() => [OccurrenceTodoView])
   todos: OccurrenceTodoView[];

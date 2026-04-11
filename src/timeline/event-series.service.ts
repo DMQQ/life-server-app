@@ -35,6 +35,7 @@ export class EventSeriesService {
       userId: input.userId,
       isAllDay: false,
       isRepeat,
+      priority: input.priority ?? 0,
       ...(isRepeat && {
         repeatFrequency: repeat.repeatOn,
         repeatEveryNth: repeat.repeatEveryNth,
@@ -42,9 +43,9 @@ export class EventSeriesService {
       }),
     });
 
-    const dates = isRepeat
+    const dates: (string | null)[] = isRepeat
       ? this._generateDates(repeat.startDate || input.date, repeat.repeatCount, repeat.repeatEveryNth, repeat.repeatOn)
-      : [input.date];
+      : [input.date ?? null];
 
     const occurrences = await this.occurrenceRepo.save(
       dates.map((date, position) => ({
@@ -59,7 +60,7 @@ export class EventSeriesService {
 
   async updateSeriesFields(
     seriesId: string,
-    input: Partial<Pick<EventSeriesEntity, 'title' | 'description' | 'beginTime' | 'endTime' | 'tags'>>,
+    input: Partial<Pick<EventSeriesEntity, 'title' | 'description' | 'beginTime' | 'endTime' | 'tags' | 'priority'>>,
   ): Promise<EventSeriesEntity> {
     const update: any = { ...input };
     if (input.beginTime) update.beginTime = excludeSeconds(input.beginTime);

@@ -26,10 +26,10 @@ export class EventOccurrenceEntity {
   @Column({ type: 'uuid' })
   seriesId: string;
 
-  @Field()
+  @Field({ nullable: true })
   @Index()
-  @Column({ type: 'date' })
-  date: string;
+  @Column({ type: 'date', nullable: true })
+  date: string | null;
 
   @Field(() => Int)
   @Column({ type: 'int', default: 0 })
@@ -70,8 +70,22 @@ export class EventOccurrenceEntity {
   @JoinColumn({ name: 'seriesId' })
   series: any;
 
+  @Field(() => [OccurrenceTodoEntity])
   @OneToMany(() => OccurrenceTodoEntity, (todo) => todo.occurrence, { cascade: true })
-  todos: any[];
+  todos: OccurrenceTodoEntity[];
+
+  // Virtual fields — not persisted, used only for AI-extracted event responses
+  @Field({ nullable: true })
+  isRepeat?: boolean;
+
+  @Field({ nullable: true })
+  repeatFrequency?: string;
+
+  @Field(() => Int, { nullable: true })
+  repeatEveryNth?: number;
+
+  @Field(() => Int, { nullable: true })
+  repeatCount?: number;
 
   @OneToMany(() => OccurrenceFileEntity, (file) => file.occurrence, { cascade: true })
   images: any[];
