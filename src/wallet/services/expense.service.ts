@@ -118,6 +118,16 @@ export class ExpenseService {
     });
   }
 
+  async findNearbyLocation(latitude: number, longitude: number, radiusDeg = 0.001) {
+    const results = await this.locationEntity.find({
+      where: {
+        latitude: Between(latitude - radiusDeg, latitude + radiusDeg),
+        longitude: Between(longitude - radiusDeg, longitude + radiusDeg),
+      },
+    });
+    return results[0] ?? null;
+  }
+
   async createLocation(entity: Partial<ExpenseLocationEntity>) {
     const location = ExpenseFactory.createLocation({
       name: entity.name,

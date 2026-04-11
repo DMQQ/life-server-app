@@ -205,7 +205,8 @@ export class WalletResolver {
     );
 
     if (latitude != null && longitude != null) {
-      const location = await this.expenseService.createLocation({
+      const existing = await this.expenseService.findNearbyLocation(latitude, longitude);
+      const location = existing ?? await this.expenseService.createLocation({
         name: corrected.shop ?? corrected.description,
         kind: 'merchant',
         latitude,
