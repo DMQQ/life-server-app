@@ -23,6 +23,7 @@ import {
 import { UploadService } from 'src/upload/upload.service';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 import { WalletService } from '../services/wallet.service';
+import { ParseReceiptQuery } from 'src/utils/shared/AI/ParseReceiptQuery';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
@@ -200,15 +201,7 @@ export class ExpenseResolver {
   @Mutation(() => ExpenseEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
   async createExpenseFromImage(@Args('image') imageBase64: string, @User() user: string) {
-    const prediction = await this.openAiService.extractReceiptContent(imageBase64);
-    const receiptData = JSON.parse(prediction.choices[0].message.content) as {
-      merchant: string;
-      total_price: number;
-      date: string;
-      subexpenses: { name: string; quantity: number; amount: number; category: string }[];
-      title: string;
-      category: string;
-    };
+    const receiptData = await this.openAiService.execute(new ParseReceiptQuery(), { base64Image: imageBase64 });
 
     const expense = await this.walletService.createExpenseFromAIPrediction(receiptData, user);
 

@@ -250,8 +250,10 @@ export class SubscriptionService {
     });
   }
 
-  async modifySubscription({ id, ...subscription }: Partial<SubscriptionEntity> & { id: string }) {
-    return this.subscriptionRepository.update({ id }, subscription);
+  async modifySubscription({ id, walletId, ...subscription }: Partial<SubscriptionEntity> & { id: string }) {
+    await this.subscriptionRepository.update({ id }, subscription);
+    const entity = await this.getSubscriptionById(id);
+    return entity;
   }
 
   async getPossibleSubscription(expenseId: string, walletId: string) {

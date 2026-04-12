@@ -177,8 +177,6 @@ export class StatisticsService {
 
     const streaks: { start: string; end: string; length: number }[] = [];
 
-    console.log('Zero expense dates:', dates);
-
     let currentStreak = { start: dates[0], end: dates[0], length: 1 };
 
     for (let i = 1; i < dates.length; i++) {

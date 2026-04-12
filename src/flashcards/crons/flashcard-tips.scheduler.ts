@@ -5,6 +5,8 @@ import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 import { BaseScheduler } from 'src/notifications/scheduler-base.service';
 import { FlashCardService } from '../flashcards.service';
 import { GroupsService } from '../group.service';
+import { GenerateLanguageTipQuery } from 'src/utils/shared/AI/GenerateLanguageTipQuery';
+import { GenerateGeneralTipQuery } from 'src/utils/shared/AI/GenerateGeneralTipQuery';
 
 @Injectable()
 export class FlashcardTipsScheduler extends BaseScheduler {
@@ -20,7 +22,7 @@ export class FlashcardTipsScheduler extends BaseScheduler {
   @Cron('0 9 * * *', { timeZone: 'Europe/Warsaw' })
   async sendDailyFlashcardTip() {
     this.logger.log('Sending daily flashcard learning tips');
-    
+
     await this.forEachNotification('daily_flashcard_tip', async (user) => {
       if (!user.token) return null;
 
@@ -45,15 +47,14 @@ export class FlashcardTipsScheduler extends BaseScheduler {
 
       let tip: string;
       try {
-        if (isLanguageGroup) {
-          tip = await this.openAIService.generateLanguageLearningTip(content, randomGroup.name);
-        } else {
-          tip = await this.openAIService.generateGeneralLearningTip(content, randomGroup.name);
-        }
+        tip = await this.openAIService.execute(
+          isLanguageGroup ? new GenerateLanguageTipQuery() : new GenerateGeneralTipQuery(),
+          { groupName: randomGroup.name, content },
+        );
 
         if (!tip) return null;
-      } catch (error) {
-        this.logger.error(`Error generating tip for group ${randomGroup.name}: ${error.message}`);
+      } catch (error: any) {
+        this.logger.error(`Error generating tip for group ${randomGroup.name}: ${error?.message}`);
         return null;
       }
 
@@ -119,7 +120,7 @@ export class FlashcardTipsScheduler extends BaseScheduler {
   @Cron('0 10 * * 0', { timeZone: 'Europe/Warsaw' })
   async sendWeeklyFlashcardProgress() {
     this.logger.log('Sending weekly flashcard progress reminders');
-    
+
     await this.forEachNotification('weekly_flashcard_progress', async (user) => {
       if (!user.token) return null;
 

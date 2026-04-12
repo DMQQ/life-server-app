@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ExpenseEntity, WalletEntity } from '../entities/wallet.entity';
 import { Like, Repository } from 'typeorm';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
+import { PredictExpenseQuery } from 'src/utils/shared/AI/PredictExpenseQuery';
 
 @Injectable()
 export class ExpensePredictionService {
@@ -32,13 +33,11 @@ export class ExpensePredictionService {
         .where('expense.walletId = :walletId', { walletId: wallet.id })
         .andWhere('expense.schedule = :schedule', { schedule: false });
 
-      const words = input.split(' ').filter(word => word.length >= 3);
+      const words = input.split(' ').filter((word) => word.length >= 3);
 
       if (words.length > 0) {
-        recentExpensesQuery.andWhere(qb => {
-          const conditions = words.map((word, index) =>
-            `expense.description LIKE :word${index}`
-          ).join(' OR ');
+        recentExpensesQuery.andWhere((qb) => {
+          const conditions = words.map((word, index) => `expense.description LIKE :word${index}`).join(' OR ');
 
           const parameters = words.reduce((acc, word, index) => {
             acc[`word${index}`] = `%${word}%`;
@@ -49,10 +48,7 @@ export class ExpensePredictionService {
         });
       }
 
-      const recentExpenses = await recentExpensesQuery
-        .orderBy('expense.date', 'DESC')
-        .limit(300)
-        .getMany();
+      const recentExpenses = await recentExpensesQuery.orderBy('expense.date', 'DESC').limit(300).getMany();
 
       const predictions = this.calculatePredictions(input, recentExpenses, amount);
 
@@ -72,18 +68,17 @@ export class ExpensePredictionService {
           })),
         });
 
-        const aiPrediction = await this.openAIService.predictExpense(input, similarExpenses);
-
-        console.log('AI Usage', aiPrediction.usage);
-
-        const match = JSON.parse(aiPrediction.choices[0].message.content);
+        const aiPrediction = await this.openAIService.execute(new PredictExpenseQuery(), {
+          exampleExpenses: similarExpenses,
+          name: input,
+        });
 
         return {
           description: input,
           confidence: 1,
           shop: null,
           type: 'expense',
-          ...match,
+          ...aiPrediction,
         };
       }
 

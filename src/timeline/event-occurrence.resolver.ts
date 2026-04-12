@@ -23,6 +23,7 @@ import { ExtractTasksArgs, ExtractTasksResponse } from './dto/timeline.dto';
 import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
 import dayjs from 'dayjs';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
+import { ExtractTasksQuery } from 'src/utils/shared/AI/ExtractTasksQuery';
 
 @InputType()
 class PaginationInput {
@@ -196,9 +197,11 @@ export class EventOccurrenceResolver {
 
     const referenceDate = currentDate || dayjs().format('YYYY-MM-DD');
 
-    const result = await this.openAIService.extractTasks(content, referenceDate, history);
-
-    console.log('Extracted tasks result:', result);
+    const result = await this.openAIService.execute(new ExtractTasksQuery(), {
+      content,
+      currentDate: referenceDate,
+      history,
+    });
 
     const tasks: EventOccurrenceEntity[] = (result.tasks || []).map((t: any) => {
       const occ = new EventOccurrenceEntity();

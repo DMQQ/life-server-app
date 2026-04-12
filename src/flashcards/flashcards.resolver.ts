@@ -19,6 +19,7 @@ import {
 } from './flashcard.types';
 import { FlashCard } from './flashcards.entity';
 import { FlashCardService } from './flashcards.service';
+import { GenerateFlashcardsQuery } from 'src/utils/shared/AI/GenerateFlashCardsQuery';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('FlashCards', { invalidateCurrentUser: true })
@@ -108,6 +109,6 @@ export class FlashCardResolver {
     @Args('groupId', { type: () => ID, nullable: true }) groupId?: string,
   ): Promise<AIGeneratedFlashCards[]> {
     const existing = await this.flashCardService.getFlashCardsTitlesByGroup(groupId, userId);
-    return this.openAIService.generateFlashCards(content, existing);
+    return this.openAIService.execute(new GenerateFlashcardsQuery(), { content, existingFlashcards: existing });
   }
 }
