@@ -26,10 +26,7 @@ import { WalletService } from '../services/wallet.service';
 import { SubscriptionService } from '../services/subscriptions.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  AiChatHistorySkill,
-  StatisticsAiChatHistoryEntity,
-} from '../entities/statistics-ai-chat-history.entity';
+import { AiChatHistorySkill, StatisticsAiChatHistoryEntity } from '../entities/statistics-ai-chat-history.entity';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
@@ -109,13 +106,55 @@ export class StatisticsResolver {
     return this.statisticsService.getWalletBalancePrediction(walletId, toDate);
   }
 
-  @Query(() => [StatisticsAiChatHistoryEntity])
-  async statisticsAiChatHistory(@User() userId: string): Promise<StatisticsAiChatHistoryEntity[]> {
-    return this.chatHistoryRepository.find({
+  private async resolveAiSkills(skills: any[], chartDataMap?: Record<string, any>): Promise<AiChatSkill[]> {
+    if (!skills || skills.length === 0) return [];
+
+    const resolved = await Promise.all(
+      skills.map(async (skill): Promise<AiChatSkill | null> => {
+        if (skill.type === 'chart') {
+          // History uses existing chartData string; Live chat stringifies from chartDataMap
+          const chartData =
+            skill.chartData ||
+            (chartDataMap && chartDataMap[skill.subtype] ? JSON.stringify(chartDataMap[skill.subtype]) : null);
+          return chartData ? { type: 'chart', subtype: skill.subtype, chartData } : null;
+        }
+
+        if (skill.type === 'expense') {
+          const expenseId = skill.id || skill.expenseId;
+          if (!expenseId) return null;
+          const expense = await this.walletService.getExpense(expenseId);
+          return expense ? { type: 'expense', expense } : null;
+        }
+
+        if (skill.type === 'subscription') {
+          const subId = skill.id || skill.subscriptionId;
+          if (!subId) return null;
+          const subscription = await this.subscriptionService.getSubscriptionById(subId);
+          return subscription ? { type: 'subscription', subscription } : null;
+        }
+
+        return null;
+      }),
+    );
+
+    return resolved.filter(Boolean) as AiChatSkill[];
+  }
+
+  @Query(() => [AiChatResponse])
+  async statisticsAiChatHistory(@User() userId: string) {
+    const history = await this.chatHistoryRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
-      take: 50,
+      take: 10,
     });
+
+    return Promise.all(
+      history.map(async (item) => ({
+        ...item,
+        message: item.aiMessage,
+        skills: await this.resolveAiSkills(item.skills),
+      })),
+    );
   }
 
   @Mutation(() => AiChatResponse)
@@ -154,12 +193,13 @@ export class StatisticsResolver {
     const results = await Promise.all(statTypes.map((t) => fetchers[t]().then((d) => [t, d] as const)));
     const data = Object.fromEntries(results);
 
-    // Build available skills context so the AI knows what it can reference
-    const recentExpenses: { id: string; description: string; amount: number }[] = (data.recentExpenses ?? []).map(
-      (e: any) => ({ id: e.id, description: e.description, amount: e.amount }),
-    );
+    const recentExpenses = (data.recentExpenses ?? []).map((e: any) => ({
+      id: e.id,
+      description: e.description,
+      amount: e.amount,
+    }));
 
-    const subscriptionList: { id: string; description: string }[] = (data.subscriptions ?? []).map((s: any) => ({
+    const subscriptionList = (data.subscriptions ?? []).map((s: any) => ({
       id: s.id,
       description: s.description,
     }));
@@ -176,37 +216,16 @@ export class StatisticsResolver {
       },
     });
 
-    // Resolve each skill reference into its full data
     const validExpenseIds = new Set(recentExpenses.map((e) => e.id));
     const validSubscriptionIds = new Set(subscriptionList.map((s) => s.id));
 
-    const resolvedSkills: AiChatSkill[] = await Promise.all(
-      (aiOutput.skills ?? []).map(async (skill): Promise<AiChatSkill | null> => {
-        if (skill.type === 'chart') {
-          const chartData = data[skill.subtype];
-          if (!chartData) return null;
-          return { type: 'chart', subtype: skill.subtype, chartData: JSON.stringify(chartData) };
-        }
+    const validatedRawSkills = (aiOutput.skills ?? []).filter((skill) => {
+      if (skill.type === 'expense') return validExpenseIds.has(skill.id);
+      if (skill.type === 'subscription') return validSubscriptionIds.has(skill.id);
+      return true;
+    });
 
-        if (skill.type === 'expense') {
-          if (!skill.id || !validExpenseIds.has(skill.id)) return null;
-          const expense = await this.walletService.getExpense(skill.id);
-          if (!expense) return null;
-          return { type: 'expense', expense };
-        }
-
-        if (skill.type === 'subscription') {
-          if (!skill.id || !validSubscriptionIds.has(skill.id)) return null;
-          const subscription = await this.subscriptionService.getSubscriptionById(skill.id);
-          if (!subscription) return null;
-          return { type: 'subscription', subscription };
-        }
-
-        return null;
-      }),
-    );
-
-    const finalSkills = resolvedSkills.filter(Boolean) as AiChatSkill[];
+    const finalSkills = await this.resolveAiSkills(validatedRawSkills, data);
 
     const historySkills: AiChatHistorySkill[] = finalSkills.map((s) => ({
       type: s.type,
