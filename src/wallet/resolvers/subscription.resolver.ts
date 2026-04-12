@@ -52,6 +52,7 @@ export class SubscriptionResolver {
   }
 
   @Mutation(() => SubscriptionEntity)
+  @InvalidateCache({ invalidateCurrentUser: true })
   async modifySubscription(@Args('input') input: UpdateSubscriptionInput) {
     return this.subscriptionService.modifySubscription(input);
   }
