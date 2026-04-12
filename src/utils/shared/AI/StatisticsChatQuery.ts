@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { encode } from '@toon-format/toon';
 import { AIQuery, AIQueryConfig } from 'src/utils/shared/AI/AIResource.resource';
 
 export interface StatChatMessage {
@@ -8,8 +9,8 @@ export interface StatChatMessage {
 
 export interface AvailableSkills {
   chartSubtypes: string[];
-  expenses: { id: string; description: string; amount: number }[];
-  subscriptions: { id: string; description: string }[];
+  expenses: any[];
+  subscriptions: any[];
 }
 
 export interface StatisticsChatInput {
@@ -52,9 +53,9 @@ export class StatisticsChatQuery extends AIQuery<StatisticsChatInput, Statistics
       availableSkills.chartSubtypes.length > 0 &&
         `CHARTS — use { "type": "chart", "subtype": "<name>" } where subtype is one of: ${availableSkills.chartSubtypes.join(', ')}`,
       availableSkills.expenses.length > 0 &&
-        `EXPENSES — use { "type": "expense", "id": "<id>" } — valid entries:\n${availableSkills.expenses.map((e) => `  ${e.id}  "${e.description}"  ${e.amount} PLN`).join('\n')}`,
+        `EXPENSES — use { "type": "expense", "id": "<id>" } — valid entries:\n${encode(availableSkills.expenses)}`,
       availableSkills.subscriptions.length > 0 &&
-        `SUBSCRIPTIONS — use { "type": "subscription", "id": "<id>" } — valid entries:\n${availableSkills.subscriptions.map((s) => `  ${s.id}  "${s.description}"`).join('\n')}`,
+        `SUBSCRIPTIONS — use { "type": "subscription", "id": "<id>" } — valid entries:\n${encode(availableSkills.subscriptions)}`,
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -62,7 +63,7 @@ export class StatisticsChatQuery extends AIQuery<StatisticsChatInput, Statistics
     const systemPrompt = `You are a personal finance assistant. The user is viewing their "${input.statType}" spending statistics. Respond in the user's language. Currency is Polish Złoty (PLN). Do NOT use markdown. Format with plain text, line breaks, and dashes only.
 
 Current data:
-${JSON.stringify(input.data, null, 2)}
+${encode(input.data)}
 
 ---
 SKILLS — you may embed rich UI elements inline in your response using [skill:N] placeholders.

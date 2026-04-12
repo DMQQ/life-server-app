@@ -193,16 +193,8 @@ export class StatisticsResolver {
     const results = await Promise.all(statTypes.map((t) => fetchers[t]().then((d) => [t, d] as const)));
     const data = Object.fromEntries(results);
 
-    const recentExpenses = (data.recentExpenses ?? []).map((e: any) => ({
-      id: e.id,
-      description: e.description,
-      amount: e.amount,
-    }));
-
-    const subscriptionList = (data.subscriptions ?? []).map((s: any) => ({
-      id: s.id,
-      description: s.description,
-    }));
+    const recentExpenses: any[] = data.recentExpenses ?? [];
+    const subscriptionList: any[] = data.subscriptions ?? [];
 
     const aiOutput = await this.openAIService.execute(new StatisticsChatQuery(), {
       statType: statTypes.join(', '),
