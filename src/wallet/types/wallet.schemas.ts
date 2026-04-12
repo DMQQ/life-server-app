@@ -1,5 +1,42 @@
 import { Field, Float, InputType, Int, ObjectType } from '@nestjs/graphql';
 import { ExpenseEntity, ExpenseType } from '../entities/wallet.entity';
+import { SubscriptionEntity } from '../entities/subscription.entity';
+
+@InputType()
+export class ChatMessageInput {
+  @Field(() => String)
+  role: 'user' | 'assistant';
+
+  @Field(() => String)
+  content: string;
+}
+
+@ObjectType()
+export class AiChatSkill {
+  @Field(() => String)
+  type: string;
+
+  @Field(() => String, { nullable: true })
+  subtype?: string;
+
+  @Field(() => String, { nullable: true })
+  chartData?: string;
+
+  @Field(() => ExpenseEntity, { nullable: true })
+  expense?: ExpenseEntity;
+
+  @Field(() => SubscriptionEntity, { nullable: true })
+  subscription?: SubscriptionEntity;
+}
+
+@ObjectType()
+export class AiChatResponse {
+  @Field(() => String)
+  message: string;
+
+  @Field(() => [AiChatSkill])
+  skills: AiChatSkill[];
+}
 
 @InputType()
 export class RangeDate {
