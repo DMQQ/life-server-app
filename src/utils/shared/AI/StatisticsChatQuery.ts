@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { AIQuery, AIQueryConfig } from './AIResource.resource';
 import { AiTool } from 'src/ai-chat/tools/base.tool';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 
 export interface AiMessageItem {
   type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard' | 'timelineWidget';
