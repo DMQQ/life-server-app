@@ -90,7 +90,7 @@ ${dateInfo}
 TOOLS:
 ${toolDocs}
 
-RESPONSE FORMAT:
+RESPONSE FORMAT (must be valid JSON):
 { "action": "tool_call", "tool": "<name>", ...queryParams }
 OR
 { "action": "answer", "messages": [
