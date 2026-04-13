@@ -2,12 +2,11 @@ import OpenAI from 'openai';
 import { AIQuery, AIQueryConfig } from './AIResource.resource';
 import { AiTool } from 'src/ai-chat/tools/base.tool';
 import * as dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
+import utc = require('dayjs/plugin/utc');
+import timezone = require('dayjs/plugin/timezone');
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-
 export interface AiMessageItem {
   type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard' | 'timelineWidget';
   content?: string;
