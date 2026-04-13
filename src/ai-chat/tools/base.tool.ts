@@ -42,6 +42,10 @@ export abstract class AiTool {
 
   abstract run(params: any, ctx: ToolContext): Promise<any>;
 
+  // abstract validate(params: any): { valid: boolean; error?: string };
+
+  // abstract create(params: any): any;
+
   normalize(data: any): any {
     return data;
   }
@@ -70,7 +74,8 @@ function applyCondition(
     if ('lte' in v) qb[method](`${colRef} <= :${k}_lte`, { [`${k}_lte`]: v.lte });
     if ('like' in v) qb[method](`${colRef} LIKE :${k}_like`, { [`${k}_like`]: `%${v.like}%` });
     if ('in' in v) qb[method](`${colRef} IN (:...${k}_in)`, { [`${k}_in`]: v.in });
-    if ('between' in v) qb[method](`${colRef} BETWEEN :${k}_a AND :${k}_b`, { [`${k}_a`]: v.between[0], [`${k}_b`]: v.between[1] });
+    if ('between' in v)
+      qb[method](`${colRef} BETWEEN :${k}_a AND :${k}_b`, { [`${k}_a`]: v.between[0], [`${k}_b`]: v.between[1] });
   } else {
     qb[method](`${colRef} = :${k}`, { [k]: value });
   }
@@ -88,7 +93,10 @@ export function buildStandardQuery(
     const groups = params.groupBy ? (Array.isArray(params.groupBy) ? params.groupBy : [params.groupBy]) : [];
     for (const g of groups) {
       const col = fieldMap[g];
-      if (col) { qb.addSelect(col, g); qb.addGroupBy(col); }
+      if (col) {
+        qb.addSelect(col, g);
+        qb.addGroupBy(col);
+      }
     }
     for (const agg of params.aggregate ?? []) {
       const col = agg.field === '*' ? '*' : fieldMap[agg.field];
