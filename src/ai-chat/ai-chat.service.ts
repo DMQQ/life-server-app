@@ -145,11 +145,18 @@ export class AiChatService {
   }
 
   async getHistory(userId: string) {
-    return this.historyRepository.find({
+    const history = await this.historyRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
       take: 10,
     });
+
+    return Promise.all(
+      history.map(async (item) => ({
+        ...item,
+        messages: await this.resolveMessages(item.aiMessages ?? [], {}, true, { userId }),
+      })),
+    );
   }
 
   async chat(params: {

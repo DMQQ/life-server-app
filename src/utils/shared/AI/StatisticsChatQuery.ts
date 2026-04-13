@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { AIQuery, AIQueryConfig } from './AIResource.resource';
 import { AiTool } from 'src/ai-chat/tools/base.tool';
+import dayjs from 'dayjs';
 
 export interface AiMessageItem {
   type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard' | 'timelineWidget';
@@ -50,6 +51,8 @@ export class StatisticsChatQuery extends AIQuery<StatisticsChatInput, Statistics
     return `You are a personal life assistant with access to the user's expenses, events, goals and flashcards. Respond in the user's language. Currency is PLN.
 
 CRITICAL: Never use markdown. No **, no *, no #, no backticks, no bullet points with dashes. Plain text only.
+
+Today is ${dayjs().format('YYYY-MM-DD')}, User's timezone is Europe/Warsaw Poland
 
 ${dateInfo}
 

@@ -11,7 +11,7 @@ export class AiChatResolver {
   @Query(() => [AiChatResponse])
   async aiChatHistory(@User() userId: string): Promise<AiChatResponse[]> {
     const history = await this.aiChatService.getHistory(userId);
-    return history.map((item) => ({ messages: item.aiMessages ?? [] }));
+    return history.map((item) => ({ messages: item.messages }));
   }
 
   @Mutation(() => AiChatResponse)
