@@ -8,7 +8,6 @@ import {
   WalletLimits,
 } from 'src/wallet/entities/wallet.entity';
 import { ExpenseCorrectionMapEntity } from 'src/wallet/entities/expense-correction-map.entity';
-import { StatisticsAiChatHistoryEntity } from 'src/wallet/entities/statistics-ai-chat-history.entity';
 import { ExpenseCorrectionService } from './services/expense-correction.service';
 import { ExpenseCorrectionResolver } from './resolvers/expense-correction.resolver';
 import { WalletResolver } from './resolvers/wallet.resolver';
@@ -45,7 +44,6 @@ import { StatisticsController } from './resolvers/statistics.controller';
       ExpenseSubExpense,
       WalletLimits,
       ExpenseCorrectionMapEntity,
-      StatisticsAiChatHistoryEntity,
     ]),
     NotificationsModule,
     UploadModule,
@@ -75,7 +73,7 @@ import { StatisticsController } from './resolvers/statistics.controller';
     ExpenseAnalysisService,
     MoneyLeftSchedulerService,
   ],
-  exports: [WalletService, ExpenseService],
+  exports: [WalletService, ExpenseService, SubscriptionService],
   controllers: [StatisticsController],
 })
 export class WalletModule implements NestModule {

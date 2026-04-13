@@ -21,6 +21,7 @@ import { CacheModule } from './utils/services/Cache/cache.module';
 import { OpenAIModule } from './utils/services/OpenAI/openai.module';
 import { WalletModule } from './wallet/wallet.module';
 import { WorkoutModule } from './workout/workout.module';
+import { AiChatModule } from './ai-chat/ai-chat.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { WorkoutModule } from './workout/workout.module';
     }),
 
     OpenAIModule,
+    AiChatModule,
 
     AuthenticationModule,
 

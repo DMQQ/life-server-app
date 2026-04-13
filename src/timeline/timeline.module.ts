@@ -40,5 +40,6 @@ import { OccurrenceTodosSubscriber, OccurrenceSubscriber } from './timeline.subs
     LiveActivityService,
     LiveActivityResolver,
   ],
+  exports: [EventSeriesService, EventOccurrenceService, LiveActivityService],
 })
 export class TimelineModule {}

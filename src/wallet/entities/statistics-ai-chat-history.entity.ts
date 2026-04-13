@@ -1,22 +1,13 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 
-@ObjectType()
-export class AiChatHistorySkill {
-  @Field(() => String)
-  type: string;
-
-  @Field(() => String, { nullable: true })
+// Raw AI message items stored in DB (IDs only, no resolved entities)
+export interface AiMessageRaw {
+  type: 'text' | 'chart' | 'expense' | 'subscription';
+  content?: string;
   subtype?: string;
-
-  @Field(() => String, { nullable: true })
   chartData?: string;
-
-  @Field(() => String, { nullable: true })
-  expenseId?: string;
-
-  @Field(() => String, { nullable: true })
-  subscriptionId?: string;
+  id?: string;
 }
 
 @ObjectType()
@@ -33,17 +24,16 @@ export class StatisticsAiChatHistoryEntity {
   @Column({ type: 'text' })
   userMessage: string;
 
-  @Field(() => String)
-  @Column({ type: 'text' })
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'text', nullable: true })
   aiMessage: string;
 
   @Field(() => [String])
   @Column({ type: 'json' })
   statTypes: string[];
 
-  @Field(() => [AiChatHistorySkill])
-  @Column({ type: 'json' })
-  skills: AiChatHistorySkill[];
+  @Column({ type: 'json', nullable: true })
+  aiMessages: AiMessageRaw[];
 
   @Field(() => String, { nullable: true })
   @Column({ type: 'varchar', nullable: true })

@@ -99,9 +99,9 @@ export class TimelineService {
     });
   }
 
-  async findOneById(id: string, userId: string) {
+  async findOneById(id: string) {
     return this.timelineRepository.findOne({
-      where: { id, userId },
+      where: { id },
       relations: ['images', 'todos', 'todos.files'],
       order: {
         images: {

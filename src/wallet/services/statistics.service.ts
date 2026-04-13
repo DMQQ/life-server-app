@@ -343,6 +343,44 @@ export class StatisticsService {
     }));
   }
 
+  async queryExpenses(
+    walletId: string,
+    params: {
+      where?: { startDate?: string; endDate?: string; category?: string; minAmount?: number; maxAmount?: number };
+      orderBy?: { field: 'date' | 'amount'; direction: 'asc' | 'desc' };
+      limit?: number;
+    },
+  ) {
+    let qb = this.expenseEntity
+      .createQueryBuilder('exp')
+      .where('exp.walletId = :walletId', { walletId })
+      .andWhere('exp.type = :type', { type: ExpenseType.expense });
+
+    const w = params.where ?? {};
+    if (w.startDate && w.endDate) {
+      qb = qb.andWhere('exp.date BETWEEN :startDate AND :endDate', { startDate: w.startDate, endDate: w.endDate });
+    }
+    if (w.category) {
+      qb = qb.andWhere('exp.category LIKE :category', { category: `%${w.category}%` });
+    }
+    if (w.minAmount != null) {
+      qb = qb.andWhere('exp.amount >= :minAmount', { minAmount: w.minAmount });
+    }
+    if (w.maxAmount != null) {
+      qb = qb.andWhere('exp.amount <= :maxAmount', { maxAmount: w.maxAmount });
+    }
+
+    const orderField = params.orderBy?.field === 'amount' ? 'exp.amount' : 'exp.date';
+    const orderDir = (params.orderBy?.direction?.toUpperCase() ?? 'DESC') as 'ASC' | 'DESC';
+
+    const results = await qb
+      .orderBy(orderField, orderDir)
+      .limit(Math.min(params.limit ?? 20, 50))
+      .getMany();
+
+    return results.map(({ id, amount, category, description, date }) => ({ id, amount, category, description, date }));
+  }
+
   async getWalletBalancePrediction(walletId: string, toDate: string) {
     const wallet = await this.walletEntity.findOne({ where: { id: walletId } });
     const currentBalance = wallet?.balance || 0;

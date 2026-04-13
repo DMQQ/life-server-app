@@ -1,35 +1,24 @@
 import OpenAI from 'openai';
-import { encode } from '@toon-format/toon';
-import { AIQuery, AIQueryConfig } from 'src/utils/shared/AI/AIResource.resource';
+import { AIQuery, AIQueryConfig } from './AIResource.resource';
+import { AiTool } from 'src/ai-chat/tools/base.tool';
 
-export interface StatChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-export interface AvailableSkills {
-  chartSubtypes: string[];
-  expenses: any[];
-  subscriptions: any[];
-}
-
-export interface StatisticsChatInput {
-  statType: string;
-  data: any;
-  message: string;
-  history: StatChatMessage[];
-  availableSkills: AvailableSkills;
-}
-
-export interface AiSkillRef {
-  type: 'chart' | 'expense' | 'subscription';
+export interface AiMessageItem {
+  type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard';
+  content?: string;
   subtype?: string;
   id?: string;
 }
 
+export interface StatisticsChatInput {
+  tools: AiTool[];
+  dateContext: { startDate?: string; endDate?: string };
+  conversation: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+}
+
 export interface StatisticsChatOutput {
-  message: string;
-  skills: AiSkillRef[];
+  action: 'answer' | 'tool_call';
+  messages?: AiMessageItem[];
+  [key: string]: any;
 }
 
 export class StatisticsChatQuery extends AIQuery<StatisticsChatInput, StatisticsChatOutput> {
@@ -40,61 +29,70 @@ export class StatisticsChatQuery extends AIQuery<StatisticsChatInput, Statistics
   getConfig(): AIQueryConfig {
     return {
       model: 'gpt-4o-mini',
-      max_completion_tokens: 2500,
-      temperature: 0.7,
+      max_completion_tokens: 1500,
+      temperature: 0.5,
       response_format: { type: 'json_object' },
     };
   }
 
   async buildMessages(input: StatisticsChatInput): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
-    const { availableSkills } = input;
+    return [{ role: 'system', content: this.buildSystemPrompt(input) }, ...input.conversation];
+  }
 
-    const skillDocs = [
-      availableSkills.chartSubtypes.length > 0 &&
-        `CHARTS — use { "type": "chart", "subtype": "<name>" } where subtype is one of: ${availableSkills.chartSubtypes.join(', ')}`,
-      availableSkills.expenses.length > 0 &&
-        `EXPENSES — use { "type": "expense", "id": "<id>" } — valid entries:\n${encode(availableSkills.expenses)}`,
-      availableSkills.subscriptions.length > 0 &&
-        `SUBSCRIPTIONS — use { "type": "subscription", "id": "<id>" } — valid entries:\n${encode(availableSkills.subscriptions)}`,
-    ]
-      .filter(Boolean)
-      .join('\n\n');
+  private buildSystemPrompt({ tools, dateContext }: StatisticsChatInput): string {
+    const dateInfo =
+      dateContext.startDate && dateContext.endDate
+        ? `User's current date range: ${dateContext.startDate} → ${dateContext.endDate}.`
+        : '';
 
-    const systemPrompt = `You are a personal finance assistant. The user is viewing their "${input.statType}" spending statistics. Respond in the user's language. Currency is Polish Złoty (PLN). Do NOT use markdown. Format with plain text, line breaks, and dashes only.
+    const toolDocs = tools.map((t) => `  ${t.schema}`).join('\n');
 
-Current data:
-${encode(input.data)}
+    return `You are a personal life assistant with access to the user's expenses, events, goals and flashcards. Respond in the user's language. Currency is PLN.
 
----
-SKILLS — you may embed rich UI elements inline in your response using [skill:N] placeholders.
-Place [skill:N] exactly where in the message the element should appear. Skills are zero-indexed in order of appearance.
+CRITICAL: Never use markdown. No **, no *, no #, no backticks, no bullet points with dashes. Plain text only.
 
-${skillDocs || 'No skills available for this query.'}
+${dateInfo}
 
-Rules:
-- ALWAYS use skills when relevant data is available. A response without skills is a last resort.
-- Embed a chart skill whenever you mention a trend, category, comparison, or any numeric insight that has a matching chart subtype.
-- Embed an expense skill when you refer to a specific transaction.
-- Embed a subscription skill when you mention a subscription.
-- Place [skill:N] right after the sentence it illustrates, not at the end of the whole message.
-- Only reference IDs listed above. Never invent IDs.
-- Only reference chart subtypes that exist in the data above.
-
-Respond ONLY with valid JSON:
+QUERY PARAMS — all tools accept the same shape:
 {
-  "message": "text with optional [skill:N] placeholders",
-  "skills": [
-    { "type": "chart", "subtype": "legend" },
-    { "type": "expense", "id": "valid-uuid" }
-  ]
-}`;
+  where?:     { field: value | { eq?, ne?, gt?, gte?, lt?, lte?, like?, in?, between? } },
+  select?:    string[],
+  orderBy?:   { field: string, direction: "asc"|"desc" },
+  groupBy?:   string | string[],
+  aggregate?: [{ fn: "SUM"|"COUNT"|"AVG"|"MIN"|"MAX", field: string, alias?: string }],
+  having?:    { field: value | operator },
+  limit?:     number (max 100),
+  offset?:    number
+}
 
-    return [
-      { role: 'system', content: systemPrompt },
-      ...input.history.map(
-        (m) => ({ role: m.role, content: m.content }) as OpenAI.Chat.Completions.ChatCompletionMessageParam,
-      ),
-      { role: 'user', content: input.message },
-    ];
+TOOLS — call one per turn:
+${toolDocs}
+
+RESPONSE FORMAT — always valid JSON:
+
+Tool call:
+{ "action": "tool_call", "tool": "<name>", ...queryParams }
+
+Examples:
+{ "action": "tool_call", "tool": "legend", "where": { "startDate": "2024-01-01", "endDate": "2024-01-31" } }
+{ "action": "tool_call", "tool": "expenses", "where": { "date": { "gte": "2024-01-01" } }, "orderBy": { "field": "amount", "direction": "desc" }, "limit": 5 }
+{ "action": "tool_call", "tool": "events", "where": { "date": { "gte": "2024-01-01" }, "isCompleted": false }, "orderBy": { "field": "date", "direction": "asc" }, "limit": 10 }
+
+Final answer — messages array where each item is a segment:
+{ "action": "answer", "messages": [
+  { "type": "text", "content": "plain text, no markdown" },
+  { "type": "chart", "subtype": "legend" },
+  { "type": "expense", "id": "<id from expenses tool result>" },
+  { "type": "subscription", "id": "<id from subscriptions tool result>" },
+  { "type": "event", "id": "<id from events tool result>" }
+] }
+
+SKILL PRIORITY RULES (strictly follow):
+1. Always prefer returning a chart or card skill over plain text when data is available.
+2. If you called a chart tool (legend, dayOfWeek, dailySpendings, dailyBreakdown) always include its chart item.
+3. If you fetched specific expenses, events or subscriptions — always show them as cards.
+4. Text segments should introduce or explain the skills, not replace them.
+5. Only reference IDs that actually appeared in tool results. Never invent IDs.
+6. chart subtype must exactly match the tool name used (e.g. "legend", "dailySpendings").`;
   }
 }
