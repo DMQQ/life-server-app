@@ -77,7 +77,7 @@ export class AiChatService {
   ) {}
 
   private makeContext(userId: string, walletId?: string): ToolContext {
-    return { userId, walletId, dataSource: this.dataSource };
+    return { userId, walletId, dataSource: this.dataSource, openAIService: this.openAIService };
   }
 
   private async resolveMessages(
@@ -130,6 +130,11 @@ export class AiChatService {
         if (item.type === 'event' && isValid('event', item.id)) {
           const event = await this.occurenceService.findById(item.id, context.userId);
           return event ? { type: 'event', subtype: null, data: JSON.stringify(event) } : null;
+        }
+
+        if (item.type === 'timelineWidget') {
+          const raw = toolDataByName['timelineWidget'] ?? (item as any).data;
+          return raw ? { type: 'timelineWidget', subtype: null, data: typeof raw === 'string' ? raw : JSON.stringify(raw) } : null;
         }
 
         return null;
@@ -203,11 +208,13 @@ export class AiChatService {
     const rawMessages = (finalOutput.messages ?? []) as AiMessageItem[];
     const resolvedMessages = await this.resolveMessages(rawMessages, toolDataByName, false, ctx);
 
-    const toStore: AiMessageRaw[] = rawMessages.map((item) =>
-      item.type === 'chart' && toolDataByName[item.subtype]
-        ? { ...item, chartData: JSON.stringify(toolDataByName[item.subtype]) }
-        : (item as AiMessageRaw),
-    );
+    const toStore: AiMessageRaw[] = rawMessages.map((item) => {
+      if (item.type === 'chart' && toolDataByName[item.subtype])
+        return { ...item, chartData: JSON.stringify(toolDataByName[item.subtype]) };
+      if (item.type === 'timelineWidget' && toolDataByName['timelineWidget'])
+        return { ...item, data: JSON.stringify(toolDataByName['timelineWidget']) } as AiMessageRaw;
+      return item as AiMessageRaw;
+    });
 
     this.historyRepository.save({
       userId,

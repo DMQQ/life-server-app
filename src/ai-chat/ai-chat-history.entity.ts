@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 export interface AiMessageRaw {
-  type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard';
+  type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard' | 'timelineWidget';
   content?: string;
   subtype?: string;
   chartData?: string;

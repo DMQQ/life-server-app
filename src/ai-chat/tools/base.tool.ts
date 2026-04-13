@@ -1,9 +1,11 @@
 import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 
 export interface ToolContext {
   walletId?: string;
   userId: string;
   dataSource: DataSource;
+  openAIService: OpenAIService;
 }
 
 type WhereValue =
@@ -38,7 +40,7 @@ export abstract class AiTool {
   abstract readonly description: string;
   abstract readonly fields: Record<string, string>;
 
-  abstract run(params: UniversalQueryParams, ctx: ToolContext): Promise<any>;
+  abstract run(params: any, ctx: ToolContext): Promise<any>;
 
   normalize(data: any): any {
     return data;

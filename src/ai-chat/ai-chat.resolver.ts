@@ -24,8 +24,6 @@ export class AiChatResolver {
     @Args('history', { type: () => [ChatMessageInput], nullable: true, defaultValue: [] })
     history: ChatMessageInput[],
   ): Promise<AiChatResponse> {
-    const values = await this.aiChatService.chat({ userId, walletId, message, startDate, endDate, history });
-    console.log('aiChat values', JSON.stringify(values, null, 2));
-    return values;
+    return this.aiChatService.chat({ userId, walletId, message, startDate, endDate, history });
   }
 }

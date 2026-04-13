@@ -3,7 +3,7 @@ import { AIQuery, AIQueryConfig } from './AIResource.resource';
 import { AiTool } from 'src/ai-chat/tools/base.tool';
 
 export interface AiMessageItem {
-  type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard';
+  type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard' | 'timelineWidget';
   content?: string;
   subtype?: string;
   id?: string;
@@ -84,7 +84,8 @@ Final answer — messages array where each item is a segment:
   { "type": "chart", "subtype": "legend" },
   { "type": "expense", "id": "<id from expenses tool result>" },
   { "type": "subscription", "id": "<id from subscriptions tool result>" },
-  { "type": "event", "id": "<id from events tool result>" }
+  { "type": "event", "id": "<id from events tool result>" },
+  { "type": "timelineWidget" }
 ] }
 
 SKILL PRIORITY RULES (strictly follow):
@@ -93,6 +94,7 @@ SKILL PRIORITY RULES (strictly follow):
 3. If you fetched specific expenses, events or subscriptions — always show them as cards.
 4. Text segments should introduce or explain the skills, not replace them.
 5. Only reference IDs that actually appeared in tool results. Never invent IDs.
-6. chart subtype must exactly match the tool name used (e.g. "legend", "dailySpendings").`;
+6. chart subtype must exactly match the tool name used (e.g. "legend", "dailySpendings").
+7. If you called timelineWidget tool, always include { "type": "timelineWidget" } in messages — no id needed, data is injected automatically.`;
   }
 }
