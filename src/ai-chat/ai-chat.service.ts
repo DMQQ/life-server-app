@@ -59,7 +59,7 @@ class Conversation {
   }
 }
 
-const MAX_TOOL_CALLS = 4;
+const MAX_TOOL_CALLS = 8;
 
 @Injectable()
 export class AiChatService {
@@ -82,9 +82,9 @@ export class AiChatService {
 
   private async resolveMessages(
     rawMessages: AiMessageItem[],
-    toolDataByName: Record<string, any>,
+    ctx: ToolContext,
+    toolDataByName: Record<string, any> = {},
     skipValidation = false,
-    context: { userId: string; walletId?: string },
   ): Promise<AiChatMessageItem[]> {
     const validIds: Record<'expense' | 'subscription' | 'event', Set<string>> = {
       expense: new Set(),
@@ -112,9 +112,15 @@ export class AiChatService {
         }
 
         if (item.type === 'chart') {
-          const raw = toolDataByName[item.subtype];
-          const chartData = (item as any).chartData ?? (raw ? JSON.stringify(raw) : undefined);
-          return chartData ? { type: 'chart', subtype: item.subtype, data: JSON.stringify(chartData) } : null;
+          const live = toolDataByName[item.subtype];
+          if (live) return { type: 'chart', subtype: item.subtype, data: JSON.stringify(live) };
+          const storedParams = (item as any).toolParams;
+          const toolInstance = ALL_TOOLS.find((t) => t.name === item.subtype);
+          if (toolInstance && storedParams) {
+            const data = toolInstance.normalize(await toolInstance.run(storedParams, ctx));
+            return data ? { type: 'chart', subtype: item.subtype, data: JSON.stringify(data) } : null;
+          }
+          return null;
         }
 
         if (item.type === 'expense' && isValid('expense', item.id)) {
@@ -128,13 +134,15 @@ export class AiChatService {
         }
 
         if (item.type === 'event' && isValid('event', item.id)) {
-          const event = await this.occurenceService.findById(item.id, context.userId);
+          const event = await this.occurenceService.findById(item.id, ctx.userId);
           return event ? { type: 'event', subtype: null, data: JSON.stringify(event) } : null;
         }
 
         if (item.type === 'timelineWidget') {
-          const raw = toolDataByName['timelineWidget'] ?? (item as any).data;
-          return raw ? { type: 'timelineWidget', subtype: null, data: typeof raw === 'string' ? raw : JSON.stringify(raw) } : null;
+          const live = toolDataByName['timelineWidget'];
+          const stored = (item as any).data;
+          const raw = live ? JSON.stringify(live) : stored;
+          return raw ? { type: 'timelineWidget', subtype: null, data: raw } : null;
         }
 
         return null;
@@ -154,7 +162,7 @@ export class AiChatService {
     return Promise.all(
       history.map(async (item) => ({
         ...item,
-        messages: await this.resolveMessages(item.aiMessages ?? [], {}, true, { userId }),
+        messages: await this.resolveMessages(item.aiMessages ?? [], this.makeContext(userId, item.walletId), {}, true),
       })),
     );
   }
@@ -176,6 +184,7 @@ export class AiChatService {
     conversation.addUserMessage(message);
 
     const toolDataByName: Record<string, any> = {};
+    const toolParamsByName: Record<string, any> = {};
     let finalOutput: StatisticsChatOutput;
 
     while (true) {
@@ -185,13 +194,8 @@ export class AiChatService {
         conversation: conversation.getMessages(),
       });
 
-      if (finalOutput.action !== 'tool_call') {
-        break;
-      }
-
-      if (conversation.getToolCallCount() >= MAX_TOOL_CALLS) {
-        break;
-      }
+      if (finalOutput.action !== 'tool_call') break;
+      if (conversation.getToolCallCount() >= MAX_TOOL_CALLS) break;
 
       const { action, tool: toolName, ...toolParams } = finalOutput as any;
       const toolInstance = conversation.getTool(toolName);
@@ -203,21 +207,20 @@ export class AiChatService {
       const normalizedData = toolInstance.normalize(await toolInstance.run(toolParams as UniversalQueryParams, ctx));
 
       toolDataByName[toolName] = normalizedData;
+      toolParamsByName[toolName] = toolParams;
 
       conversation.addUserMessage(`[TOOL: ${toolName}]\n${encode(normalizedData)}`);
       conversation.incrementToolCall();
 
-      if (conversation.getToolCallCount() === MAX_TOOL_CALLS) {
-        conversation.end();
-      }
+      if (conversation.getToolCallCount() === MAX_TOOL_CALLS) conversation.end();
     }
 
     const rawMessages = (finalOutput.messages ?? []) as AiMessageItem[];
-    const resolvedMessages = await this.resolveMessages(rawMessages, toolDataByName, false, ctx);
+    const resolvedMessages = await this.resolveMessages(rawMessages, ctx, toolDataByName);
 
     const toStore: AiMessageRaw[] = rawMessages.map((item) => {
-      if (item.type === 'chart' && toolDataByName[item.subtype])
-        return { ...item, chartData: JSON.stringify(toolDataByName[item.subtype]) };
+      if (item.type === 'chart' && toolParamsByName[item.subtype])
+        return { ...item, toolParams: toolParamsByName[item.subtype] } as AiMessageRaw;
       if (item.type === 'timelineWidget' && toolDataByName['timelineWidget'])
         return { ...item, data: JSON.stringify(toolDataByName['timelineWidget']) } as AiMessageRaw;
       return item as AiMessageRaw;
@@ -225,6 +228,7 @@ export class AiChatService {
 
     this.historyRepository.save({
       userId,
+      walletId: walletId ?? null,
       userMessage: message,
       aiMessages: toStore,
       startDate: startDate ?? null,

@@ -4,8 +4,9 @@ export interface AiMessageRaw {
   type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard' | 'timelineWidget';
   content?: string;
   subtype?: string;
-  chartData?: string;
   id?: string;
+  toolParams?: any;
+  data?: string;
 }
 
 @Entity('ai_chat_history')
@@ -15,6 +16,9 @@ export class AiChatHistoryEntity {
 
   @Column({ type: 'uuid' })
   userId: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  walletId: string;
 
   @Column({ type: 'text' })
   userMessage: string;
