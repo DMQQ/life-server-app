@@ -9,16 +9,22 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 export interface AiMessageItem {
-  type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard' | 'timelineWidget';
+  type: 'text' | 'chart' | 'expense' | 'subscription' | 'event' | 'goal' | 'flashcard' | 'timelineWidget'
+      | 'form_expense_new' | 'form_expense_edit'
+      | 'form_event_new' | 'form_event_edit';
   content?: string;
   subtype?: string;
   id?: string;
+  data?: any;
 }
 
 export interface StatisticsChatInput {
   tools: AiTool[];
+  widgetCatalog: string;
+  formWidgetDocs: string;
   dateContext: { startDate?: string; endDate?: string };
   conversation: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+  recentMessages?: string[];
 }
 
 export interface StatisticsChatOutput {
@@ -45,7 +51,7 @@ export class StatisticsChatQuery extends AIQuery<StatisticsChatInput, Statistics
     return [{ role: 'system', content: this.buildSystemPrompt(input) }, ...input.conversation];
   }
 
-  private buildSystemPrompt({ tools, dateContext }: StatisticsChatInput): string {
+  private buildSystemPrompt({ tools, widgetCatalog, formWidgetDocs, dateContext, recentMessages }: StatisticsChatInput): string {
     const tz = 'Europe/Warsaw';
     const now = dayjs().tz(tz);
 
@@ -62,11 +68,16 @@ export class StatisticsChatQuery extends AIQuery<StatisticsChatInput, Statistics
 
     const toolDocs = tools.map((t) => `  ${t.schema}`).join('\n');
 
-    return `You are a personal life assistant. Respond in the user's language. Currency is PLN.
+    const memoryBlock =
+      recentMessages?.length
+        ? `\nUSER MEMORY (last ${recentMessages.length} things the user asked about — use to understand their habits and preferences):\n${recentMessages.map((m, i) => `${i + 1}. ${m}`).join('\n')}\n`
+        : '';
+
+    return `You are a personal life assistant. Respond in the user's language. Currency is PLN.${memoryBlock}
 
 CRITICAL: Never use markdown (no **, #, etc.). Plain text only.
 
-Today is ${today}. Tomorrow is ${tomorrow}. Yesterday was ${yesterday}. Timezone: ${tz}. 
+Today is ${today}. Tomorrow is ${tomorrow}. Yesterday was ${yesterday}. Timezone: ${tz}.
 Always call a tool if the user asked about data. If a tool returns empty results, try again with broader query params.
 
 QUERY PARAMS — shape:
@@ -90,18 +101,29 @@ ${dateInfo}
 TOOLS:
 ${toolDocs}
 
+DISPLAY WIDGETS (use as items inside the "messages" array after fetching data):
+${widgetCatalog}
+
 RESPONSE FORMAT (must be valid JSON):
 { "action": "tool_call", "tool": "<name>", ...queryParams }
 OR
-{ "action": "answer", "messages": [
-  { "type": "text", "content": "plain text" },
-  { "type": "event", "id": "uuid" }
-] }
+{ "action": "answer", "messages": [{ "type": "text", "content": "..." }, { "type": "event", "id": "uuid" }, ...] }
 
-RULES:
-1. Always prefer chart/card over plain text.
-2. If you fetched items, always show them as cards (type: expense/event/subscription).
-3. chart subtype must match tool name.
-4. If you used timelineWidget, include { "type": "timelineWidget" }.`;
+"action" has exactly two valid values: "tool_call" and "answer". Nothing else is valid.
+
+WHEN USER WANTS TO CREATE OR EDIT SOMETHING — use action "answer" and put a form widget inside messages:
+${formWidgetDocs}
+
+Example — user says "dodaj wydatek kawa 15zł":
+{ "action": "answer", "messages": [{ "type": "text", "content": "Masz to." }, { "type": "form_expense_new", "data": { "amount": 15, "description": "kawa", "date": "${today}", "type": "expense" } }] }
+
+WIDGET RULES (CRITICAL — violations are bugs):
+1. NEVER describe fetched items in text. Every fetched record MUST appear as a card in messages.
+   WRONG: { "type": "text", "content": "Masz dziś spotkanie o 10:00" }
+   CORRECT: { "type": "event", "id": "<uuid>" }
+2. Each item returned by a tool = one card using its id. No exceptions.
+3. Text is ONLY for summaries or context — never for listing individual items.
+4. chart subtype must match the tool name exactly.
+5. If you used timelineWidget, include { "type": "timelineWidget" }.`;
   }
 }

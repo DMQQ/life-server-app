@@ -1,5 +1,6 @@
 import { ExpenseEntity } from 'src/wallet/entities/wallet.entity';
 import { AiTool, buildStandardQuery, ToolContext, UniversalQueryParams } from './base.tool';
+import { EXPENSE_CATEGORIES } from 'src/utils/shared/AI/constants';
 
 const FIELD_MAP: Record<string, string> = {
   id: 'e.id',
@@ -16,7 +17,7 @@ export class ExpensesTool extends AiTool {
   readonly fields = {
     id: 'UUID',
     amount: 'number PLN',
-    category: 'string e.g. "food:restaurant"',
+    category: `string e.g. ${EXPENSE_CATEGORIES}`,
     description: 'string',
     date: 'YYYY-MM-DD',
     type: '"expense" | "income"',

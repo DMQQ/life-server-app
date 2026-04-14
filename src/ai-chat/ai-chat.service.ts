@@ -4,58 +4,58 @@ import { DataSource, Repository } from 'typeorm';
 import { encode } from '@toon-format/toon';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 import { StatisticsChatQuery, AiMessageItem, StatisticsChatOutput } from 'src/utils/shared/AI/StatisticsChatQuery';
+import { AnswerGenerationQuery } from 'src/utils/shared/AI/AnswerGenerationQuery';
 import { AiChatHistoryEntity, AiMessageRaw } from './ai-chat-history.entity';
 import { AiChatMessageItem } from './ai-chat.schemas';
-import { ALL_TOOLS, ToolContext, UniversalQueryParams } from './tools';
-import { ExpenseService } from 'src/wallet/services/expense.service';
-import { EventOccurrenceService } from 'src/timeline/event-occurrence.service';
-import { SubscriptionService } from 'src/wallet/services/subscriptions.service';
+import { ALL_TOOLS, ToolContext, UniversalQueryParams, ZodError } from './tools';
+import { WidgetRegistry } from './widgets/widget.registry';
+
+type ConversationMessage = { role: 'user' | 'assistant'; content: string };
+
+interface AgentLoopResult {
+  finalOutput: StatisticsChatOutput;
+  toolDataByName: Record<string, any>;
+  toolParamsByName: Record<string, any>;
+}
+
+export interface ChatParams {
+  userId: string;
+  walletId?: string;
+  message: string;
+  startDate?: string;
+  endDate?: string;
+  history?: ConversationMessage[];
+}
 
 class Conversation {
-  private messages: { role: 'user' | 'assistant'; content: string }[] = [];
+  private messages: ConversationMessage[] = [];
   private toolCallCount = 0;
 
-  constructor(initialMessages?: { role: 'user' | 'assistant'; content: string }[]) {
-    if (initialMessages) {
-      this.messages.push(...initialMessages);
-    }
+  constructor(history: ConversationMessage[] = []) {
+    this.messages.push(...history);
   }
 
-  initializeWithHistory(history?: { role: 'user' | 'assistant'; content: string }[]) {
-    if (history) {
-      this.messages.push(...history);
-    }
-  }
-
-  incrementToolCall() {
-    this.toolCallCount++;
-  }
-
-  getToolCallCount() {
-    return this.toolCallCount;
-  }
-
-  addUserMessage(content: string) {
-    this.messages.push({ role: 'user', content });
-  }
-
-  addAssistantMessage(content: string) {
-    this.messages.push({ role: 'assistant', content });
+  add(role: 'user' | 'assistant', content: string) {
+    this.messages.push({ role, content });
   }
 
   getMessages() {
     return this.messages;
   }
 
-  end() {
-    this.messages.push({
-      role: 'user',
-      content: 'Maximum tool calls reached. Provide your final answer using the data collected.',
-    });
+  incrementToolCall() {
+    this.toolCallCount++;
+    if (this.toolCallCount === MAX_TOOL_CALLS) {
+      this.add('user', 'Maximum tool calls reached. Provide your final answer using the data collected.');
+    }
   }
 
-  getTool(name: string) {
-    return [...ALL_TOOLS].find((t) => t.name === name);
+  isExhausted() {
+    return this.toolCallCount >= MAX_TOOL_CALLS;
+  }
+
+  findTool(name: string) {
+    return ALL_TOOLS.find((t) => t.name === name);
   }
 }
 
@@ -68,16 +68,102 @@ export class AiChatService {
     private dataSource: DataSource,
     @InjectRepository(AiChatHistoryEntity)
     private historyRepository: Repository<AiChatHistoryEntity>,
-
-    private expenseService: ExpenseService,
-
-    private occurenceService: EventOccurrenceService,
-
-    private subscriptionService: SubscriptionService,
+    private widgetRegistry: WidgetRegistry,
   ) {}
 
   private makeContext(userId: string, walletId?: string): ToolContext {
     return { userId, walletId, dataSource: this.dataSource, openAIService: this.openAIService };
+  }
+
+  private async runAgentLoop(
+    conversation: Conversation,
+    ctx: ToolContext,
+    dateContext: { startDate?: string; endDate?: string },
+    recentMessages: string[] = [],
+  ): Promise<AgentLoopResult> {
+    const toolDataByName: Record<string, any> = {};
+    const toolParamsByName: Record<string, any> = {};
+    let finalOutput: StatisticsChatOutput;
+
+    while (true) {
+      finalOutput = await this.openAIService.execute(new StatisticsChatQuery(), {
+        tools: ALL_TOOLS,
+        widgetCatalog: this.widgetRegistry.getCatalog(),
+        formWidgetDocs: this.widgetRegistry.getFormWidgetDocs(),
+        dateContext,
+        conversation: conversation.getMessages(),
+        recentMessages,
+      });
+
+      const isToolCall = finalOutput.action === 'tool_call' && !!(finalOutput as any).tool;
+      if (!isToolCall || conversation.isExhausted()) break;
+
+      const { tool: toolName, ...toolParams } = finalOutput as any;
+      const toolInstance = conversation.findTool(toolName);
+      if (!toolInstance) break;
+
+      conversation.add('assistant', JSON.stringify(finalOutput));
+
+      try {
+        const safeParams = toolInstance.validateParams(toolParams);
+        const data = toolInstance.normalize(await toolInstance.run(safeParams as UniversalQueryParams, ctx));
+        toolDataByName[toolName] = data;
+        toolParamsByName[toolName] = safeParams;
+        conversation.add('user', `[TOOL: ${toolName}]\n${encode(data)}`);
+      } catch (error) {
+        const msg =
+          error instanceof ZodError
+            ? `[TOOL_ERROR: ${toolName}] Invalid params: ${error.errors.map((e) => e.message).join(', ')}.`
+            : `[TOOL_ERROR: ${toolName}] ${(error as Error).message}.`;
+        conversation.add('user', msg + ' Fix parameters and retry.');
+      }
+
+      conversation.incrementToolCall();
+    }
+
+    return { finalOutput, toolDataByName, toolParamsByName };
+  }
+
+  private async rewriteWithPersonality(
+    userMessage: string,
+    rawMessages: AiMessageItem[],
+    toolDataByName: Record<string, any>,
+    recentMessages: string[] = [],
+  ): Promise<AiMessageItem[]> {
+    const textItems = rawMessages.filter((m) => m.type === 'text').map((m) => m.content ?? '');
+    if (!textItems.length) return rawMessages;
+
+    try {
+      const collectedData = Object.entries(toolDataByName)
+        .map(([name, data]) => `${name}: ${JSON.stringify(Array.isArray(data) ? data.slice(0, 5) : data)}`)
+        .join('\n');
+
+      const rewritten = await this.openAIService.execute(new AnswerGenerationQuery(), {
+        userMessage,
+        collectedData,
+        rawTextMessages: textItems,
+        recentMessages,
+      });
+
+      const queue = [rewritten];
+      return rawMessages.map((m) => (m.type === 'text' ? { ...m, content: queue.shift() ?? m.content } : m));
+    } catch {
+      return rawMessages;
+    }
+  }
+
+  private buildStoragePayload(
+    rawMessages: AiMessageItem[],
+    toolDataByName: Record<string, any>,
+    toolParamsByName: Record<string, any>,
+  ): AiMessageRaw[] {
+    return rawMessages.map((item) => {
+      if (item.type === 'chart' && toolParamsByName[item.subtype])
+        return { ...item, toolParams: toolParamsByName[item.subtype] } as AiMessageRaw;
+      if (item.type === 'timelineWidget' && toolDataByName['timelineWidget'])
+        return { ...item, data: JSON.stringify(toolDataByName['timelineWidget']) } as AiMessageRaw;
+      return item as AiMessageRaw;
+    });
   }
 
   private async resolveMessages(
@@ -86,69 +172,12 @@ export class AiChatService {
     toolDataByName: Record<string, any> = {},
     skipValidation = false,
   ): Promise<AiChatMessageItem[]> {
-    const validIds: Record<'expense' | 'subscription' | 'event', Set<string>> = {
-      expense: new Set(),
-      subscription: new Set(),
-      event: new Set(),
-    };
-
-    if (!skipValidation) {
-      for (const [toolName, data] of Object.entries(toolDataByName)) {
-        if (!Array.isArray(data)) continue;
-        const ids = data.map((r: any) => r.id).filter(Boolean);
-        if (toolName === 'expenses') ids.forEach((id) => validIds.expense.add(id));
-        if (toolName === 'subscriptions') ids.forEach((id) => validIds.subscription.add(id));
-        if (toolName === 'events') ids.forEach((id) => validIds.event.add(id));
-      }
-    }
-
-    const isValid = (type: 'expense' | 'subscription' | 'event', id?: string) =>
-      id && (skipValidation || validIds[type].has(id));
-
     const resolved = await Promise.all(
-      rawMessages.map(async (item): Promise<any | null> => {
-        if (item.type === 'text') {
-          return { type: 'text', subtype: null, data: item.content };
-        }
-
-        if (item.type === 'chart') {
-          const live = toolDataByName[item.subtype];
-          if (live) return { type: 'chart', subtype: item.subtype, data: JSON.stringify(live) };
-          const storedParams = (item as any).toolParams;
-          const toolInstance = ALL_TOOLS.find((t) => t.name === item.subtype);
-          if (toolInstance && storedParams) {
-            const data = toolInstance.normalize(await toolInstance.run(storedParams, ctx));
-            return data ? { type: 'chart', subtype: item.subtype, data: JSON.stringify(data) } : null;
-          }
-          return null;
-        }
-
-        if (item.type === 'expense' && isValid('expense', item.id)) {
-          const expense = await this.expenseService.getOne(item.id!);
-          return expense ? { type: 'expense', subtype: null, data: JSON.stringify(expense) } : null;
-        }
-
-        if (item.type === 'subscription' && isValid('subscription', item.id)) {
-          const subscription = await this.subscriptionService.getSubscriptionById(item.id!);
-          return subscription ? { type: 'subscription', subtype: null, data: JSON.stringify(subscription) } : null;
-        }
-
-        if (item.type === 'event' && isValid('event', item.id)) {
-          const event = await this.occurenceService.findById(item.id, ctx.userId);
-          return event ? { type: 'event', subtype: null, data: JSON.stringify(event) } : null;
-        }
-
-        if (item.type === 'timelineWidget') {
-          const live = toolDataByName['timelineWidget'];
-          const stored = (item as any).data;
-          const raw = live ? JSON.stringify(live) : stored;
-          return raw ? { type: 'timelineWidget', subtype: null, data: raw } : null;
-        }
-
-        return null;
+      rawMessages.map(async (item): Promise<AiChatMessageItem | null> => {
+        if (item.type === 'text') return { type: 'text', subtype: null, data: item.content };
+        return this.widgetRegistry.resolve(item, ctx, toolDataByName, skipValidation);
       }),
     );
-
     return resolved.filter(Boolean) as AiChatMessageItem[];
   }
 
@@ -167,70 +196,44 @@ export class AiChatService {
     );
   }
 
-  async chat(params: {
-    userId: string;
-    walletId?: string;
-    message: string;
-    startDate?: string;
-    endDate?: string;
-    history?: { role: 'user' | 'assistant'; content: string }[];
-  }) {
-    const { userId, walletId, message, startDate, endDate, history } = params;
+  private async fetchRecentMessages(userId: string): Promise<string[]> {
+    const rows = await this.historyRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      take: 10,
+      select: ['userMessage'],
+    });
+    return rows.map((r) => r.userMessage).reverse();
+  }
+
+  async chat({ userId, walletId, message, startDate, endDate, history }: ChatParams) {
     const ctx = this.makeContext(userId, walletId);
-    const dateContext = { startDate, endDate };
+    const conversation = new Conversation(history);
+    conversation.add('user', message);
 
-    const conversation = new Conversation();
-    conversation.initializeWithHistory(history);
-    conversation.addUserMessage(message);
+    const recentMessages = await this.fetchRecentMessages(userId);
 
-    const toolDataByName: Record<string, any> = {};
-    const toolParamsByName: Record<string, any> = {};
-    let finalOutput: StatisticsChatOutput;
-
-    while (true) {
-      finalOutput = await this.openAIService.execute(new StatisticsChatQuery(), {
-        tools: ALL_TOOLS,
-        dateContext,
-        conversation: conversation.getMessages(),
-      });
-
-      if (finalOutput.action !== 'tool_call') break;
-      if (conversation.getToolCallCount() >= MAX_TOOL_CALLS) break;
-
-      const { action, tool: toolName, ...toolParams } = finalOutput as any;
-      const toolInstance = conversation.getTool(toolName);
-
-      if (!toolInstance) break;
-
-      conversation.addAssistantMessage(JSON.stringify(finalOutput));
-
-      const normalizedData = toolInstance.normalize(await toolInstance.run(toolParams as UniversalQueryParams, ctx));
-
-      toolDataByName[toolName] = normalizedData;
-      toolParamsByName[toolName] = toolParams;
-
-      conversation.addUserMessage(`[TOOL: ${toolName}]\n${encode(normalizedData)}`);
-      conversation.incrementToolCall();
-
-      if (conversation.getToolCallCount() === MAX_TOOL_CALLS) conversation.end();
-    }
+    const { finalOutput, toolDataByName, toolParamsByName } = await this.runAgentLoop(
+      conversation,
+      ctx,
+      { startDate, endDate },
+      recentMessages,
+    );
 
     const rawMessages = (finalOutput.messages ?? []) as AiMessageItem[];
-    const resolvedMessages = await this.resolveMessages(rawMessages, ctx, toolDataByName);
+    console.log('[AI] finalOutput.action:', finalOutput.action);
+    console.log('[AI] rawMessages:', JSON.stringify(rawMessages));
+    console.log('[AI] toolDataByName keys:', Object.keys(toolDataByName));
 
-    const toStore: AiMessageRaw[] = rawMessages.map((item) => {
-      if (item.type === 'chart' && toolParamsByName[item.subtype])
-        return { ...item, toolParams: toolParamsByName[item.subtype] } as AiMessageRaw;
-      if (item.type === 'timelineWidget' && toolDataByName['timelineWidget'])
-        return { ...item, data: JSON.stringify(toolDataByName['timelineWidget']) } as AiMessageRaw;
-      return item as AiMessageRaw;
-    });
+    const finalMessages = await this.rewriteWithPersonality(message, rawMessages, toolDataByName, recentMessages);
+    const resolvedMessages = await this.resolveMessages(finalMessages, ctx, toolDataByName);
+    console.log('[AI] resolvedMessages:', JSON.stringify(resolvedMessages));
 
     this.historyRepository.save({
       userId,
       walletId: walletId ?? null,
       userMessage: message,
-      aiMessages: toStore,
+      aiMessages: this.buildStoragePayload(rawMessages, toolDataByName, toolParamsByName),
       startDate: startDate ?? null,
       endDate: endDate ?? null,
     });

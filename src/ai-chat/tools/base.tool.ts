@@ -1,5 +1,7 @@
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
+import { z } from 'zod';
+export { ZodError } from 'zod';
 
 export interface ToolContext {
   walletId?: string;
@@ -35,6 +37,25 @@ export interface UniversalQueryParams {
   offset?: number;
 }
 
+export const baseParamsSchema = z.object({
+  where: z.record(z.any()).optional(),
+  select: z.array(z.string()).optional(),
+  orderBy: z.object({ field: z.string(), direction: z.enum(['asc', 'desc']) }).optional(),
+  groupBy: z.union([z.string(), z.array(z.string())]).optional(),
+  aggregate: z
+    .array(
+      z.object({
+        fn: z.enum(['SUM', 'COUNT', 'AVG', 'MIN', 'MAX']),
+        field: z.string(),
+        alias: z.string().optional(),
+      }),
+    )
+    .optional(),
+  having: z.record(z.any()).optional(),
+  limit: z.number().max(100).optional(),
+  offset: z.number().optional(),
+});
+
 export abstract class AiTool {
   abstract readonly name: string;
   abstract readonly description: string;
@@ -42,12 +63,16 @@ export abstract class AiTool {
 
   abstract run(params: any, ctx: ToolContext): Promise<any>;
 
-  // abstract validate(params: any): { valid: boolean; error?: string };
-
-  // abstract create(params: any): any;
-
   normalize(data: any): any {
     return data;
+  }
+
+  get zodSchema(): z.ZodTypeAny {
+    return baseParamsSchema;
+  }
+
+  validateParams(params: any): UniversalQueryParams {
+    return this.zodSchema.parse(params) as UniversalQueryParams;
   }
 
   get schema(): string {
