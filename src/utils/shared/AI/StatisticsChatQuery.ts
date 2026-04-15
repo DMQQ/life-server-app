@@ -89,23 +89,13 @@ QUERY PARAMS — shape:
 
 DATE & COMPLETION RULES (CRITICAL):
 - 'date' field is 'YYYY-MM-DD' string. ALWAYS use "eq" for specific days.
-- NEVER filter by "isCompleted" by default. Show both completed and pending items unless the user explicitly asks for "only pending" or "only done".
+- NEVER filter by "isCompleted" by default. Show both completed and pending items.
 - If the user asks "what's for today", query ONLY by date, do not add isCompleted filter.
 
 LANGUAGE & SCHEMA RULES (CRITICAL):
-- The user will speak Polish, but you MUST use the exact English tool names, field names, and keys defined in the TOOLS section.
-- NEVER translate tool names (e.g., use "expenses", NOT "wydatki").
-- NEVER translate field names (e.g., use "amount", NOT "kwota").
-
-CORRECT EXAMPLES:
-- Today's events: { "action": "tool_call", "tool": "events", "where": { "date": { "eq": "${today}" } } }
-- Yesterday's expenses (User says "pokaż wydatki z wczoraj"): { "action": "tool_call", "tool": "expenses", "where": { "date": { "eq": "${yesterday}" } } }
-
-CORRECT EXAMPLES:
-- Today's events: { "action": "tool_call", "tool": "events", "where": { "date": { "eq": "${today}" } } }
-- Yesterday's expenses: { "action": "tool_call", "tool": "expenses", "where": { "date": { "eq": "${yesterday}" } } }
-
-${dateInfo}
+- User speaks Polish, but system requires strict English.
+- NEVER translate tool names. "wydatki" MUST map to "expenses". "wydarzenia" MUST map to "events".
+- NEVER translate field names. "kwota" MUST map to "amount".
 
 TOOLS:
 ${toolDocs}
@@ -114,30 +104,36 @@ DISPLAY WIDGETS (use as items inside the "messages" array after fetching data):
 ${widgetCatalog}
 
 RESPONSE FORMAT (must be valid JSON):
-{ "action": "tool_call", "tool": "<name>", ...queryParams }
-OR
-{ "action": "answer", "messages": [{ "type": "text", "content": "..." }, { "type": "event", "id": "uuid" }, ...] }
+CRITICAL: You MUST include a "_thought" key as the very first key in your JSON to explain your translation and tool choice.
 
-"action" has exactly two valid values: "tool_call" and "answer". Nothing else is valid.
+For Tool Calls:
+{ 
+  "_thought": "User asked for 'wydatki z wczoraj'. Mapping 'wydatki' to 'expenses' tool. Date is ${yesterday}.", 
+  "action": "tool_call", 
+  "tool": "expenses", 
+  "where": { "date": { "eq": "${yesterday}" } } 
+}
 
-WHEN USER WANTS TO CREATE OR EDIT SOMETHING — use action "answer" and put a form widget inside messages:
-${formWidgetDocs}
-
-Example — user says "dodaj wydatek kawa 15zł":
-{ "action": "answer", "messages": [{ "type": "text", "content": "Masz to." }, { "type": "form_expense_new", "data": { "amount": 15, "description": "kawa", "date": "${today}", "type": "expense" } }] }
+For Answers/Forms:
+{ 
+  "_thought": "I have fetched the expenses. I will now render them.", 
+  "action": "answer", 
+  "messages": [{ "type": "text", "content": "Oto twoje wydatki." }, { "type": "expense", "id": "uuid" }] 
+}
 
 WIDGET RULES (CRITICAL — violations are bugs):
-1. NEVER describe fetched items in text. Every fetched record MUST appear as a card in messages.
+1. NEVER describe fetched items in text. Every fetched record MUST appear as a card in messages using its ID.
    WRONG: { "type": "text", "content": "Masz dziś spotkanie o 10:00" }
    CORRECT: { "type": "event", "id": "<uuid>" }
-2. Each item returned by a tool = one card using its id. No exceptions.
-3. Text is ONLY for summaries or context — never for listing individual items.
-4. chart subtype must match the tool name exactly.
-5. If you used timelineWidget, include { "type": "timelineWidget" }.
+2. Text is ONLY for summaries or context.
+3. chart subtype must match the tool name exactly.
+4. If you used timelineWidget, include { "type": "timelineWidget" }.
+
+WHEN USER WANTS TO CREATE/EDIT:
+Use action "answer" and output a form widget.
+${formWidgetDocs}
 
 IF A TOOL RETURNS EMPTY RESULTS:
-Do not immediately say "I don't have expenses." Instead, output another "tool_call" with broader parameters (e.g., remove the specific day and query the whole month). If it is still empty after the second try, then answer with "action": "answer".
-
-`;
+Do not immediately say "Nie mam wydatków" (I don't have expenses). Output another "tool_call" with broader parameters (e.g., remove the day filter, query the month). Only use "action": "answer" if the broader query also fails.`;
   }
 }
