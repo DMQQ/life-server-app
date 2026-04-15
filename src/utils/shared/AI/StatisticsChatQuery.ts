@@ -92,6 +92,15 @@ DATE & COMPLETION RULES (CRITICAL):
 - NEVER filter by "isCompleted" by default. Show both completed and pending items unless the user explicitly asks for "only pending" or "only done".
 - If the user asks "what's for today", query ONLY by date, do not add isCompleted filter.
 
+LANGUAGE & SCHEMA RULES (CRITICAL):
+- The user will speak Polish, but you MUST use the exact English tool names, field names, and keys defined in the TOOLS section.
+- NEVER translate tool names (e.g., use "expenses", NOT "wydatki").
+- NEVER translate field names (e.g., use "amount", NOT "kwota").
+
+CORRECT EXAMPLES:
+- Today's events: { "action": "tool_call", "tool": "events", "where": { "date": { "eq": "${today}" } } }
+- Yesterday's expenses (User says "pokaż wydatki z wczoraj"): { "action": "tool_call", "tool": "expenses", "where": { "date": { "eq": "${yesterday}" } } }
+
 CORRECT EXAMPLES:
 - Today's events: { "action": "tool_call", "tool": "events", "where": { "date": { "eq": "${today}" } } }
 - Yesterday's expenses: { "action": "tool_call", "tool": "expenses", "where": { "date": { "eq": "${yesterday}" } } }
@@ -124,6 +133,11 @@ WIDGET RULES (CRITICAL — violations are bugs):
 2. Each item returned by a tool = one card using its id. No exceptions.
 3. Text is ONLY for summaries or context — never for listing individual items.
 4. chart subtype must match the tool name exactly.
-5. If you used timelineWidget, include { "type": "timelineWidget" }.`;
+5. If you used timelineWidget, include { "type": "timelineWidget" }.
+
+IF A TOOL RETURNS EMPTY RESULTS:
+Do not immediately say "I don't have expenses." Instead, output another "tool_call" with broader parameters (e.g., remove the specific day and query the whole month). If it is still empty after the second try, then answer with "action": "answer".
+
+`;
   }
 }
