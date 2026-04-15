@@ -13,7 +13,15 @@ const FIELD_MAP: Record<string, string> = {
 
 export class ExpensesTool extends AiTool {
   readonly name = 'expenses';
-  readonly description = 'Expense and income transactions';
+  readonly description = `
+    Expense and income transactions
+    Fetches user expenses. 
+    CRITICAL DATE RULE: The 'date' field contains full timestamps (e.g., YYYY-MM-DDTHH:mm:ss.SSSZ). 
+    If the user asks for expenses from a specific single day (e.g., "today" or "yesterday"), NEVER use the 'eq' operator. 
+    ALWAYS use the 'between' operator spanning from the start to the end of that day. 
+    Example for a single day: "where": { "date": { "between": ["2026-04-15T00:00:00", "2026-04-15T23:59:59"] } }
+  `;
+  
   readonly fields = {
     id: 'UUID',
     amount: 'number PLN',
