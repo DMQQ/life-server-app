@@ -379,7 +379,7 @@ export class WalletService {
         isDefault: true,
         balance: initialBalance,
         icon: 'bank',
-        color: '7B84FF',
+        color: '#7B84FF',
       });
       general = await this.subAccountRepository.findOne({ where: { id: result.identifiers[0].id } });
     }

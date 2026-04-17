@@ -21,7 +21,7 @@ export class AddSubAccountIsDefault1765400001000 implements MigrationInterface {
     for (const wallet of wallets) {
       const id = uuidv4();
       await queryRunner.query(
-        `INSERT INTO wallet_sub_account (id, name, balance, isDefault, icon, color, walletId) VALUES (?, 'General', ?, 1, 'bank', '7B84FF', ?)`,
+        `INSERT INTO wallet_sub_account (id, name, balance, isDefault, icon, color, walletId) VALUES (?, 'General', ?, 1, 'bank', '#7B84FF', ?)`,
         [id, wallet.balance, wallet.id],
       );
     }
