@@ -2,6 +2,18 @@ import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColum
 import { ObjectType, Field, Int, ID, Float, InputType } from '@nestjs/graphql';
 import { SubscriptionEntity } from './subscription.entity';
 
+@ObjectType()
+export class TransferResult {
+  @Field(() => ID)
+  from: string;
+
+  @Field(() => ID)
+  to: string;
+
+  @Field(() => Float)
+  amount: number;
+}
+
 @InputType()
 export class CreateSubAccountInput {
   @Field()
@@ -72,7 +84,7 @@ export class WalletSubAccount {
   @Column({ type: 'uuid', nullable: false })
   walletId: string;
 
-  @Field(() => [ExpenseEntity])
+  @Field(() => [ExpenseEntity], { nullable: true })
   @OneToMany(() => ExpenseEntity, (expense) => expense.subAccount)
   expenses: ExpenseEntity[];
 }
@@ -104,7 +116,7 @@ export class WalletEntity {
   paycheckDate: string;
 
   @Field((type) => [ExpenseEntity])
-  @OneToMany((type) => ExpenseEntity, (expense) => expense.walletId)
+  @OneToMany((type) => ExpenseEntity, (expense) => expense.wallet)
   @JoinColumn({ name: 'expenses' })
   expenses: ExpenseEntity[];
 
@@ -167,9 +179,13 @@ export class ExpenseEntity {
   @Field((type) => String)
   description: string;
 
+  @Field(() => String)
+  @Column({ name: 'walletId', type: 'uuid', nullable: false })
+  walletId: string;
+
   @ManyToOne(() => WalletEntity, (wallet) => wallet.expenses)
   @JoinColumn({ name: 'walletId' })
-  walletId: string;
+  wallet: WalletEntity;
 
   @Column({ type: 'timestamp', nullable: false })
   @Field((type) => Date)

@@ -79,6 +79,7 @@ export class ExpenseFactory {
     category?: string;
     date?: Date;
     balanceBeforeInteraction?: number;
+    subAccountId?: string;
   }): ExpenseEntity {
     return this.createExpense({
       ...data,
@@ -132,6 +133,7 @@ export class ExpenseFactory {
     },
     walletId: string,
     balanceBeforeInteraction?: number,
+    subAccountId?: string,
   ): ExpenseEntity {
     return this.createExpense({
       amount: prediction.total_price,
@@ -143,6 +145,7 @@ export class ExpenseFactory {
       shop: prediction.merchant,
       spontaneousRate: 0.5,
       balanceBeforeInteraction,
+      subAccountId,
     });
   }
 
@@ -201,10 +204,30 @@ export class ExpenseFactory {
     return refundedExpense;
   }
 
+  static createTransferExpense(data: {
+    walletId: string;
+    amount: number;
+    fromName: string;
+    toName: string;
+    subAccountId: string;
+    balanceBeforeInteraction?: number;
+  }): ExpenseEntity {
+    return this.createExpense({
+      amount: 0,
+      description: `Transfer ${data.amount} ${data.fromName} -> ${data.toName}`,
+      walletId: data.walletId,
+      type: ExpenseType.income,
+      category: 'edit',
+      balanceBeforeInteraction: data.balanceBeforeInteraction,
+      subAccountId: data.subAccountId,
+    });
+  }
+
   static createBalanceEditExpense(data: {
     newBalance: number;
     walletId: string;
     currentBalance: number;
+    subAccountId?: string;
   }): ExpenseEntity {
     return this.createExpense({
       amount: 0,
@@ -213,6 +236,7 @@ export class ExpenseFactory {
       type: ExpenseType.income,
       category: 'edit',
       balanceBeforeInteraction: data.currentBalance,
+      subAccountId: data.subAccountId,
     });
   }
 }

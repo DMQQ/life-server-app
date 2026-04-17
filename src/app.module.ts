@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AuthenticationModule } from './authentication/authentication.module';
 import { TokenMiddleware } from './utils/middlewares/token.middleware';
 
@@ -26,6 +27,8 @@ import { AiChatModule } from './ai-chat/ai-chat.module';
 @Module({
   imports: [
     CacheModule,
+
+    EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
 
     ConfigModule.forRoot({
       isGlobal: true,

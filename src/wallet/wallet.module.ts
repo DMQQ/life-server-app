@@ -34,6 +34,7 @@ import { WalletMiddleware } from 'src/utils/middlewares/wallet.middleware';
 import { TextSimilarityModule } from 'src/utils/services/TextSimilarity/text-similarity.module';
 import { SubscriptionResolver } from './resolvers/subscription.resolver';
 import { StatisticsController } from './resolvers/statistics.controller';
+import { ExpenseBalanceListener } from './listeners/expense-balance.listener';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { StatisticsController } from './resolvers/statistics.controller';
     AlertsSchedulerService,
     ExpenseAnalysisService,
     MoneyLeftSchedulerService,
+    ExpenseBalanceListener,
   ],
   exports: [WalletService, ExpenseService, SubscriptionService],
   controllers: [StatisticsController],

@@ -14,7 +14,6 @@ export const dataSourceOptions: IDataSourceOptions = {
   entities: ['dist/**/*.entity{.ts,.js}'],
   migrations: ['dist/migrations/*.js', 'migrations/*.js'],
   synchronize: process.env.SYNC === 'true' || process.env.NAME === 'true',
-  subscribers: ['dist/**/*.subscriber{.ts,.js}'],
 };
 
 export default new DataSource(dataSourceOptions);

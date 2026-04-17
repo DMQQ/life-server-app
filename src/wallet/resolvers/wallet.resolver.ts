@@ -6,6 +6,7 @@ import {
   CreateSubAccountInput,
   ExpenseEntity,
   ExpenseType,
+  TransferResult,
   UpdateSubAccountInput,
   WalletEntity,
   WalletSubAccount,
@@ -312,6 +313,16 @@ export class WalletResolver {
   @InvalidateCache({ invalidateCurrentUser: true })
   deleteSubAccount(@Args('id', { type: () => ID }) id: string) {
     return this.walletService.deleteSubAccount(id);
+  }
+
+  @Mutation(() => TransferResult)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  transferBetweenSubAccounts(
+    @Args('fromId', { type: () => ID }) fromId: string,
+    @Args('toId', { type: () => ID }) toId: string,
+    @Args('amount', { type: () => Float }) amount: number,
+  ) {
+    return this.walletService.transferBetweenSubAccounts(fromId, toId, amount);
   }
 
   @Query(() => Float)

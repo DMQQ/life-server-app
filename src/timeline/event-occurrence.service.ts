@@ -2,11 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
 import { Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
 import { EventSeriesEntity } from './entities/event-series.entity';
 import { OccurrenceTodoEntity, TodoFilesEntity } from './entities/occurrence-todo.entity';
 import { OccurrenceFileEntity } from './entities/occurrence-file.entity';
 import { EventSeriesService } from './event-series.service';
+import { ObservableRepository } from 'src/emitter/observable-repository';
 import {
   OccurrenceView,
   OccurrenceTodoView,
@@ -20,10 +22,7 @@ function excludeSeconds(time: string): string {
   return [...time.split(':').slice(0, 2), '00'].join(':');
 }
 
-function buildView(
-  occurrence: EventOccurrenceEntity,
-  series: EventSeriesEntity,
-): OccurrenceView {
+function buildView(occurrence: EventOccurrenceEntity, series: EventSeriesEntity): OccurrenceView {
   return {
     id: occurrence.id,
     seriesId: occurrence.seriesId,
@@ -65,15 +64,18 @@ const OCCURRENCE_ORDER = {
 
 @Injectable()
 export class EventOccurrenceService {
+  private occurrenceRepo: ObservableRepository<EventOccurrenceEntity>;
+  private todoRepo: ObservableRepository<OccurrenceTodoEntity>;
+
   constructor(
     @InjectRepository(EventOccurrenceEntity)
-    private occurrenceRepo: Repository<EventOccurrenceEntity>,
+    _occurrenceRepo: Repository<EventOccurrenceEntity>,
 
     @InjectRepository(EventSeriesEntity)
     private seriesRepo: Repository<EventSeriesEntity>,
 
     @InjectRepository(OccurrenceTodoEntity)
-    private todoRepo: Repository<OccurrenceTodoEntity>,
+    _todoRepo: Repository<OccurrenceTodoEntity>,
 
     @InjectRepository(TodoFilesEntity)
     private todoFileRepo: Repository<TodoFilesEntity>,
@@ -82,17 +84,18 @@ export class EventOccurrenceService {
     private fileRepo: Repository<OccurrenceFileEntity>,
 
     private seriesService: EventSeriesService,
-  ) {}
+
+    private eventEmitter: EventEmitter2,
+  ) {
+    this.occurrenceRepo = new ObservableRepository(_occurrenceRepo, eventEmitter, 'occurrence');
+    this.todoRepo = new ObservableRepository(_todoRepo, eventEmitter, 'occurrence-todo');
+  }
 
   // ─── Create ─────────────────────────────────────────────────────────────────
 
-  async createEvent(
-    input: CreateEventInput & { userId: string },
-    repeat?: RepeatInput,
-  ): Promise<OccurrenceView> {
+  async createEvent(input: CreateEventInput & { userId: string }, repeat?: RepeatInput): Promise<OccurrenceView> {
     const { series, occurrences } = await this.seriesService.createSeries(input, repeat);
 
-    // Attach todos to every occurrence
     if (input.todos?.length > 0) {
       await this.todoRepo.save(
         occurrences.flatMap((occ) =>

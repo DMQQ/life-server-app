@@ -10,21 +10,29 @@ import {
   WalletSubAccount,
 } from 'src/wallet/entities/wallet.entity';
 import { Brackets, Repository, Not, IsNull } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
 import { ExpenseFactory } from '../factories/expense.factory';
+import { ObservableRepository } from 'src/emitter/observable-repository';
 
 @Injectable()
 export class WalletService {
+  private readonly expenseRepository: ObservableRepository<ExpenseEntity>;
+
   constructor(
     @InjectRepository(WalletEntity)
     private readonly walletRepository: Repository<WalletEntity>,
 
     @InjectRepository(ExpenseEntity)
-    private readonly expenseRepository: Repository<ExpenseEntity>,
+    _expenseRepo: Repository<ExpenseEntity>,
 
     @InjectRepository(WalletSubAccount)
     private readonly subAccountRepository: Repository<WalletSubAccount>,
-  ) {}
+
+    private readonly eventEmitter: EventEmitter2,
+  ) {
+    this.expenseRepository = new ObservableRepository(_expenseRepo, eventEmitter, 'expense');
+  }
 
   async getWalletIdByUserId(userId: string) {
     return this.walletRepository.findOne({
@@ -59,6 +67,7 @@ export class WalletService {
           newBalance: input.amount,
           walletId: wallet.id,
           currentBalance: wallet.balance,
+          subAccountId: general.id,
         });
         await this.expenseRepository.insert(balanceEditExpense);
       } else {
@@ -301,17 +310,9 @@ export class WalletService {
     });
     const insert = await this.expenseRepository.insert(newExpense);
 
-    if (schedule && date > new Date())
-      return this.expenseRepository.findOne({
-        where: { id: insert.identifiers[0].id },
-      });
-
-    await this._updateWalletBalance(
-      userId,
-      amount,
-      type === ExpenseType.expense ? ExpenseType.expense : ExpenseType.income,
-      resolvedSubAccountId,
-    );
+    if (schedule && date > new Date()) {
+      return this.expenseRepository.findOne({ where: { id: insert.identifiers[0].id } });
+    }
 
     const expense = await this.expenseRepository.findOne({
       where: { id: insert.identifiers[0].id },
@@ -350,8 +351,6 @@ export class WalletService {
     });
     const insert = await this.expenseRepository.insert(subscriptionExpense);
 
-    await this._updateWalletBalance(wallet.userId, expense.amount, ExpenseType.expense, expense.subAccountId ?? general.id);
-
     return this.expenseRepository.findOne({
       where: { id: insert.identifiers[0].id },
     });
@@ -367,24 +366,8 @@ export class WalletService {
   }
 
   async deleteExpense(id: string, userId: string) {
-    const expense = await this.expenseRepository.findOne({ where: { id } });
-
-    if (expense && expense !== null && typeof expense !== 'undefined') {
-      const { amount, type, subAccountId } = expense as ExpenseEntity;
-
-      await this.expenseRepository.delete({ id });
-
-      if (type !== ExpenseType.refunded) {
-        await this._updateWalletBalance(
-          userId,
-          amount,
-          type === ExpenseType.expense ? ExpenseType.income : ExpenseType.expense,
-          subAccountId,
-        );
-
-        return true;
-      }
-    }
+    const result = await this.expenseRepository.delete({ id });
+    return result.affected > 0;
   }
 
   async _getOrCreateGeneralAccount(walletId: string, initialBalance = 0): Promise<WalletSubAccount> {
@@ -410,22 +393,6 @@ export class WalletService {
     );
   }
 
-  private async _updateWalletBalance(userId: string, amount: number, type: ExpenseType, subAccountId?: string) {
-    const op = type === ExpenseType.expense ? `balance - ${amount}` : `balance + ${amount}`;
-
-    const wallet = await this.walletRepository.findOne({ where: { userId } });
-
-    // Resolve target sub-account: explicit one or the default General account
-    let targetId = subAccountId;
-    if (!targetId) {
-      const general = await this._getOrCreateGeneralAccount(wallet.id);
-      targetId = general.id;
-    }
-
-    await this.subAccountRepository.update({ id: targetId }, { balance: () => op });
-    await this._syncWalletBalance(wallet.id);
-  }
-
   async addScheduledTransaction(transaction: {
     walletId: string;
     type: ExpenseType;
@@ -433,14 +400,7 @@ export class WalletService {
     id: string;
     date: string;
   }) {
-    const op =
-      transaction.type === ExpenseType.expense ? `balance - ${transaction.amount}` : `balance + ${transaction.amount}`;
-
-    const general = await this._getOrCreateGeneralAccount(transaction.walletId);
-    await this.subAccountRepository.update({ id: general.id }, { balance: () => op });
-    await this._syncWalletBalance(transaction.walletId);
-
-    return this.expenseRepository.update(transaction.id, { schedule: false });
+    return this.expenseRepository.update({ id: transaction.id }, { schedule: false });
   }
 
   async getScheduledTransactions(_date: Date) {
@@ -461,48 +421,17 @@ export class WalletService {
     incoming: Partial<ExpenseEntity> & { amount: number; type: string },
   ) {
     const wallet = await this.walletRepository.findOne({ where: { userId } });
-    const exisitng = await this.expenseRepository.findOne({
-      where: { id: expenseId },
-    });
+    if (!wallet) throw new Error('Wallet not found');
 
-    if (typeof wallet === 'undefined' || wallet == null) throw new Error('Expense doesnt exist');
+    const existing = await this.expenseRepository.findOne({ where: { id: expenseId } });
+    if (!existing) throw new Error('Expense not found');
 
-    // Determine which sub-account holds this expense (fall back to General)
-    const subAccountId = incoming.subAccountId ?? exisitng.subAccountId;
-    let targetAccount = subAccountId
-      ? await this.subAccountRepository.findOne({ where: { id: subAccountId } })
-      : await this._getOrCreateGeneralAccount(wallet.id, wallet.balance);
+    const originalBalance =
+      existing.type === ExpenseType.income ? wallet.balance - existing.amount : wallet.balance + existing.amount;
 
-    const accountBalance = targetAccount.balance;
-    let newAccountBalance = accountBalance;
-    let originalBalance = wallet.balance;
+    await this.expenseRepository.update({ id: expenseId }, { ...incoming, balanceBeforeInteraction: originalBalance });
 
-    if (incoming.type === ExpenseType.refunded) {
-      newAccountBalance =
-        exisitng.type === 'income' ? accountBalance - exisitng.amount : accountBalance + exisitng.amount;
-    } else {
-      const restoredBalance =
-        exisitng.type === 'income' ? accountBalance - exisitng.amount : accountBalance + exisitng.amount;
-      newAccountBalance =
-        incoming.type === 'income' ? restoredBalance + incoming.amount : restoredBalance - incoming.amount;
-      originalBalance =
-        exisitng.type === 'income' ? wallet.balance - exisitng.amount : wallet.balance + exisitng.amount;
-    }
-
-    await this.subAccountRepository.update({ id: targetAccount.id }, { balance: newAccountBalance });
-    await this._syncWalletBalance(wallet.id);
-
-    await this.expenseRepository.update(
-      {
-        id: expenseId,
-      },
-      {
-        ...incoming,
-        balanceBeforeInteraction: originalBalance,
-      },
-    );
-
-    return await this.expenseRepository.findOne({ where: { id: expenseId } });
+    return this.expenseRepository.findOne({ where: { id: expenseId } });
   }
 
   async getMonthTotalByType(type: 'income' | 'expense', userId: string, month: number, year: number) {
@@ -653,6 +582,7 @@ export class WalletService {
     userId: string,
   ) {
     const wallet = await this.getWalletIdByUserId(userId);
+    const general = await this._getOrCreateGeneralAccount(wallet.id);
     const predictionExpense = ExpenseFactory.createExpenseFromPrediction(
       {
         merchant: prediction.merchant,
@@ -663,11 +593,10 @@ export class WalletService {
       },
       wallet.id,
       wallet.balance,
+      general.id,
     );
 
     const insert = await this.expenseRepository.insert(predictionExpense);
-
-    await this._updateWalletBalance(userId, prediction.total_price, ExpenseType.expense);
 
     return this.expenseRepository.findOne({
       where: { id: insert.identifiers[0].id },
@@ -724,6 +653,37 @@ export class WalletService {
     const result = await this.subAccountRepository.delete({ id });
     if (general) await this._syncWalletBalance(account.walletId);
     return result.affected > 0;
+  }
+
+  async transferBetweenSubAccounts(fromId: string, toId: string, amount: number) {
+    const [from, to] = await Promise.all([
+      this.subAccountRepository.findOne({ where: { id: fromId } }),
+      this.subAccountRepository.findOne({ where: { id: toId } }),
+    ]);
+
+    if (!from || !to) throw new Error('Sub-account not found');
+    if (from.walletId !== to.walletId) throw new Error('Sub-accounts must belong to the same wallet');
+    if (from.balance < amount) throw new Error('Insufficient balance');
+
+    const wallet = await this.walletRepository.findOne({ where: { id: from.walletId } });
+
+    await Promise.all([
+      this.subAccountRepository.update({ id: fromId }, { balance: () => `balance - ${amount}` }),
+      this.subAccountRepository.update({ id: toId }, { balance: () => `balance + ${amount}` }),
+    ]);
+
+    const transferExpense = ExpenseFactory.createTransferExpense({
+      walletId: from.walletId,
+      amount,
+      fromName: from.name,
+      toName: to.name,
+      subAccountId: fromId,
+      balanceBeforeInteraction: wallet?.balance,
+    });
+
+    await this.expenseRepository.insert(transferExpense);
+
+    return { from: fromId, to: toId, amount };
   }
 
   async getWalletsWithPaycheckDate() {

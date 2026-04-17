@@ -14,7 +14,8 @@ import { TimelineSchedule } from './timeline.schedule';
 import { NotificationsModule } from 'src/notifications/notifications.module';
 import { TimelineScheduleService } from './timelineSchedule.service';
 import { WalletModule } from '../wallet/wallet.module';
-import { OccurrenceTodosSubscriber, OccurrenceSubscriber } from './timeline.subscriber';
+import { TimelineListener } from './timeline.listener';
+import { ApnService } from 'src/notifications/apn.service';
 
 @Module({
   imports: [
@@ -35,10 +36,10 @@ import { OccurrenceTodosSubscriber, OccurrenceSubscriber } from './timeline.subs
     EventOccurrenceResolver,
     TimelineSchedule,
     TimelineScheduleService,
-    OccurrenceTodosSubscriber,
-    OccurrenceSubscriber,
     LiveActivityService,
     LiveActivityResolver,
+    TimelineListener,
+    ApnService,
   ],
   exports: [EventSeriesService, EventOccurrenceService, LiveActivityService],
 })

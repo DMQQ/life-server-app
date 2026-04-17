@@ -118,7 +118,7 @@ export class NotificationsService {
       .createQueryBuilder()
       .select('*')
       .from('live_activities', 'la')
-      .where('la.timelineId = :timelineId', { timelineId: event.id })
+      .where('la.occurrenceId = :occurrenceId', { occurrenceId: event.id })
       .andWhere('la.status IN (:...statuses)', { statuses: ['sent', 'update'] })
       .getRawOne();
 
