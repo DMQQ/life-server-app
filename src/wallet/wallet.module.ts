@@ -6,6 +6,7 @@ import {
   ExpenseSubExpense,
   WalletEntity,
   WalletLimits,
+  WalletSubAccount,
 } from 'src/wallet/entities/wallet.entity';
 import { ExpenseCorrectionMapEntity } from 'src/wallet/entities/expense-correction-map.entity';
 import { ExpenseCorrectionService } from './services/expense-correction.service';
@@ -43,6 +44,7 @@ import { StatisticsController } from './resolvers/statistics.controller';
       ExpenseLocationEntity,
       ExpenseSubExpense,
       WalletLimits,
+      WalletSubAccount,
       ExpenseCorrectionMapEntity,
     ]),
     NotificationsModule,

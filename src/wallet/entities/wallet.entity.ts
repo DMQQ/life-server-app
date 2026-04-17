@@ -1,6 +1,81 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, RelationId } from 'typeorm';
-import { ObjectType, Field, Int, ID, Float } from '@nestjs/graphql';
+import { ObjectType, Field, Int, ID, Float, InputType } from '@nestjs/graphql';
 import { SubscriptionEntity } from './subscription.entity';
+
+@InputType()
+export class CreateSubAccountInput {
+  @Field()
+  name: string;
+
+  @Field(() => String, { nullable: true })
+  description?: string;
+
+  @Field(() => String, { nullable: true })
+  color?: string;
+
+  @Field(() => String, { nullable: true })
+  icon?: string;
+
+  @Field(() => Float, { nullable: true })
+  balance?: number;
+}
+
+@InputType()
+export class UpdateSubAccountInput {
+  @Field({ nullable: true })
+  name?: string;
+
+  @Field(() => String, { nullable: true })
+  description?: string;
+
+  @Field(() => String, { nullable: true })
+  color?: string;
+
+  @Field(() => String, { nullable: true })
+  icon?: string;
+
+  @Field(() => Float, { nullable: true })
+  balance?: number;
+}
+
+@ObjectType()
+@Entity('wallet_sub_account')
+export class WalletSubAccount {
+  @Field(() => ID)
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Field()
+  @Column({ type: 'varchar', nullable: false })
+  name: string;
+
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'varchar', nullable: true })
+  description: string;
+
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'varchar', nullable: true })
+  color: string;
+
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'varchar', nullable: true })
+  icon: string;
+
+  @Field(() => Float)
+  @Column({ type: 'float', default: 0 })
+  balance: number;
+
+  @Field(() => Boolean)
+  @Column({ type: 'boolean', default: false })
+  isDefault: boolean;
+
+  @Column({ type: 'uuid', nullable: false })
+  walletId: string;
+
+  @Field(() => [ExpenseEntity])
+  @OneToMany(() => ExpenseEntity, (expense) => expense.subAccount)
+  expenses: ExpenseEntity[];
+}
 
 @ObjectType()
 @Entity('wallet')
@@ -37,6 +112,10 @@ export class WalletEntity {
   @OneToMany(() => WalletLimits, (limit) => limit.walletId)
   @JoinColumn({ name: 'limits' })
   limits: WalletLimits[];
+
+  @Field(() => [WalletSubAccount])
+  @OneToMany(() => WalletSubAccount, (sub) => sub.walletId)
+  subAccounts: WalletSubAccount[];
 }
 
 @ObjectType()
@@ -150,6 +229,15 @@ export class ExpenseEntity {
   @OneToMany(() => ExpenseSubExpense, (sub) => sub.expense)
   @Field(() => [ExpenseSubExpense])
   subexpenses: ExpenseSubExpense[];
+
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'subAccountId', type: 'uuid', nullable: true })
+  subAccountId: string;
+
+  @ManyToOne(() => WalletSubAccount, (sub) => sub.expenses, { nullable: true })
+  @JoinColumn({ name: 'subAccountId' })
+  @Field(() => WalletSubAccount, { nullable: true })
+  subAccount: WalletSubAccount;
 }
 
 @ObjectType()
@@ -200,9 +288,7 @@ export class ExpenseFileEntity {
 export enum LimitRange {
   'weekly' = 'weekly',
   'daily' = 'daily',
-
   'monthly' = 'monthly',
-
   'yearly' = 'yearly',
 }
 

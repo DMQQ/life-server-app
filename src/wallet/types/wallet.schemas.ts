@@ -38,6 +38,9 @@ export class GetWalletFilters {
 
   @Field(() => Boolean, { nullable: true })
   isExactCategory?: boolean;
+
+  @Field(() => String, { nullable: true })
+  accountId?: string;
 }
 
 @ObjectType()

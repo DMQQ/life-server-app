@@ -1,15 +1,24 @@
 import * as dayjs from 'dayjs';
 import { AiTool, ToolContext } from './base.tool';
 import { WalletEntity, WalletLimits, LimitRange } from 'src/wallet/entities/wallet.entity';
+import { z } from 'zod';
 
 interface DateRange {
   where: { startDate: string; endDate: string };
 }
 
-abstract class WalletStatsTool extends AiTool {
+export abstract class WalletStatsTool extends AiTool {
   readonly fields = { startDate: 'YYYY-MM-DD', endDate: 'YYYY-MM-DD' };
   get schema() {
     return `${this.name}(params) — ${this.description} | params: { where: { startDate, endDate } }`;
+  }
+  get zodSchema() {
+    return z.object({
+      where: z.object({
+        startDate: z.string().describe('YYYY-MM-DD'),
+        endDate: z.string().describe('YYYY-MM-DD'),
+      }),
+    });
   }
 }
 

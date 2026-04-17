@@ -24,6 +24,15 @@ export class AiChatResolver {
     @Args('history', { type: () => [ChatMessageInput], nullable: true, defaultValue: [] })
     history: ChatMessageInput[],
   ): Promise<AiChatResponse> {
-    return this.aiChatService.chat({ userId, walletId, message, startDate, endDate, history });
+    const agentResponse = await this.aiChatService.agentChat({
+      userId,
+      walletId,
+      message,
+      startDate,
+      endDate,
+      history,
+    });
+
+    return agentResponse;
   }
 }

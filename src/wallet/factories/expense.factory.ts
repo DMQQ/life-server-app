@@ -21,6 +21,7 @@ export class ExpenseFactory {
     note?: string;
     shop?: string;
     tags?: string;
+    subAccountId?: string;
   }): ExpenseEntity {
     const expense = new ExpenseEntity();
     expense.amount = data.amount;
@@ -36,6 +37,7 @@ export class ExpenseFactory {
     expense.note = data.note;
     expense.shop = data.shop;
     expense.tags = data.tags;
+    expense.subAccountId = data.subAccountId;
     return expense;
   }
 

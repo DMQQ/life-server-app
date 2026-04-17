@@ -9,6 +9,9 @@ import { AiChatHistoryEntity, AiMessageRaw } from './ai-chat-history.entity';
 import { AiChatMessageItem } from './ai-chat.schemas';
 import { ALL_TOOLS, ToolContext, UniversalQueryParams, ZodError } from './tools';
 import { WidgetRegistry } from './widgets/widget.registry';
+import { Agent, run } from '@openai/agents';
+import * as z from 'zod';
+import * as dayjs from 'dayjs';
 
 type ConversationMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -72,7 +75,7 @@ export class AiChatService {
   ) {}
 
   private makeContext(userId: string, walletId?: string): ToolContext {
-    return { userId, walletId, dataSource: this.dataSource, openAIService: this.openAIService };
+    return { userId, walletId, dataSource: this.dataSource, openAIService: this.openAIService, toolDataCache: {} };
   }
 
   private async runAgentLoop(
@@ -113,7 +116,7 @@ export class AiChatService {
       } catch (error) {
         const msg =
           error instanceof ZodError
-            ? `[TOOL_ERROR: ${toolName}] Invalid params: ${error.errors.map((e) => e.message).join(', ')}.`
+            ? `[TOOL_ERROR: ${toolName}] Invalid params: ${(error as z.ZodError).issues.map((e) => e.message).join(', ')}.`
             : `[TOOL_ERROR: ${toolName}] ${(error as Error).message}.`;
         conversation.add('user', msg + ' Fix parameters and retry.');
       }
@@ -221,13 +224,9 @@ export class AiChatService {
     );
 
     const rawMessages = (finalOutput.messages ?? []) as AiMessageItem[];
-    console.log('[AI] finalOutput.action:', finalOutput.action);
-    console.log('[AI] rawMessages:', JSON.stringify(rawMessages));
-    console.log('[AI] toolDataByName keys:', Object.keys(toolDataByName));
 
     const finalMessages = await this.rewriteWithPersonality(message, rawMessages, toolDataByName, recentMessages);
     const resolvedMessages = await this.resolveMessages(finalMessages, ctx, toolDataByName);
-    console.log('[AI] resolvedMessages:', JSON.stringify(resolvedMessages));
 
     this.historyRepository.save({
       userId,
@@ -236,6 +235,85 @@ export class AiChatService {
       aiMessages: this.buildStoragePayload(rawMessages, toolDataByName, toolParamsByName),
       startDate: startDate ?? null,
       endDate: endDate ?? null,
+    });
+
+    return { messages: resolvedMessages };
+  }
+
+  async agentChat({ userId, walletId, message }: ChatParams) {
+    const ctx = this.makeContext(userId, walletId);
+
+    const dbHistory = await this.historyRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      take: 5, // Just need recent context
+    });
+
+    const mappedHistory = dbHistory.reverse().flatMap((row) => [
+      { role: 'user', content: row.userMessage },
+      { role: 'assistant', content: JSON.stringify(row.aiMessages) },
+    ]);
+
+    const displayWidgets = this.widgetRegistry.getCatalog();
+    const formWidgets = this.widgetRegistry.getFormWidgetDocs();
+
+    const today = dayjs().format('YYYY-MM-DD HH:mm:ss');
+
+    const lifeAssistant = new Agent({
+      name: 'LifeAssistant',
+      model: 'gpt-4o-mini',
+      instructions: `You are a personal life assistant. Respond in Polish. Currency is PLN.
+CURRENT DATE: ${today}. Use this as reference for relative dates: "dzisiaj"=${today}, "wczoraj"=yesterday, "w tym miesiącu"=current month.
+
+DATE QUERY RULES (CRITICAL):
+- For "last/most recent" queries (ostatni, najnowszy, ostatnie): use orderBy date DESC, limit 1, NO date filter.
+- For "today" queries: use date between "${today} 00:00:00" and "${today} 23:59:59".
+- For "this month": use date between first and last day of current month.
+- For "this week": use date between last Monday and next Sunday.
+- For explicit date ranges (e.g. "from 2024-01-01 to 2024-01-31"): use those exact dates as filters.
+- NEVER apply a date filter when the user asks for the most recent item — they want ALL TIME most recent.
+
+INTENT ROUTING (decide first, then act — no exceptions):
+- CREATE / ADD / EDIT / DELETE intent → immediately output the form widget. DO NOT call any tools first.
+- READ / SHOW / FETCH / SUMMARIZE intent → call the appropriate tool(s), then output widgets with the results.
+
+FORM WIDGETS (use for create/edit — fill fields from user input, user confirms):
+${formWidgets}
+
+DISPLAY WIDGETS (use after fetching data):
+${displayWidgets}
+
+CRITICAL OUTPUT RULE: Your final output MUST be a strict JSON array of UI widgets. NEVER output plain markdown text.
+Even if a tool returns an error or empty data, wrap your response in the JSON array.
+
+1. NEVER describe fetched items in text. Every fetched record MUST appear as a card using its ID.
+2. Text is ONLY for summaries or context — never for listing individual records.
+3. If a tool returns empty data, output: [{"type": "text", "content": "Brak danych za ten okres."}]`,
+      tools: ALL_TOOLS.map((t) => t.getToolDefinition(ctx)),
+    });
+
+    const result = await run(lifeAssistant, message, {
+      context: mappedHistory as any,
+    });
+
+    let rawMessages: AiMessageItem[] = [];
+    try {
+      const parsed = JSON.parse(result.finalOutput);
+      rawMessages = Array.isArray(parsed) ? parsed : [parsed];
+    } catch (error) {
+      console.error('[AI Agent] Failed to parse JSON widgets:', result.finalOutput);
+      rawMessages = [{ type: 'text', content: result.finalOutput }];
+    }
+
+    const recentMessages = await this.fetchRecentMessages(userId);
+    const finalMessages = await this.rewriteWithPersonality(message, rawMessages, ctx.toolDataCache, recentMessages);
+    const resolvedMessages = await this.resolveMessages(finalMessages, ctx, ctx.toolDataCache);
+
+    await this.historyRepository.save({
+      userId,
+      walletId: walletId ?? null,
+      userMessage: message,
+      aiMessages: rawMessages as AiMessageRaw[],
     });
 
     return { messages: resolvedMessages };

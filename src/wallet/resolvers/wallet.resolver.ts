@@ -2,7 +2,14 @@ import { Args, Float, ID, Int, Mutation, Parent, Query, ResolveField, Resolver }
 import { BadRequestException, NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { WalletService } from '../services/wallet.service';
-import { ExpenseEntity, ExpenseType, WalletEntity } from 'src/wallet/entities/wallet.entity';
+import {
+  CreateSubAccountInput,
+  ExpenseEntity,
+  ExpenseType,
+  UpdateSubAccountInput,
+  WalletEntity,
+  WalletSubAccount,
+} from 'src/wallet/entities/wallet.entity';
 import { User } from 'src/utils/decorators/user.decorator';
 import { GetWalletFilters, MonthlyExpenses, WalletStatisticsRange } from '../types/wallet.schemas';
 import { SubscriptionService } from '../services/subscriptions.service';
@@ -133,6 +140,8 @@ export class WalletResolver {
 
     @Args('spontaneousRate', { type: () => Float, nullable: true })
     spontaneousRate: number,
+    @Args('subAccountId', { type: () => ID, nullable: true })
+    subAccountId?: string,
   ) {
     const parsedDate = parseDate(date || new Date().toISOString().split('T')[0]);
 
@@ -165,6 +174,8 @@ export class WalletResolver {
       schedule,
       subscription ? subscription.id : null,
       spontaneousRate,
+      undefined,
+      subAccountId,
     );
 
     return expense;
@@ -206,12 +217,14 @@ export class WalletResolver {
 
     if (latitude != null && longitude != null) {
       const existing = await this.expenseService.findNearbyLocation(latitude, longitude);
-      const location = existing ?? await this.expenseService.createLocation({
-        name: corrected.shop ?? corrected.description,
-        kind: 'merchant',
-        latitude,
-        longitude,
-      });
+      const location =
+        existing ??
+        (await this.expenseService.createLocation({
+          name: corrected.shop ?? corrected.description,
+          kind: 'merchant',
+          latitude,
+          longitude,
+        }));
       await this.expenseService.addExpenseLocation(expense.id, location.id);
       expense.location = location;
     }
@@ -253,6 +266,7 @@ export class WalletResolver {
     @Args('category', { type: () => String }) category: string,
     @Args('date') date: string,
     @Args('spontaneousRate', { type: () => Float, nullable: true }) spontaneousRate: number,
+    @Args('subAccountId', { type: () => ID, nullable: true }) subAccountId?: string,
   ) {
     const result = await this.walletService.editExpense(expenseId, usrId, {
       amount,
@@ -261,9 +275,43 @@ export class WalletResolver {
       category,
       date: new Date(date),
       spontaneousRate: spontaneousRate ?? 0,
+      subAccountId,
     });
 
     return result;
+  }
+
+  @ResolveField(() => [WalletSubAccount])
+  subAccounts(@Parent() wallet: WalletEntity) {
+    return this.walletService.getSubAccounts(wallet.userId);
+  }
+
+  @Mutation(() => WalletSubAccount)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async createSubAccount(
+    @User() userId: string,
+    @Args('input', { type: () => CreateSubAccountInput }) input: CreateSubAccountInput,
+  ) {
+    const response = await this.walletService.createSubAccount(userId, input);
+
+    console.log('Created sub-account:', response);
+
+    return response;
+  }
+
+  @Mutation(() => WalletSubAccount)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  updateSubAccount(
+    @Args('id', { type: () => ID }) id: string,
+    @Args('input', { type: () => UpdateSubAccountInput }) input: UpdateSubAccountInput,
+  ) {
+    return this.walletService.updateSubAccount(id, input);
+  }
+
+  @Mutation(() => Boolean)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  deleteSubAccount(@Args('id', { type: () => ID }) id: string) {
+    return this.walletService.deleteSubAccount(id);
   }
 
   @Query(() => Float)

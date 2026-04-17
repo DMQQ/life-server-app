@@ -3,17 +3,21 @@ import { AiTool, ToolContext } from './base.tool';
 import { ExtractTasksQuery } from 'src/utils/shared/AI/ExtractTasksQuery';
 import { EventOccurrenceEntity } from 'src/timeline/entities/event-occurrence.entity';
 import { OccurrenceTodoEntity } from 'src/timeline/entities/occurrence-todo.entity';
+import { z } from 'zod';
 
 export class TimelineWidgetTool extends AiTool {
   readonly name = 'timelineWidget';
-  readonly description = 'Extract and preview timeline events/tasks from user text — use when user describes schedule, plans, or wants to create events';
-  readonly fields = {
-    content: 'string — text to extract events from',
-    currentDate: 'YYYY-MM-DD — reference date for relative expressions like "tomorrow"',
-  };
+  readonly description =
+    'Extract and preview timeline events/tasks from user text — use when user describes schedule, plans, or wants to create events';
 
-  get schema() {
-    return `${this.name}(params) — ${this.description} | params: { content: string, currentDate?: string }`;
+  get zodSchema() {
+    return z.object({
+      content: z.string().describe('text to extract events from'),
+      currentDate: z
+        .string()
+        .nullish()
+        .describe('YYYY-MM-DD — reference date for relative expressions like "tomorrow"'),
+    });
   }
 
   async run(params: { content: string; currentDate?: string }, ctx: ToolContext) {
