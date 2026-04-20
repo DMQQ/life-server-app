@@ -292,14 +292,11 @@ export class InsightsSchedulerService extends BaseScheduler {
   // }) disable
   async topSpendingDayAnalysis() {
     this.logger.log('Running top spending day analysis');
-    const users = await this.notificationService.findAll();
 
-    for (const user of users) {
+    this.forEachNotification('topSpendingDay', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
-
         const walletId = await this.walletService.getWalletId(user.userId);
-        if (!walletId) continue;
+        if (!walletId) return null;
 
         const startDate = dayjs().subtract(6, 'week').format('YYYY-MM-DD');
         const endDate = dayjs().format('YYYY-MM-DD');
@@ -307,7 +304,7 @@ export class InsightsSchedulerService extends BaseScheduler {
         const dayOfWeekData = await this.expenseService.getSpendingByDayOfWeek(walletId, [startDate, endDate]);
 
         if (!dayOfWeekData || dayOfWeekData.length === 0) {
-          continue;
+          return null;
         }
 
         let highestAvgDay = -1;
@@ -332,7 +329,7 @@ export class InsightsSchedulerService extends BaseScheduler {
         }
 
         if (highestAvgDay === -1 || lowestAvgDay === -1) {
-          continue;
+          return null;
         }
 
         const percentDiff = ((highestAvg - lowestAvg) / lowestAvg) * 100;
@@ -345,19 +342,20 @@ export class InsightsSchedulerService extends BaseScheduler {
             dayNames[lowestAvgDay]
           } when you spend ${percentDiff.toFixed(0)}% less. Potential yearly savings: ${annualSavings.toFixed(0)}zł.`;
 
-          const notification = {
+          return {
             to: user.token,
             sound: 'default',
             title: '💸 Spending Day Insight',
             body: this.truncateNotification(messageBody),
           } as ExpoPushMessage;
-
-          await this.sendSingleNotification(notification, user.userId);
         }
+
+        return null;
       } catch (error) {
         this.logger.error(`Error processing top spending day for user ${user.userId}: ${error.message}`, error.stack);
+        return null;
       }
-    }
+    });
   }
 
   @Cron('0 22 26 * *', {
@@ -365,14 +363,11 @@ export class InsightsSchedulerService extends BaseScheduler {
   })
   async monthlyCategoryComparison() {
     this.logger.log('Running monthly category comparison');
-    const users = await this.notificationService.findAll();
 
-    for (const user of users) {
+    this.forEachNotification('monthlyCategoryComparison', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
-
         const walletId = await this.walletService.getWalletId(user.userId);
-        if (!walletId) continue;
+        if (!walletId) return null;
 
         const currentMonth = dayjs().format('YYYY-MM');
         const lastMonth = dayjs().subtract(1, 'month').format('YYYY-MM');
@@ -380,7 +375,7 @@ export class InsightsSchedulerService extends BaseScheduler {
         const monthlyData = await this.expenseService.getMonthlyCategories(walletId, [lastMonth, currentMonth]);
 
         if (!monthlyData || monthlyData.length !== 2) {
-          continue;
+          return null;
         }
 
         const lastMonthCategories = {};
@@ -436,18 +431,20 @@ export class InsightsSchedulerService extends BaseScheduler {
         }
 
         if (messageBody) {
-          const notification = {
+          return {
             to: user.token,
             sound: 'default',
             title: '📆 Monthly Category Report',
             body: this.truncateNotification(messageBody),
           } as ExpoPushMessage;
-          await this.sendSingleNotification(notification, user.userId);
         }
+
+        return null;
       } catch (error) {
         this.logger.error(`Error processing monthly comparison for user ${user.userId}: ${error.message}`, error.stack);
+        return null;
       }
-    }
+    });
   }
 
   @Cron('0 22 28-31 * *', {
@@ -459,14 +456,11 @@ export class InsightsSchedulerService extends BaseScheduler {
     }
 
     this.logger.log('Running saving rate analysis');
-    const users = await this.notificationService.findAll();
 
-    for (const user of users) {
+    this.forEachNotification('savingRateAnalysis', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
-
         const walletId = await this.walletService.getWalletId(user.userId);
-        if (!walletId) continue;
+        if (!walletId) return null;
 
         const currentMonthStart = dayjs().startOf('month').format('YYYY-MM-DD');
         const currentMonthEnd = dayjs().endOf('month').format('YYYY-MM-DD');
@@ -484,7 +478,7 @@ export class InsightsSchedulerService extends BaseScheduler {
         ]);
 
         if (!currentMonth || !prevMonth) {
-          continue;
+          return null;
         }
 
         const currentSavingRate =
@@ -494,11 +488,10 @@ export class InsightsSchedulerService extends BaseScheduler {
           prevMonth.income > 0 ? ((prevMonth.income - prevMonth.expense) / prevMonth.income) * 100 : 0;
 
         if (currentMonth.income <= 0 || prevMonth.income <= 0) {
-          continue;
+          return null;
         }
 
         const monthlySavings = currentMonth.income - currentMonth.expense;
-
         const yearlyInvestment = Math.max(0, monthlySavings * 12);
 
         let messageBody = '';
@@ -518,86 +511,29 @@ export class InsightsSchedulerService extends BaseScheduler {
           )}% last month. To match last month, try reducing expenses by ${reductionNeeded.toFixed(0)}zł next month.`;
         }
 
-        const notification = {
+        return {
           to: user.token,
           sound: 'default',
           title: '💰 Monthly Saving Analysis',
           body: this.truncateNotification(messageBody),
         } as ExpoPushMessage;
-
-        await this.sendSingleNotification(notification, user.userId);
       } catch (error) {
         this.logger.error(`Error processing saving rate for user ${user.userId}: ${error.message}`, error.stack);
+        return null;
       }
-    }
+    });
   }
 
-  // @Cron('0 7 * * 0', {
-  //   timeZone: 'Europe/Warsaw',
-  // })
-  // async weeklyFinancialTip() {
-  //   this.logger.log('Sending weekly financial tip for young adults');
-  //   const users = await this.notificationService.findAll();
-
-  //   const tips = [
-  //     '🎓 Student discount hack: Use apps like Unidays or Student Beans to find discounts on everything from clothes to tech.',
-  //     '🍕 Food budget tip: Meal prep on Sundays can save you up to 70% compared to eating out or ordering in.',
-  //     '💰 Try the 70/20/10 rule: 70% for living costs, 20% for fun, 10% for future you. Easier than the 50/30/20 rule to start with!',
-  //     '📱 App subscription audit: Delete unused apps that charge monthly - the average person wastes 250zł yearly on forgotten subscriptions.',
-  //     '🎮 Gaming tip: Wait for seasonal sales to buy games or use subscription services like Game Pass instead of buying each title.',
-  //     '💼 Side hustle idea: Turn your social media skills into freelance work - businesses pay well for help with their online presence.',
-  //     '🏠 Housing hack: Splitting rent with one roommate can save you 40-50% on your biggest monthly expense.',
-  //     '✈️ Travel smart: Use student flight discounts and hostels to explore Europe for under 1000zł per trip.',
-  //     '🛍️ Shopping tip: Use browser extensions like Honey to automatically find discount codes at checkout.',
-  //     '☕ The coffee calculator: Making coffee at home vs buying daily can save you over 2000zł per year.',
-  //     '🚗 Transport savings: Compare the real cost of car ownership vs public transport + occasional rideshares.',
-  //     '💻 Tech tip: Buy refurbished electronics with warranties to save 30-50% on phones and laptops.',
-  //     '👕 Clothing hack: Thrift stores and secondhand apps like Vinted offer trendy clothes at 70-90% off retail.',
-  //     '📊 Money challenge: Save 5zł on day 1, 10zł on day 2, and so on for 30 days to easily save 2325zł in a month.',
-  //     '💳 Credit building: Using a credit card for regular expenses and paying it off monthly helps build your credit score.',
-  //     '🎭 Free fun finder: Follow local event pages for free concerts, exhibitions and activities instead of paying for entertainment.',
-  //     '📚 Learning hack: Use free resources like YouTube tutorials and library books before paying for courses.',
-  //     '🏋️ Fitness tip: University gyms, public parks, and free YouTube workouts can replace expensive gym memberships.',
-  //     '💸 Digital banking tip: Use apps like Revolut or N26 for fee-free currency exchange when traveling.',
-  //     '🎧 Entertainment hack: Split premium subscriptions like Spotify Family or Netflix with friends to save up to 70%.',
-  //   ];
-
-  //   const weekNumber = dayjs().isoWeek();
-  //   const tipIndex = weekNumber % tips.length;
-  //   const tip = tips[tipIndex];
-
-  //   for (const user of users) {
-  //     try {
-  //       if (!user.token || user.isEnable === false) continue;
-
-  //       const notification = {
-  //         to: user.token,
-  //         sound: 'default',
-  //         title: '💡 Smart Money Tip',
-  //         body: tip,
-  //       } as ExpoPushMessage;
-
-  //       await this.sendSingleNotification(notification);
-  //       await this.notificationService.saveNotification(user.userId, notification);
-  //     } catch (error) {
-  //       this.logger.error(`Error sending financial tip to user ${user.userId}: ${error.message}`, error.stack);
-  //     }
-  //   }
-  // }
-
-  // @Cron('0 7 */3 * *', {
-  //   timeZone: 'Europe/Warsaw',
-  // }) disable
+  @Cron('0 7 */3 * *', {
+    timeZone: 'Europe/Warsaw',
+  })
   async whatIfAnalysis() {
     this.logger.log('Running "What If" analysis');
-    const users = await this.notificationService.findAll();
 
-    for (const user of users) {
+    this.forEachNotification('whatIfAnalysis', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
-
         const walletId = await this.walletService.getWalletId(user.userId);
-        if (!walletId) continue;
+        if (!walletId) return null;
 
         const startDate = dayjs().subtract(3, 'month').startOf('month').format('YYYY-MM-DD');
         const endDate = dayjs().format('YYYY-MM-DD');
@@ -606,14 +542,14 @@ export class InsightsSchedulerService extends BaseScheduler {
 
         if (!categories || categories.length < 2) {
           this.logger.log(`Not enough category data for user ${user.userId}`);
-          continue;
+          return null;
         }
 
         const viableCategories = categories.filter((c) => parseFloat(c.total) > 30 && parseFloat(c.count) >= 2);
 
         if (viableCategories.length === 0) {
           this.logger.log(`No viable categories found for user ${user.userId}`);
-          continue;
+          return null;
         }
 
         const dayOfMonth = dayjs().date();
@@ -667,24 +603,21 @@ export class InsightsSchedulerService extends BaseScheduler {
           useCases[useCaseIndex]
         }`;
 
-        const notification = {
+        this.logger.log(
+          `Sent What If analysis for category ${formatCategory(targetCategory.category)} to user ${user.userId}`,
+        );
+
+        return {
           to: user.token,
           sound: 'default',
           title: '💡 What If? Savings Opportunity',
           body: this.truncateNotification(messageBody),
         } as ExpoPushMessage;
-
-        await this.sendSingleNotification(notification);
-
-        await this.notificationService.saveNotification(user.userId, notification);
-
-        this.logger.log(
-          `Sent What If analysis for category ${formatCategory(targetCategory.category)} to user ${user.userId}`,
-        );
       } catch (error) {
         this.logger.error(`Error processing what-if analysis for user ${user.userId}: ${error.message}`, error.stack);
+        return null;
       }
-    }
+    });
   }
 
   @Cron('0 22 * * 5', {
@@ -692,14 +625,11 @@ export class InsightsSchedulerService extends BaseScheduler {
   })
   async spontaneousPurchaseAnalysis() {
     this.logger.log('Running spontaneous purchase analysis');
-    const users = await this.notificationService.findAll();
 
-    for (const user of users) {
+    this.forEachNotification('spontaneousPurchase', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
-
         const walletId = await this.walletService.getWalletId(user.userId);
-        if (!walletId) continue;
+        if (!walletId) return null;
 
         const startDate = dayjs().subtract(1, 'month').format('YYYY-MM-DD');
         const endDate = dayjs().format('YYYY-MM-DD');
@@ -708,7 +638,7 @@ export class InsightsSchedulerService extends BaseScheduler {
 
         if (!expenses || expenses.length < 5) {
           this.logger.log(`Not enough expenses for user ${user.userId} to analyze spontaneous purchases`);
-          continue;
+          return null;
         }
 
         const spontaneousPurchases = expenses.filter((exp) => exp.spontaneousRate >= 70 && exp.type === 'expense');
@@ -721,7 +651,7 @@ export class InsightsSchedulerService extends BaseScheduler {
         const totalSpontaneous = spontaneousPurchases.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
 
         if (spontaneousPurchases.length === 0 || totalSpontaneous < 20) {
-          continue;
+          return null;
         }
 
         const spontaneousPercentage = (totalSpontaneous / totalExpenses) * 100;
@@ -766,23 +696,20 @@ export class InsightsSchedulerService extends BaseScheduler {
           messageBody += ` That's a ${totalReduction.toFixed(0)}% reduction in monthly expenses!`;
         }
 
-        const notification = {
+        return {
           to: user.token,
           sound: 'default',
           title: '💡 Spontaneous Spending Insight',
           body: this.truncateNotification(messageBody),
         } as ExpoPushMessage;
-
-        await this.sendSingleNotification(notification);
-
-        await this.notificationService.saveNotification(user.userId, notification);
       } catch (error) {
         this.logger.error(
           `Error processing spontaneous purchase analysis for user ${user.userId}: ${error.message}`,
           error.stack,
         );
+        return null;
       }
-    }
+    });
   }
 
   @Cron('0 7 * * *', {
@@ -790,19 +717,16 @@ export class InsightsSchedulerService extends BaseScheduler {
   })
   async zeroSpendDayChallenge() {
     this.logger.log('Running zero spend day challenge');
-    const users = await this.notificationService.findAll();
 
-    for (const user of users) {
+    this.forEachNotification('zeroSpendChallenge', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
-
         const walletId = await this.walletService.getWalletId(user.userId);
-        if (!walletId) continue;
+        if (!walletId) return null;
 
         const today = dayjs().format('YYYY-MM-DD');
         const subscriptionsDueToday = await this.subscriptionSerivce.getSubscriptionsDueOn(walletId, today);
 
-        if (subscriptionsDueToday.length > 0) continue;
+        if (subscriptionsDueToday.length > 0) return null;
 
         const lastFiveDays = [];
         for (let i = 1; i <= 5; i++) {
@@ -825,7 +749,7 @@ export class InsightsSchedulerService extends BaseScheduler {
             lastFiveDays.slice(0, consecutiveSpendingDays).reduce((sum, day) => sum + day.total, 0) /
             consecutiveSpendingDays;
 
-          const notification = {
+          return {
             to: user.token,
             sound: 'default',
             title: '💰 Zero Spend Challenge',
@@ -837,15 +761,14 @@ export class InsightsSchedulerService extends BaseScheduler {
               avgAmount: avgDailySpend,
             },
           } as ExpoPushMessage;
-
-          await this.notificationService.sendChunkNotifications([notification]);
-
-          await this.notificationService.saveNotification(user.userId, notification);
         }
+
+        return null;
       } catch (error) {
         this.logger.error(`Error processing zero spend challenge for user ${user.userId}: ${error.message}`);
+        return null;
       }
-    }
+    });
   }
 
   @Cron('0 22 * * 5', {
@@ -853,25 +776,11 @@ export class InsightsSchedulerService extends BaseScheduler {
   })
   async roundUpSavingsOpportunity() {
     this.logger.log('Running round-up savings opportunity');
-    const users = await this.notificationService.findAll();
 
-    for (const user of users) {
+    this.forEachNotification('roundUpSavings', async (user) => {
       try {
-        if (!user.token || user.isEnable === false) continue;
-
-        let walletId = null;
-        try {
-          walletId = await this.walletService.getWalletId(user.userId);
-          this.logger.debug(`Retrieved walletId: ${walletId} for userId: ${user.userId}`);
-
-          if (!walletId) {
-            this.logger.warn(`No wallet found for user ${user.userId}`);
-            continue;
-          }
-        } catch (error) {
-          this.logger.error(`Error getting walletId: ${error.message}`);
-          continue;
-        }
+        const walletId = await this.walletService.getWalletId(user.userId);
+        if (!walletId) return null;
 
         const weekStart = dayjs().startOf('week').format('YYYY-MM-DD');
         const today = dayjs().format('YYYY-MM-DD');
@@ -881,8 +790,6 @@ export class InsightsSchedulerService extends BaseScheduler {
           const result = await this.expenseService.getRoundUp(user.userId, { from: weekStart, to: today });
 
           if (Array.isArray(result)) {
-            transactions = result;
-          } else if (result && typeof result === 'object' && Array.isArray(result)) {
             transactions = result;
           } else {
             this.logger.warn(`Unexpected transactions result format for user ${user.userId}`);
@@ -917,7 +824,9 @@ export class InsightsSchedulerService extends BaseScheduler {
         if (roundUpTotal >= 5 && transactionCount >= 3) {
           const annualSavings = roundUpTotal * 52;
 
-          const notification = {
+          this.logger.log(`Sent round-up opportunity notification to user ${user.userId}`);
+
+          return {
             to: user.token,
             sound: 'default',
             title: '💰 Round-Up Savings Opportunity',
@@ -930,20 +839,13 @@ export class InsightsSchedulerService extends BaseScheduler {
               transactionCount: transactionCount,
             },
           } as ExpoPushMessage;
-
-          try {
-            await this.notificationService.sendChunkNotifications([notification]);
-
-            this.notificationService.saveNotification(user.userId, notification);
-
-            this.logger.log(`Sent round-up opportunity notification to user ${user.userId}`);
-          } catch (error) {
-            this.logger.error(`Error sending notification: ${error.message}`);
-          }
         }
+
+        return null;
       } catch (error) {
         this.logger.error(`Error processing round-up opportunity for user ${user.userId}: ${error.message}`);
+        return null;
       }
-    }
+    });
   }
 }
