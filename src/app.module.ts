@@ -50,7 +50,6 @@ import { AiChatModule } from './ai-chat/ai-chat.module';
     }),
 
     OpenAIModule,
-    AiChatModule,
 
     AuthenticationModule,
 
@@ -69,6 +68,7 @@ import { AiChatModule } from './ai-chat/ai-chat.module';
     GoalsModule,
 
     HostsModule,
+    AiChatModule,
 
     GraphQLModule.forRoot({
       driver: ApolloDriver,

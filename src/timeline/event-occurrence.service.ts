@@ -1,14 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
 import { EventSeriesEntity } from './entities/event-series.entity';
 import { OccurrenceTodoEntity, TodoFilesEntity } from './entities/occurrence-todo.entity';
 import { OccurrenceFileEntity } from './entities/occurrence-file.entity';
 import { EventSeriesService } from './event-series.service';
-import { ObservableRepository } from 'src/emitter/observable-repository';
+import { ObservableRepository } from 'src/utils/emitter/observable-repository';
 import {
   OccurrenceView,
   OccurrenceTodoView,
@@ -91,8 +91,6 @@ export class EventOccurrenceService {
     this.todoRepo = new ObservableRepository(_todoRepo, eventEmitter, 'occurrence-todo');
   }
 
-  // ─── Create ─────────────────────────────────────────────────────────────────
-
   async createEvent(input: CreateEventInput & { userId: string }, repeat?: RepeatInput): Promise<OccurrenceView> {
     const { series, occurrences } = await this.seriesService.createSeries(input, repeat);
 
@@ -109,8 +107,6 @@ export class EventOccurrenceService {
 
     return this._loadView(occurrences[0].id);
   }
-
-  // ─── Queries ────────────────────────────────────────────────────────────────
 
   async findByDate(opts: {
     userId: string;
@@ -153,7 +149,7 @@ export class EventOccurrenceService {
     const startDate = `${year}-${month}-01`;
     const endDate = dayjs(startDate).endOf('month').format('YYYY-MM-DD');
 
-    const results = await this.occurrenceRepo
+    return this.occurrenceRepo
       .createQueryBuilder('o')
       .innerJoin('o.series', 's')
       .select('o.date', 'date')
@@ -162,8 +158,6 @@ export class EventOccurrenceService {
       .andWhere('o.date <= :endDate', { endDate })
       .andWhere('o.isSkipped = false')
       .getRawMany();
-
-    return results;
   }
 
   async findById(id: string, userId: string): Promise<OccurrenceView> {

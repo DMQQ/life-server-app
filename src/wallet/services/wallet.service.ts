@@ -13,7 +13,7 @@ import { Brackets, Repository, Not, IsNull } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
 import { ExpenseFactory } from '../factories/expense.factory';
-import { ObservableRepository } from 'src/emitter/observable-repository';
+import { ObservableRepository } from 'src/utils/emitter/observable-repository';
 
 @Injectable()
 export class WalletService {

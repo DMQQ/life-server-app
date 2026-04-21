@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { EntityUpdatePayload } from 'src/emitter/entity-emitter';
+import { EntityUpdatePayload } from 'src/utils/emitter/entity-emitter';
 import { ExpenseEntity, ExpenseType, WalletEntity, WalletSubAccount } from '../entities/wallet.entity';
 
 function balanceDelta(amount: number, type: string): number {

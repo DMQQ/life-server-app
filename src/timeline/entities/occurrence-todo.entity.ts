@@ -10,9 +10,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-// OccurrenceTodoEntity defined FIRST so TodoFilesEntity can reference it without
-// a "before initialization" error from emitDecoratorMetadata.
-
 @ObjectType()
 @Entity('occurrence_todos')
 export class OccurrenceTodoEntity {
@@ -31,12 +28,10 @@ export class OccurrenceTodoEntity {
   @Column({ type: 'boolean', default: false })
   isCompleted: boolean;
 
-  // ManyToOne to EventOccurrenceEntity — use string name to avoid circular import
   @ManyToOne('EventOccurrenceEntity', 'todos', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'occurrenceId' })
   occurrence: any;
 
-  // files referenced lazily; property typed `any[]` to avoid forward-reference error
   @Field(() => [TodoFilesEntity])
   @OneToMany(() => TodoFilesEntity, (file) => file.todo, { cascade: true })
   files: any[];
@@ -49,9 +44,6 @@ export class OccurrenceTodoEntity {
   @UpdateDateColumn()
   modifiedAt: Date;
 }
-
-// TodoFilesEntity defined SECOND — its `todo` property can safely reference
-// OccurrenceTodoEntity because it is already initialized above.
 
 @ObjectType()
 @Entity('todo_files')

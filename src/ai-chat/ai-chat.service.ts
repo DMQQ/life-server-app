@@ -5,6 +5,7 @@ import { encode } from '@toon-format/toon';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
 import { StatisticsChatQuery, AiMessageItem, StatisticsChatOutput } from 'src/utils/shared/AI/StatisticsChatQuery';
 import { AnswerGenerationQuery } from 'src/utils/shared/AI/AnswerGenerationQuery';
+import { WidgetInsightQuery } from 'src/utils/shared/AI/WidgetInsightQuery';
 import { AiChatHistoryEntity, AiMessageRaw } from './ai-chat-history.entity';
 import { AiChatMessageItem } from './ai-chat.schemas';
 import { ALL_TOOLS, ToolContext, UniversalQueryParams, ZodError } from './tools';
@@ -240,6 +241,24 @@ export class AiChatService {
     return { messages: resolvedMessages };
   }
 
+  private async generateWidgetInsights(widgets: AiMessageItem[], userMessage: string): Promise<AiMessageItem[]> {
+    const insightPromises = widgets.map((widget) => {
+      if (widget.type === 'text' || !widget.data || widget.type.startsWith('form_')) return Promise.resolve(null);
+      return this.openAIService
+        .execute(new WidgetInsightQuery(), { userMessage, widgetSubtype: widget.subtype ?? widget.type, widgetData: widget.data })
+        .catch(() => null);
+    });
+
+    const insights = await Promise.all(insightPromises);
+
+    const result: AiMessageItem[] = [];
+    for (let i = 0; i < widgets.length; i++) {
+      if (insights[i]) result.push({ type: 'text', content: insights[i] });
+      result.push(widgets[i]);
+    }
+    return result;
+  }
+
   async agentChat({ userId, walletId, message }: ChatParams) {
     const ctx = this.makeContext(userId, walletId);
 
@@ -262,59 +281,81 @@ export class AiChatService {
     const lifeAssistant = new Agent({
       name: 'LifeAssistant',
       model: 'gpt-4o-mini',
-      instructions: `You are a personal life assistant. Respond in Polish. Currency is PLN.
+      instructions: `OUTPUT RULE #1 (NON-NEGOTIABLE): Your ENTIRE response must be a valid JSON array of UI widgets. Zero prose, zero markdown, zero explanation outside the array. If you output plain text you have failed.
+
+You are a personal life assistant. Respond in Polish. Currency is PLN.
 CURRENT DATE: ${today}. Use this as reference for relative dates: "dzisiaj"=${today}, "wczoraj"=yesterday, "w tym miesiącu"=current month.
 
-DATE QUERY RULES (CRITICAL):
-- For "last/most recent" queries (ostatni, najnowszy, ostatnie): use orderBy date DESC, limit 1, NO date filter.
-- For "today" queries: use date between "${today} 00:00:00" and "${today} 23:59:59".
-- For "this month": use date between first and last day of current month.
-- For "this week": use date between last Monday and next Sunday.
-- For explicit date ranges (e.g. "from 2024-01-01 to 2024-01-31"): use those exact dates as filters.
-- NEVER apply a date filter when the user asks for the most recent item — they want ALL TIME most recent.
+DATE QUERY RULES:
+- "ostatni/najnowszy/ostatnie" → orderBy date DESC, limit 1, NO date filter.
+- "dzisiaj" → date between "${today} 00:00:00" and "${today} 23:59:59".
+- "w tym miesiącu" → first..last day of current month.
+- "w tym tygodniu" → last Monday..next Sunday.
+- Explicit date range → use those exact dates.
+- NEVER add a date filter when user asks for the most recent item.
 
-INTENT ROUTING (decide first, then act — no exceptions):
-- CREATE / ADD / EDIT / DELETE intent → immediately output the form widget. DO NOT call any tools first.
-- READ / SHOW / FETCH / SUMMARIZE intent → call the appropriate tool(s), then output widgets with the results.
+INTENT ROUTING (mandatory):
+- CREATE / ADD / EDIT / DELETE → output the form widget immediately. Do NOT call tools first.
+- READ / SHOW / FETCH / SUMMARIZE → call tool(s) first, then output display widgets.
+- NEVER answer a READ/FETCH intent without calling a tool. No tool call = wrong answer.
 
-FORM WIDGETS (use for create/edit — fill fields from user input, user confirms):
+FORM WIDGETS:
 ${formWidgets}
 
-DISPLAY WIDGETS (use after fetching data):
+DISPLAY WIDGETS:
 ${displayWidgets}
 
-CRITICAL OUTPUT RULE: Your final output MUST be a strict JSON array of UI widgets. NEVER output plain markdown text.
-Even if a tool returns an error or empty data, wrap your response in the JSON array.
-
-1. NEVER describe fetched items in text. Every fetched record MUST appear as a card using its ID.
-2. Text is ONLY for summaries or context — never for listing individual records.
-3. If a tool returns empty data, output: [{"type": "text", "content": "Brak danych za ten okres."}]`,
+RULES:
+1. Every fetched record MUST appear as a widget card (using its ID). Never list records as text.
+2. Text widgets are ONLY for short summaries or when there is genuinely no data.
+3. Empty data → [{"type": "text", "content": "Brak danych za ten okres."}]`,
       tools: ALL_TOOLS.map((t) => t.getToolDefinition(ctx)),
     });
 
-    const result = await run(lifeAssistant, message, {
-      context: mappedHistory as any,
-    });
-
     let rawMessages: AiMessageItem[] = [];
-    try {
-      const parsed = JSON.parse(result.finalOutput);
-      rawMessages = Array.isArray(parsed) ? parsed : [parsed];
-    } catch (error) {
-      console.error('[AI Agent] Failed to parse JSON widgets:', result.finalOutput);
-      rawMessages = [{ type: 'text', content: result.finalOutput }];
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const input =
+        attempt === 0
+          ? message
+          : `${message}\n\n[SYSTEM CORRECTION attempt ${attempt + 1}]: You returned only {"type":"text"} widgets. That is wrong for a fetch/read query.
+REQUIRED steps:
+1. Call the appropriate tool(s) now to fetch real data.
+2. Use the returned data to build real display widgets (chart, card, etc.) — NOT text descriptions.
+3. Return the array of data-backed widgets only. No text narration.
+Do NOT describe what charts you would show — show them with actual data from the tool.`;
+
+      // First attempt: force a tool call so 4o-mini can't skip straight to hallucinated text widgets.
+      // Retry: drop the constraint so it can output the final widget array freely.
+      const runOptions: any = { context: mappedHistory as any };
+      if (attempt === 0) runOptions.modelSettings = { toolChoice: 'required' };
+
+      const result = await run(lifeAssistant, input, runOptions);
+
+      try {
+        const cleaned = result.finalOutput.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        const parsed = JSON.parse(cleaned);
+        rawMessages = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        console.error('[AI Agent] Failed to parse JSON widgets:', result.finalOutput);
+        rawMessages = [{ type: 'text', content: result.finalOutput }];
+      }
+
+      if (rawMessages.some((m) => m.type !== 'text')) break;
+      console.warn(`[AI Agent] Attempt ${attempt + 1} returned plain text, retrying...`);
     }
 
-    const recentMessages = await this.fetchRecentMessages(userId);
-    const finalMessages = await this.rewriteWithPersonality(message, rawMessages, ctx.toolDataCache, recentMessages);
-    const resolvedMessages = await this.resolveMessages(finalMessages, ctx, ctx.toolDataCache);
+    const withInsights = await this.generateWidgetInsights(rawMessages, message);
+    const resolvedMessages = await this.resolveMessages(withInsights, ctx, ctx.toolDataCache);
 
     await this.historyRepository.save({
       userId,
       walletId: walletId ?? null,
       userMessage: message,
-      aiMessages: rawMessages as AiMessageRaw[],
+      aiMessages: withInsights as AiMessageRaw[],
     });
+
+    console.log('Agent loop result:', { toolDataByName: ctx.toolDataCache, rawMessages, resolvedMessages });
 
     return { messages: resolvedMessages };
   }
