@@ -165,7 +165,9 @@ export class TransactionSchedulerService {
           ? dayjs().format('MMMM Do')
           : subscription.billingCycle === BillingCycleEnum.WEEKLY
             ? `${dayjs().format('DD')}-${dayjs().add(7, 'day').format('DD')} ${dayjs().add(7, 'day').format('MMMM')}`
-            : dayjs().format('YYYY-MM-DD');
+            : subscription.billingCycle === BillingCycleEnum.CUSTOM
+              ? dayjs().format('MMMM YYYY')
+              : dayjs().format('YYYY-MM-DD');
 
     return `${cleanText} (${dateFormat})`.trim();
   }

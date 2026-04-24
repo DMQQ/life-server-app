@@ -1,3 +1,4 @@
+import * as dayjs from 'dayjs';
 import { Args, ID, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import {
@@ -13,7 +14,7 @@ import { BadRequestException, UseInterceptors } from '@nestjs/common';
 import { ExpenseEntity } from '../entities/wallet.entity';
 import { WalletId } from 'src/utils/decorators/wallet.decorator';
 import { WalletService } from '../services/wallet.service';
-import { UpdateSubscriptionInput } from '../types/subscription.schemas';
+import { CreateSubscriptionInput, UpdateSubscriptionInput } from '../types/subscription.schemas';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
@@ -23,6 +24,25 @@ export class SubscriptionResolver {
     private readonly subscriptionService: SubscriptionService,
     private readonly walletService: WalletService,
   ) {}
+
+  @ResolveField('totalSpent', () => Number)
+  getTotalSpent(@Parent() subscription: SubscriptionEntity) {
+    return subscription.expenses?.reduce((sum, e) => sum + e.amount, 0) ?? 0;
+  }
+
+  @ResolveField('totalAmount', () => Number)
+  getTotalAmount(@Parent() subscription: SubscriptionEntity) {
+    const count = subscription.expenses?.length ?? 0;
+    return subscription.amount * count;
+  }
+
+  @ResolveField('totalDuration', () => Number)
+  getTotalDuration(@Parent() subscription: SubscriptionEntity) {
+    if (!subscription.dateStart) return 0;
+    const end = subscription.isActive || !subscription.dateEnd ? dayjs() : dayjs(subscription.dateEnd);
+    const diff = end.diff(dayjs(subscription.dateStart), 'day');
+    return isNaN(diff) ? 0 : diff;
+  }
 
   @ResolveField('subscription', () => SubscriptionEntity, { nullable: true })
   async getSubscription(@Parent() { subscriptionId }: ExpenseEntity) {
@@ -49,6 +69,17 @@ export class SubscriptionResolver {
   @UserCache(3600)
   subscriptions(@User() userId: string) {
     return this.subscriptionService.getSubscriptions(userId);
+  }
+
+  @Mutation(() => SubscriptionEntity, { name: 'create' })
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async createSubscriptionFromInput(@WalletId() walletId: string, @Args('input') input: CreateSubscriptionInput) {
+    try {
+      return await this.subscriptionService.insert({ ...input, walletId });
+    } catch (error) {
+      console.error('createSubscriptionFromInput error:', error);
+      throw new BadRequestException(error?.message ?? 'Subscription creation failed');
+    }
   }
 
   @Mutation(() => SubscriptionEntity)

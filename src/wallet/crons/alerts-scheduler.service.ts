@@ -5,6 +5,7 @@ import { ExpoPushMessage } from 'expo-server-sdk';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { formatCategory } from 'src/utils/fns/format-category';
 import { ExpenseType, LimitRange } from '../entities/wallet.entity';
+import { SubscriptionEntity } from '../entities/subscription.entity';
 import { ExpenseService } from '../services/expense.service';
 import { LimitsService } from '../services/limits.service';
 import { SubscriptionService } from '../services/subscriptions.service';
@@ -124,52 +125,53 @@ export class AlertsSchedulerService extends BaseScheduler {
         const wallet = await this.walletService.findWalletId(user.userId);
         if (!wallet) return null;
 
-        const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD');
-        const subscriptionsDueTomorrow = await this.subscriptionService.getSubscriptionsDueOn(wallet.id, tomorrow);
+        const today = dayjs().startOf('day');
+        const allActive = await this.subscriptionService.getActiveSubscriptions(wallet.id);
 
-        if (subscriptionsDueTomorrow.length === 0) return null;
+        const finalReminders: SubscriptionEntity[] = [];
+        const leadReminders: SubscriptionEntity[] = [];
 
-        if (subscriptionsDueTomorrow.length === 1) {
-          const subscription = subscriptionsDueTomorrow[0];
-          const hasEnoughBalance = wallet.balance >= subscription.amount;
-          
+        for (const sub of allActive) {
+          const daysUntil = dayjs(sub.nextBillingDate).startOf('day').diff(today, 'day');
+          const lead = sub.reminderDaysBeforehand ?? 3;
+
+          if (daysUntil === 1) finalReminders.push(sub);
+          else if (lead > 1 && daysUntil === lead) leadReminders.push(sub);
+        }
+
+        const subs = finalReminders.length > 0 ? finalReminders : leadReminders;
+        if (subs.length === 0) return null;
+
+        const isFinal = finalReminders.length > 0;
+        const daysLabel = isFinal ? 'tomorrow' : `in ${subs[0].reminderDaysBeforehand} days`;
+        const totalAmount = subs.reduce((sum, s) => sum + s.amount, 0);
+        const hasEnoughBalance = wallet.balance >= totalAmount;
+        const balanceWarning = hasEnoughBalance
+          ? ''
+          : ` ⚠️ Insufficient balance! Current: ${wallet.balance.toFixed(2)}zł`;
+
+        if (subs.length === 1) {
           return {
             to: user.token,
             sound: 'default',
-            title: '📆 Subscription Reminder',
-            body: `🔄 ${subscription.description} - ${subscription.amount.toFixed(2)}zł will be charged tomorrow.${
-              hasEnoughBalance 
-                ? '' 
-                : ` ⚠️ Insufficient balance! Current: ${wallet.balance.toFixed(2)}zł`
-            }`,
+            title: isFinal ? '📆 Subscription Reminder' : '📅 Upcoming Subscription',
+            body: `🔄 ${subs[0].description} - ${subs[0].amount.toFixed(2)}zł due ${daysLabel}.${balanceWarning}`,
             data: {
               type: 'subscription_reminder',
-              subscriptionId: subscription.id,
-              amount: subscription.amount,
-              hasEnoughBalance
-            }
-          } as ExpoPushMessage;
-        } else {
-          const totalAmount = subscriptionsDueTomorrow.reduce((sum, sub) => sum + sub.amount, 0);
-          const hasEnoughBalance = wallet.balance >= totalAmount;
-          
-          return {
-            to: user.token,
-            sound: 'default',
-            title: '📆 Multiple Subscriptions Due',
-            body: `🔄 ${subscriptionsDueTomorrow.length} subscriptions (${totalAmount.toFixed(2)}zł total) due tomorrow.${
-              hasEnoughBalance 
-                ? '' 
-                : ` ⚠️ Insufficient balance! Current: ${wallet.balance.toFixed(2)}zł`
-            }`,
-            data: {
-              type: 'multiple_subscriptions_reminder',
-              count: subscriptionsDueTomorrow.length,
-              totalAmount,
-              hasEnoughBalance
-            }
+              subscriptionId: subs[0].id,
+              amount: subs[0].amount,
+              hasEnoughBalance,
+            },
           } as ExpoPushMessage;
         }
+
+        return {
+          to: user.token,
+          sound: 'default',
+          title: isFinal ? '📆 Multiple Subscriptions Due' : '📅 Upcoming Subscriptions',
+          body: `🔄 ${subs.length} subscriptions (${totalAmount.toFixed(2)}zł total) due ${daysLabel}.${balanceWarning}`,
+          data: { type: 'multiple_subscriptions_reminder', count: subs.length, totalAmount, hasEnoughBalance },
+        } as ExpoPushMessage;
       } catch (error) {
         this.logger.error(`Error processing subscription reminders for user ${user.userId}: ${error.message}`);
         return null;

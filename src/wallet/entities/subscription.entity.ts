@@ -4,10 +4,10 @@ import { ExpenseEntity } from '../entities/wallet.entity';
 
 export enum BillingCycleEnum {
   DAILY = 'daily',
-
   WEEKLY = 'weekly',
   MONTHLY = 'monthly',
   YEARLY = 'yearly',
+  CUSTOM = 'custom',
 }
 
 @Entity('subscriptions')
@@ -50,9 +50,30 @@ export class SubscriptionEntity {
   @Field(() => String)
   billingCycle: BillingCycleEnum;
 
-  @OneToMany(() => ExpenseEntity, (expense) => expense.subscription)
+  @Column({ type: 'int', nullable: true, default: null })
+  @Field(() => Int, { nullable: true })
+  billingDay: number | null;
+
+  @Column({ type: 'json', nullable: true, default: null })
+  @Field(() => [Int], { nullable: true })
+  customBillingMonths: number[] | null;
+
+  @Column({ type: 'int', nullable: false, default: 3 })
+  @Field(() => Int)
+  reminderDaysBeforehand: number;
+
+  @OneToMany(() => ExpenseEntity, (expense) => expense.subscription, { eager: true })
   @Field(() => [ExpenseEntity])
   expenses: ExpenseEntity[];
+
+  @Field(() => Float)
+  totalSpent: number;
+
+  @Field(() => Float)
+  totalAmount: number;
+
+  @Field(() => Int)
+  totalDuration: number;
 
   @Column({ type: 'uuid', nullable: false })
   @Field(() => ID)

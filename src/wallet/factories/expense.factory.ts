@@ -6,23 +6,25 @@ import {
   ExpenseFileEntity,
 } from '../entities/wallet.entity';
 
+interface Expense {
+  amount: number;
+  description: string;
+  walletId: string;
+  type?: ExpenseType;
+  category?: string;
+  date?: Date;
+  schedule?: boolean;
+  subscriptionId?: string;
+  spontaneousRate?: number;
+  balanceBeforeInteraction?: number;
+  note?: string;
+  shop?: string;
+  tags?: string;
+  subAccountId?: string;
+}
+
 export class ExpenseFactory {
-  static createExpense(data: {
-    amount: number;
-    description: string;
-    walletId: string;
-    type?: ExpenseType;
-    category?: string;
-    date?: Date;
-    schedule?: boolean;
-    subscriptionId?: string;
-    spontaneousRate?: number;
-    balanceBeforeInteraction?: number;
-    note?: string;
-    shop?: string;
-    tags?: string;
-    subAccountId?: string;
-  }): ExpenseEntity {
+  static createExpense(data: Expense): ExpenseEntity {
     const expense = new ExpenseEntity();
     expense.amount = data.amount;
     expense.description = data.description;

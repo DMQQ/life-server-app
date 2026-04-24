@@ -1,4 +1,4 @@
-import { InputType, Field, ID, Float } from '@nestjs/graphql';
+import { InputType, Field, ID, Float, Int } from '@nestjs/graphql';
 import { BillingCycleEnum } from '../entities/subscription.entity';
 
 @InputType()
@@ -15,17 +15,20 @@ export class CreateSubscriptionInput {
   @Field(() => String)
   description: string;
 
-  @Field(() => Boolean)
-  isActive: boolean;
-
   @Field(() => String)
   nextBillingDate: Date;
 
   @Field(() => String)
   billingCycle: BillingCycleEnum;
 
-  @Field(() => ID)
-  walletId: string;
+  @Field(() => Int, { nullable: true })
+  billingDay?: number;
+
+  @Field(() => [Int], { nullable: true })
+  customBillingMonths?: number[];
+
+  @Field(() => Int, { nullable: true })
+  reminderDaysBeforehand?: number;
 }
 
 @InputType()
@@ -56,4 +59,13 @@ export class UpdateSubscriptionInput {
 
   @Field(() => ID, { nullable: true })
   walletId?: string;
+
+  @Field(() => Int, { nullable: true })
+  billingDay?: number;
+
+  @Field(() => [Int], { nullable: true })
+  customBillingMonths?: number[];
+
+  @Field(() => Int, { nullable: true })
+  reminderDaysBeforehand?: number;
 }
