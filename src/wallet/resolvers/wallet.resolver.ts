@@ -285,7 +285,8 @@ export class WalletResolver {
   @Mutation(() => Boolean)
   @InvalidateCache({ invalidateCurrentUser: true })
   async editExpenseNote(@Args('expenseId', { type: () => ID }) expenseId: string, @Args('note') note: string) {
-    return await this.walletService.editExpenseNote(expenseId, note);
+    const result = await this.walletService.editExpenseNote(expenseId, note);
+    return result.affected > 0;
   }
 
   @ResolveField(() => [WalletSubAccount])
