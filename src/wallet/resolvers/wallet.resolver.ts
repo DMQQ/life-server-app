@@ -282,6 +282,12 @@ export class WalletResolver {
     return result;
   }
 
+  @Mutation(() => Boolean)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async editExpenseNote(@Args('expenseId', { type: () => ID }) expenseId: string, @Args('note') note: string) {
+    return await this.walletService.editExpenseNote(expenseId, note);
+  }
+
   @ResolveField(() => [WalletSubAccount])
   subAccounts(@Parent() wallet: WalletEntity) {
     return this.walletService.getSubAccounts(wallet.userId);

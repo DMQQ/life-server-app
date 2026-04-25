@@ -62,12 +62,13 @@ export class TransactionSchedulerService {
           );
 
           await this.walletService.createSubscriptionExpense(walletId, {
-            ...expense,
+            amount: subscription.amount,
             date: new Date(),
             subscriptionId: subscription.id,
-            description: this.createDescriptionText(expense.description, subscription),
+            description: this.createDescriptionText(subscription.description, subscription),
             note: `Subscription for ${subscriptionRange}`,
             subscription: subscription,
+            category: 'subscription',
           });
 
           await this.subscriptionService.setNextBillingDate(subscription);

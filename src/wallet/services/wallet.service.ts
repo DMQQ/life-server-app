@@ -41,6 +41,10 @@ export class WalletService {
     });
   }
 
+  async editExpenseNote(id: string, note: string) {
+    return this.expenseRepository.update({ id }, { note });
+  }
+
   async editUserWalletBalance(
     userId: string,
     input: {
