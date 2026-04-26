@@ -39,8 +39,6 @@ export class ExpenseResolver {
     private openAiService: OpenAIService,
 
     private walletService: WalletService,
-
-    private logger: Logger,
   ) {}
 
   @Query(() => ExpenseEntity)
@@ -190,7 +188,6 @@ export class ExpenseResolver {
     try {
       return this.walletService.refundExpense(user, expenseId);
     } catch (error) {
-      this.logger.error('Refund error:', error);
       throw new BadRequestException('Refund failed');
     }
   }
@@ -214,9 +211,7 @@ export class ExpenseResolver {
 
     try {
       expense.files = await this.fileUploadService.saveBase64ToDisk(imageBase64, expense.description, expense.id);
-    } catch (error) {
-      this.logger.error('Error saving receipt image:', error);
-    }
+    } catch (error) {}
 
     return expense;
   }
