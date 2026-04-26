@@ -11,7 +11,7 @@ import {
   InvalidateCacheInterceptor,
   UserCache,
 } from '../../utils/services/Cache/cache.decorator';
-import { BadRequestException, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Logger, UseInterceptors } from '@nestjs/common';
 import {
   CreateLocationDto,
   CreateSubExpenseDto,
@@ -39,6 +39,8 @@ export class ExpenseResolver {
     private openAiService: OpenAIService,
 
     private walletService: WalletService,
+
+    private logger: Logger,
   ) {}
 
   @Query(() => ExpenseEntity)
@@ -146,37 +148,31 @@ export class ExpenseResolver {
 
   @Query(() => [MonthlyCategoryComparisonOutput])
   @UserCache(3600)
-  async monthlyCategoryComparison(
+  monthlyCategoryComparison(
     @User() userId: string,
     // months in date format YYYY-MM-DD
     @Args('months', { type: () => [String], nullable: false }) months: string[],
   ) {
-    const response = await this.expenseService.monthlyCategoryComparison(userId, months);
-
-    return response;
+    return this.expenseService.monthlyCategoryComparison(userId, months);
   }
 
   @Query(() => [MonthlyHeatMap])
   @UserCache(3600)
-  async monthlyDateSpendings(
+  monthlyDateSpendings(
     @User() userId: string,
     // months in date format YYYY-MM-DD
     @Args('months', { type: () => [String], nullable: false }) months: string[],
   ) {
-    const response = await this.expenseService.monthlyHeatMapSpendings(userId, months);
-
-    return response;
+    return this.expenseService.monthlyHeatMapSpendings(userId, months);
   }
 
   @Query(() => [HourlyStats])
   @UserCache(3600)
-  async hourlySpendingsHeatMap(
+  hourlySpendingsHeatMap(
     @User() userId: string,
     @Args('months', { type: () => [String], nullable: false }) months: string[],
   ) {
-    const response = await this.expenseService.hourlyHeadMapSpendings(userId, months);
-
-    return response;
+    return this.expenseService.hourlyHeadMapSpendings(userId, months);
   }
 
   @Query(() => ExpensePredictionType, { nullable: true })
@@ -194,6 +190,7 @@ export class ExpenseResolver {
     try {
       return this.walletService.refundExpense(user, expenseId);
     } catch (error) {
+      this.logger.error('Refund error:', error);
       throw new BadRequestException('Refund failed');
     }
   }
@@ -205,7 +202,7 @@ export class ExpenseResolver {
 
     const expense = await this.walletService.createExpenseFromAIPrediction(receiptData, user);
 
-    const subexpenses = await this.expenseService.addMultipleSubExpenses(
+    expense.subexpenses = await this.expenseService.addMultipleSubExpenses(
       expense.id,
       receiptData.subexpenses.map((sub) => ({
         expenseId: expense.id,
@@ -217,9 +214,9 @@ export class ExpenseResolver {
 
     try {
       expense.files = await this.fileUploadService.saveBase64ToDisk(imageBase64, expense.description, expense.id);
-    } catch (error) {}
-
-    expense.subexpenses = subexpenses;
+    } catch (error) {
+      this.logger.error('Error saving receipt image:', error);
+    }
 
     return expense;
   }

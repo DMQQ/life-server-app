@@ -533,17 +533,35 @@ export class WalletService {
           where: { id: expenseId },
         });
 
-        const wallet = await entityManager.findOne(WalletEntity, {
-          where: { userId },
-        });
+        const hasSubaccount = expense.subAccountId !== null && expense.subAccountId !== undefined;
 
-        if (!wallet) throw new Error('Wallet not found');
+        if (!hasSubaccount) {
+          const wallet = await entityManager.findOne(WalletEntity, {
+            where: { userId },
+          });
 
-        const originalAmount = expense.amount;
-        const balanceAdjustment = expense.type === ExpenseType.income ? -originalAmount : originalAmount;
+          if (!wallet) throw new Error('Wallet not found');
 
-        wallet.balance += balanceAdjustment;
-        await entityManager.save(WalletEntity, wallet);
+          const originalAmount = expense.amount;
+          const balanceAdjustment = expense.type === ExpenseType.income ? -originalAmount : originalAmount;
+
+          wallet.balance += balanceAdjustment;
+          await entityManager.save(WalletEntity, wallet);
+        } else {
+          const subAccount = await entityManager.findOne(WalletSubAccount, {
+            where: { id: expense.subAccountId },
+          });
+
+          if (!subAccount) throw new Error('Sub-account not found');
+
+          const originalAmount = expense.amount;
+          const balanceAdjustment = expense.type === ExpenseType.income ? -originalAmount : originalAmount;
+
+          subAccount.balance += balanceAdjustment;
+          await entityManager.save(WalletSubAccount, subAccount);
+
+          await this._syncWalletBalance(subAccount.walletId);
+        }
 
         expense.type = ExpenseType.refunded;
         expense.note = `Refunded at ${dayjs().format('YYYY-MM-DD HH:mm')} \n ${expense.note ?? ''}`;
@@ -552,7 +570,6 @@ export class WalletService {
 
       return this.expenseRepository.findOne({ where: { id: expenseId } });
     } catch (error) {
-      console.error('Refund error:', error);
       throw new Error('Refund failed');
     }
   }
@@ -611,7 +628,6 @@ export class WalletService {
   async createSubAccount(userId: string, input: CreateSubAccountInput) {
     const wallet = await this.walletRepository.findOne({ where: { userId } });
 
-    // Ensure the General account exists so the existing wallet.balance lives somewhere
     await this._getOrCreateGeneralAccount(wallet.id, wallet.balance);
 
     const result = await this.subAccountRepository.insert({
@@ -621,7 +637,6 @@ export class WalletService {
       balance: input.balance ?? 0,
     });
 
-    // wallet.balance = sum of all sub-accounts (General + new ones)
     await this._syncWalletBalance(wallet.id);
 
     return this.subAccountRepository.findOne({ where: { id: result.identifiers[0].id } });
@@ -648,7 +663,7 @@ export class WalletService {
     const general = await this.subAccountRepository.findOne({ where: { walletId: account.walletId, isDefault: true } });
     if (general) {
       await this.expenseRepository.update({ subAccountId: id }, { subAccountId: general.id });
-      // Move the deleted account's balance into General
+
       await this.subAccountRepository.update({ id: general.id }, { balance: () => `balance + ${account.balance}` });
     } else {
       await this.expenseRepository.update({ subAccountId: id }, { subAccountId: null });
