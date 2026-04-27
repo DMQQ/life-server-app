@@ -92,18 +92,12 @@ export class StatisticsController {
         (await this.predictionService.predictExpense(userId, body.description, body.amount))?.category ?? 'none';
     }
 
-    const expense = await this.walletService.createExpense(
-      userId,
-      body.amount,
-      body.description,
-      expenseType,
+    return this.walletService.createExpenseFromInput(userId, {
+      amount: body.amount,
+      description: body.description,
+      type: expenseType,
       category,
-      new Date(),
-      false,
-      null,
-      0,
-    );
-
-    return expense;
+      date: body.date ?? new Date().toISOString(),
+    } as any);
   }
 }

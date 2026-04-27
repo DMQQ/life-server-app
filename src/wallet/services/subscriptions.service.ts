@@ -6,6 +6,7 @@ import { BillingCycleEnum, SubscriptionEntity } from '../entities/subscription.e
 import { ExpenseEntity } from '../entities/wallet.entity';
 import SubscriptionFactory from '../factories/subscription.factory';
 import { SubscriptionBillingUtils } from '../utils/subscription-billing.util';
+import { WalletService } from './wallet.service';
 
 @Injectable()
 export class SubscriptionService {
@@ -17,6 +18,8 @@ export class SubscriptionService {
     private expenseRepository: Repository<ExpenseEntity>,
 
     private readonly textSimilarityService: TextSimilarityService,
+
+    private readonly walletService: WalletService,
   ) {}
 
   async insert(subscription: Partial<SubscriptionEntity>) {
@@ -76,40 +79,33 @@ export class SubscriptionService {
     return await this.subscriptionRepository.save(subscription);
   }
 
-  async renewSubscription(subscriptionId: string, walletService: any) {
+  async renewSubscription(subscriptionId: string) {
     const subscription = await this.getSubscriptionById(subscriptionId);
-
-    if (!subscription) {
-      throw new Error('Subscription not found');
-    }
+    if (!subscription) throw new Error('Subscription not found');
 
     const now = new Date();
     subscription.isActive = true;
     subscription.dateStart = now;
-    subscription.nextBillingDate = SubscriptionEntity.formatDate(SubscriptionBillingUtils.getNextBillingDate(subscription));
+    subscription.nextBillingDate = SubscriptionEntity.formatDate(
+      SubscriptionBillingUtils.getNextBillingDate(subscription),
+    );
 
     const updatedSubscription = await this.subscriptionRepository.save(subscription);
 
-    const lastExpense = await walletService.getSubscriptionLastExpense(subscription.id);
-
-    if (!lastExpense) {
-      throw new Error('No previous expense found for this subscription');
-    }
+    const lastExpense = await this.walletService.getSubscriptionLastExpense(subscription.id);
+    if (!lastExpense) throw new Error('No previous expense found for this subscription');
 
     delete lastExpense.id;
 
-    const newExpense = await walletService.createSubscriptionExpense(subscription.walletId, {
+    const newExpense = await this.walletService.createSubscriptionExpense(subscription.walletId, {
       ...lastExpense,
       date: now,
       subscriptionId: subscription.id,
       note: 'Subscription renewed',
-      subscription: subscription,
+      subscription,
     });
 
-    return {
-      subscription: updatedSubscription,
-      expense: newExpense,
-    };
+    return { subscription: updatedSubscription, expense: newExpense };
   }
 
   async enableSubscription(subscriptionId: string) {

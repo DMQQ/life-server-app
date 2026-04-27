@@ -2,26 +2,21 @@ import { Args, Float, ID, Int, Mutation, Parent, Query, ResolveField, Resolver }
 import {
   CreateExpenseInput,
   CreateShortcutExpenseInput,
+  CreateSubAccountInput,
   EditExpenseInput,
   EditExpenseNoteInput,
   EditWalletBalanceInput,
   TransferBetweenSubAccountsInput,
+  TransferResult,
+  UpdateSubAccountInput,
 } from '../dto/wallet.dto';
 import { BadRequestException, NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { WalletService } from '../services/wallet.service';
-import {
-  CreateSubAccountInput,
-  ExpenseEntity,
-  ExpenseType,
-  TransferResult,
-  UpdateSubAccountInput,
-  WalletEntity,
-  WalletSubAccount,
-} from 'src/wallet/entities/wallet.entity';
+import { SubAccountService } from '../services/sub-account.service';
+import { ExpenseEntity, ExpenseType, WalletEntity, WalletSubAccount } from 'src/wallet/entities/wallet.entity';
 import { User } from 'src/utils/decorators/user.decorator';
 import { GetWalletFilters, MonthlyExpenses, WalletStatisticsRange } from '../types/wallet.schemas';
-import { SubscriptionService } from '../services/subscriptions.service';
 import {
   CacheInterceptor,
   DefaultCacheModule,
@@ -41,20 +36,17 @@ import ModifyResult from 'src/utils/shared/resources/modify-result.resource';
 @Resolver(() => WalletEntity)
 export class WalletResolver {
   constructor(
-    private walletService: WalletService,
-    private subscriptionService: SubscriptionService,
-
-    private cacheService: CacheService,
-
-    private predictionService: ExpensePredictionService,
-    private correctionService: ExpenseCorrectionService,
-    private expenseService: ExpenseService,
+    private readonly walletService: WalletService,
+    private readonly subAccountService: SubAccountService,
+    private readonly cacheService: CacheService,
+    private readonly predictionService: ExpensePredictionService,
+    private readonly correctionService: ExpenseCorrectionService,
+    private readonly expenseService: ExpenseService,
   ) {}
 
   @Query((returns) => WalletEntity)
   async wallet(@User() usrId: string) {
     const wallet = await this.walletService.getWalletByUserId(usrId);
-
     return wallet ? wallet : new NotFoundException('Wallet may not exist');
   }
 
@@ -63,8 +55,7 @@ export class WalletResolver {
     @Parent() wallet: WalletEntity,
     @Args('skip', { type: () => Int, nullable: true }) skip: number = 0,
     @Args('take', { type: () => Int, nullable: true }) take: number = 20,
-    @Args('filters', { nullable: true, type: () => GetWalletFilters })
-    filters: GetWalletFilters,
+    @Args('filters', { nullable: true, type: () => GetWalletFilters }) filters: GetWalletFilters,
   ) {
     const cacheKey = `${wallet.userId}:Wallet:expenses:${JSON.stringify({ skip, take, filters })}`;
     const cached = await this.cacheService.get(cacheKey);
@@ -85,8 +76,7 @@ export class WalletResolver {
     @Parent() wallet: WalletEntity,
     @Args('skip', { type: () => Int, nullable: true }) skip: number = 0,
     @Args('take', { type: () => Int, nullable: true }) take: number = 6,
-    @Args('filters', { nullable: true, type: () => GetWalletFilters })
-    filters: GetWalletFilters,
+    @Args('filters', { nullable: true, type: () => GetWalletFilters }) filters: GetWalletFilters,
   ): Promise<MonthlyExpenses[]> {
     const cacheKey = `${wallet.userId}:Wallet:expenses2:${JSON.stringify({ skip, take, filters })}`;
     const cached = await this.cacheService.get(cacheKey);
@@ -102,9 +92,32 @@ export class WalletResolver {
     return result;
   }
 
+  @ResolveField(() => [WalletSubAccount])
+  subAccounts(@Parent() wallet: WalletEntity) {
+    return this.subAccountService.getAll(wallet.userId);
+  }
+
+  @Query(() => Float)
+  @UserCache(3600)
+  async getMonthTotal(@User() usrId: string, @Args('date') date: string) {
+    const parsedDate = new Date(date);
+    const [expense, income] = await Promise.all([
+      this.walletService.getMonthTotalByType(ExpenseType.expense, usrId, parsedDate.getMonth(), parsedDate.getFullYear()),
+      this.walletService.getMonthTotalByType(ExpenseType.income, usrId, parsedDate.getMonth(), parsedDate.getFullYear()),
+    ]);
+    return income - expense;
+  }
+
+  @Query(() => WalletStatisticsRange)
+  @UserCache(3600)
+  async getStatistics(@User() usrId: string, @Args('range', { type: () => [String, String] }) range: [string, string]) {
+    if (range.length !== 2 || new Date(range[0]) > new Date(range[1])) throw new BadRequestException('Invalid range');
+    return this.walletService.getStatistics(usrId, range);
+  }
+
   @Mutation((returns) => ExpenseEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async createExpense(
+  createExpense(
     @User() usrId: string,
     @Args('input', { type: () => CreateExpenseInput }) input: CreateExpenseInput,
   ) {
@@ -118,35 +131,27 @@ export class WalletResolver {
     @Args('input', { type: () => CreateShortcutExpenseInput }) input: CreateShortcutExpenseInput,
   ) {
     const { amount, description, latitude, longitude } = input;
-    const categoryPrediction = await this.predictionService.predictExpense(usrId, description, amount);
 
-    const predictedCategory = categoryPrediction ? categoryPrediction.category : 'none';
-    const predictedShop = categoryPrediction?.shop ?? null;
-
+    const prediction = await this.predictionService.predictExpense(usrId, description, amount);
     const corrected = await this.correctionService.applyCorrections(usrId, {
       description,
-      shop: predictedShop,
-      category: predictedCategory,
+      shop: prediction?.shop ?? null,
+      category: prediction?.category ?? 'none',
       amount,
     });
 
-    const expense = await this.walletService.createExpense(
-      usrId,
+    const expense = await this.walletService.createExpenseFromInput(usrId, {
       amount,
-      corrected.description,
-      ExpenseType.expense,
-      corrected.category ?? predictedCategory,
-      new Date(),
-      false,
-      null,
-      0,
-      corrected.shop ?? predictedShop,
-    );
+      description: corrected.description,
+      type: ExpenseType.expense,
+      category: corrected.category ?? prediction?.category ?? 'none',
+      shop: corrected.shop ?? prediction?.shop,
+      date: new Date().toISOString(),
+    } as CreateExpenseInput);
 
     if (latitude != null && longitude != null) {
-      const existing = await this.expenseService.findNearbyLocation(latitude, longitude);
       const location =
-        existing ??
+        (await this.expenseService.findNearbyLocation(latitude, longitude)) ??
         (await this.expenseService.createLocation({
           name: corrected.shop ?? corrected.description,
           kind: 'merchant',
@@ -160,33 +165,10 @@ export class WalletResolver {
     return expense;
   }
 
-  @Mutation(() => ID)
-  @InvalidateCache({ invalidateCurrentUser: true })
-  async deleteExpense(@Args('id', { type: () => ID }) id: string, @User() userId: string) {
-    const success = new ModifyResult(await this.walletService.deleteExpense(id, userId)).toBoolean();
-
-    if (!success) {
-      throw new NotFoundException('Expense not found or could not be deleted');
-    }
-
-    return id;
-  }
-
-  @Mutation(() => WalletEntity)
-  @InvalidateCache({ invalidateCurrentUser: true })
-  async editWalletBalance(
-    @User() usrId: string,
-    @Args('input', { type: () => EditWalletBalanceInput }) input: EditWalletBalanceInput,
-  ) {
-    return await this.walletService.editUserWalletBalance(usrId, input);
-  }
-
   @Mutation(() => ExpenseEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async editExpense(@User() usrId: string, @Args('input', { type: () => EditExpenseInput }) input: EditExpenseInput) {
-    const result = await this.walletService.editExpense(input.expenseId, usrId, input);
-
-    return result;
+  editExpense(@User() usrId: string, @Args('input', { type: () => EditExpenseInput }) input: EditExpenseInput) {
+    return this.walletService.editExpense(input.expenseId, usrId, input);
   }
 
   @Mutation(() => Boolean)
@@ -195,49 +177,28 @@ export class WalletResolver {
     return new ModifyResult(await this.walletService.editExpenseNote(input.expenseId, input.note)).toBoolean();
   }
 
-  @ResolveField(() => [WalletSubAccount])
-  subAccounts(@Parent() wallet: WalletEntity) {
-    return this.walletService.getSubAccounts(wallet.userId);
+  @Mutation(() => ID)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  async deleteExpense(@Args('id', { type: () => ID }) id: string, @User() userId: string) {
+    const success = new ModifyResult(await this.walletService.deleteExpense(id, userId)).toBoolean();
+    if (!success) throw new NotFoundException('Expense not found or could not be deleted');
+    return id;
   }
 
-  @Mutation(() => WalletSubAccount)
+  @Mutation(() => WalletEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async createSubAccount(
-    @User() userId: string,
-    @Args('input', { type: () => CreateSubAccountInput }) input: CreateSubAccountInput,
+  editWalletBalance(
+    @User() usrId: string,
+    @Args('input', { type: () => EditWalletBalanceInput }) input: EditWalletBalanceInput,
   ) {
-    return this.walletService.createSubAccount(userId, input);
-  }
-
-  @Mutation(() => WalletSubAccount)
-  @InvalidateCache({ invalidateCurrentUser: true })
-  updateSubAccount(
-    @Args('id', { type: () => ID }) id: string,
-    @Args('input', { type: () => UpdateSubAccountInput }) input: UpdateSubAccountInput,
-  ) {
-    return this.walletService.updateSubAccount(id, input);
-  }
-
-  @Mutation(() => Boolean)
-  @InvalidateCache({ invalidateCurrentUser: true })
-  deleteSubAccount(@Args('id', { type: () => ID }) id: string) {
-    return this.walletService.deleteSubAccount(id);
-  }
-
-  @Mutation(() => TransferResult)
-  @InvalidateCache({ invalidateCurrentUser: true })
-  transferBetweenSubAccounts(
-    @Args('input', { type: () => TransferBetweenSubAccountsInput }) input: TransferBetweenSubAccountsInput,
-  ) {
-    return this.walletService.transferBetweenSubAccounts(input.fromId, input.toId, input.amount);
+    return this.walletService.editUserWalletBalance(usrId, input);
   }
 
   @Mutation(() => Boolean)
   @InvalidateCache({ invalidateCurrentUser: true })
   async createWallet(
     @User() user: string,
-    @Args('balance', { type: () => Float, nullable: false, defaultValue: 0 })
-    initialBalance: number,
+    @Args('balance', { type: () => Float, nullable: false, defaultValue: 0 }) initialBalance: number,
   ) {
     try {
       return new ModifyResult(await this.walletService.createWallet(user, initialBalance)).toBoolean();
@@ -246,41 +207,35 @@ export class WalletResolver {
     }
   }
 
-  @Query(() => Float)
-  @UserCache(3600)
-  async getMonthTotal(@User() usrId: string, @Args('date') date: string) {
-    const parsedDate = new Date(date);
-
-    const expenses = this.walletService.getMonthTotalByType(
-      ExpenseType.expense,
-      usrId,
-      parsedDate.getMonth(),
-      parsedDate.getFullYear(),
-    );
-
-    const incomes = this.walletService.getMonthTotalByType(
-      ExpenseType.income,
-      usrId,
-      parsedDate.getMonth(),
-      parsedDate.getFullYear(),
-    );
-
-    const promise = await Promise.all([expenses, incomes]);
-
-    return promise[1] - promise[0];
+  @Mutation(() => WalletSubAccount)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  createSubAccount(
+    @User() userId: string,
+    @Args('input', { type: () => CreateSubAccountInput }) input: CreateSubAccountInput,
+  ) {
+    return this.subAccountService.create(userId, input);
   }
 
-  @Query(() => WalletStatisticsRange)
-  @UserCache(3600)
-  async getStatistics(@User() usrId: string, @Args('range', { type: () => [String, String] }) range: [string, string]) {
-    if (range.length !== 2) {
-      throw new BadRequestException('Invalid range');
-    }
+  @Mutation(() => WalletSubAccount)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  updateSubAccount(
+    @Args('id', { type: () => ID }) id: string,
+    @Args('input', { type: () => UpdateSubAccountInput }) input: UpdateSubAccountInput,
+  ) {
+    return this.subAccountService.update(id, input);
+  }
 
-    if (new Date(range[0]) > new Date(range[1])) {
-      throw new BadRequestException('Invalid range');
-    }
+  @Mutation(() => Boolean)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  deleteSubAccount(@Args('id', { type: () => ID }) id: string) {
+    return this.subAccountService.delete(id);
+  }
 
-    return await this.walletService.getStatistics(usrId, range);
+  @Mutation(() => TransferResult)
+  @InvalidateCache({ invalidateCurrentUser: true })
+  transferBetweenSubAccounts(
+    @Args('input', { type: () => TransferBetweenSubAccountsInput }) input: TransferBetweenSubAccountsInput,
+  ) {
+    return this.subAccountService.transfer(input.fromId, input.toId, input.amount);
   }
 }

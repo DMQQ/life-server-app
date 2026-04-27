@@ -1,54 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, RelationId } from 'typeorm';
-import { ObjectType, Field, Int, ID, Float, InputType } from '@nestjs/graphql';
+import { ObjectType, Field, Int, ID, Float } from '@nestjs/graphql';
 import { SubscriptionEntity } from './subscription.entity';
-
-@ObjectType()
-export class TransferResult {
-  @Field(() => ID)
-  from: string;
-
-  @Field(() => ID)
-  to: string;
-
-  @Field(() => Float)
-  amount: number;
-}
-
-@InputType()
-export class CreateSubAccountInput {
-  @Field()
-  name: string;
-
-  @Field(() => String, { nullable: true })
-  description?: string;
-
-  @Field(() => String, { nullable: true })
-  color?: string;
-
-  @Field(() => String, { nullable: true })
-  icon?: string;
-
-  @Field(() => Float, { nullable: true })
-  balance?: number;
-}
-
-@InputType()
-export class UpdateSubAccountInput {
-  @Field({ nullable: true })
-  name?: string;
-
-  @Field(() => String, { nullable: true })
-  description?: string;
-
-  @Field(() => String, { nullable: true })
-  color?: string;
-
-  @Field(() => String, { nullable: true })
-  icon?: string;
-
-  @Field(() => Float, { nullable: true })
-  balance?: number;
-}
 
 @ObjectType()
 @Entity('wallet_sub_account')

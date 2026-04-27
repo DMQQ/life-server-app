@@ -127,7 +127,7 @@ export class SubscriptionResolver {
   @InvalidateCache({ invalidateCurrentUser: true })
   async renewSubscription(@Args('subscriptionId', { type: () => ID }) subscriptionId: string) {
     try {
-      const result = await this.subscriptionService.renewSubscription(subscriptionId, this.walletService);
+      const result = await this.subscriptionService.renewSubscription(subscriptionId);
 
       return result.expense;
     } catch (error) {

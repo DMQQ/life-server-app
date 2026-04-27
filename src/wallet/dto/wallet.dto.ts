@@ -77,6 +77,9 @@ export class CreateExpenseInput {
   @Field(() => Float, { nullable: true })
   spontaneousRate?: number;
 
+  @Field(() => String, { nullable: true })
+  shop?: string;
+
   @Field(() => ID, { nullable: true })
   subAccountId?: string;
 }

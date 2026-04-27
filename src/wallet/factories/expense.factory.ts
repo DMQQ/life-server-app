@@ -6,204 +6,35 @@ import {
   ExpenseFileEntity,
 } from '../entities/wallet.entity';
 
-interface Expense {
-  amount: number;
-  description: string;
-  walletId: string;
-  type?: ExpenseType;
-  category?: string;
-  date?: Date | string;
-  schedule?: boolean;
-  subscriptionId?: string;
-  spontaneousRate?: number;
-  balanceBeforeInteraction?: number;
-  note?: string;
-  shop?: string;
-  tags?: string;
-  subAccountId?: string;
-}
+type ExpenseRelations = 'id' | 'wallet' | 'files' | 'subscription' | 'location' | 'subexpenses' | 'subAccount';
+
+type ExpenseData =
+  Pick<ExpenseEntity, 'amount' | 'description' | 'walletId'> &
+  Partial<Omit<ExpenseEntity, ExpenseRelations | 'amount' | 'description' | 'walletId' | 'date'>> &
+  { date?: Date | string };
 
 export class ExpenseFactory {
-  static createExpense(data: Expense): ExpenseEntity {
-    const expense = new ExpenseEntity();
-    expense.amount = data.amount;
-    expense.description = data.description;
-    expense.walletId = data.walletId;
-    expense.type = data.type || ExpenseType.expense;
-    expense.category = data.category || 'none';
-    expense.date = data.date ? new Date(data.date) : new Date();
-    expense.schedule = data.schedule || false;
-    expense.subscriptionId = data.subscriptionId;
-    expense.spontaneousRate = data.spontaneousRate || 0;
-    expense.balanceBeforeInteraction = data.balanceBeforeInteraction;
-    expense.note = data.note;
-    expense.shop = data.shop;
-    expense.tags = data.tags;
-    expense.subAccountId = data.subAccountId;
-    return expense;
-  }
-
-  static createIncomeExpense(data: {
-    amount: number;
-    description: string;
-    walletId: string;
-    category?: string;
-    date?: Date | string;
-    balanceBeforeInteraction?: number;
-  }): ExpenseEntity {
-    return this.createExpense({
-      ...data,
-      type: ExpenseType.income,
-      category: data.category || 'income',
-    });
-  }
-
-  static createScheduledExpense(data: {
-    amount: number;
-    description: string;
-    walletId: string;
-    date: Date;
-    type?: ExpenseType;
-    category?: string;
-    subscriptionId?: string;
-  }): ExpenseEntity {
-    return this.createExpense({
-      ...data,
-      schedule: true,
-    });
-  }
-
-  static createSubscriptionExpense(data: {
-    amount: number;
-    description: string;
-    walletId: string;
-    subscriptionId: string;
-    category?: string;
-    date?: Date | string;
-    balanceBeforeInteraction?: number;
-    subAccountId?: string;
-  }): ExpenseEntity {
-    return this.createExpense({
-      ...data,
+  static createExpense(data: ExpenseData): ExpenseEntity {
+    return Object.assign(new ExpenseEntity(), {
       type: ExpenseType.expense,
-      category: data.category || 'subscription',
+      category: 'none',
+      schedule: false,
+      spontaneousRate: 0,
+      ...data,
+      date: data.date ? new Date(data.date) : new Date(),
     });
   }
 
-  static createSubExpense(data: {
-    description: string;
-    amount: number;
-    category: string;
-    expenseId: string;
-  }): ExpenseSubExpense {
-    const subExpense = new ExpenseSubExpense();
-    subExpense.description = data.description;
-    subExpense.amount = data.amount;
-    subExpense.category = data.category;
-    subExpense.expenseId = data.expenseId;
-    return subExpense;
+  static createIncomeExpense(data: Omit<ExpenseData, 'type' | 'schedule'>): ExpenseEntity {
+    return this.createExpense({ category: 'income', ...data, type: ExpenseType.income });
   }
 
-  static createLocation(data: {
-    name: string;
-    kind: string;
-    longitude?: number;
-    latitude?: number;
-  }): ExpenseLocationEntity {
-    const location = new ExpenseLocationEntity();
-    location.name = data.name;
-    location.kind = data.kind;
-    location.longitude = data.longitude;
-    location.latitude = data.latitude;
-    return location;
+  static createScheduledExpense(data: Omit<ExpenseData, 'schedule'>): ExpenseEntity {
+    return this.createExpense({ ...data, schedule: true });
   }
 
-  static createExpenseFile(data: { url: string; expenseId: ExpenseEntity }): ExpenseFileEntity {
-    const file = new ExpenseFileEntity();
-    file.url = data.url;
-    file.expenseId = data.expenseId;
-    return file;
-  }
-
-  static createExpenseFromPrediction(
-    prediction: {
-      merchant: string;
-      total_price: number;
-      date: string;
-      title: string;
-      category: string;
-    },
-    walletId: string,
-    balanceBeforeInteraction?: number,
-    subAccountId?: string,
-  ): ExpenseEntity {
-    return this.createExpense({
-      amount: prediction.total_price,
-      description: prediction.title,
-      walletId,
-      type: ExpenseType.expense,
-      category: prediction.category,
-      date: new Date(prediction.date),
-      shop: prediction.merchant,
-      spontaneousRate: 0.5,
-      balanceBeforeInteraction,
-      subAccountId,
-    });
-  }
-
-  static createBulkExpenses(
-    expenses: Array<{
-      amount: number;
-      description: string;
-      walletId: string;
-      type?: ExpenseType;
-      category?: string;
-      date?: Date | string;
-    }>,
-  ): ExpenseEntity[] {
-    return expenses.map((expense) => this.createExpense(expense));
-  }
-
-  static createExpenseWithSubExpenses(
-    mainExpense: {
-      amount: number;
-      description: string;
-      walletId: string;
-      type?: ExpenseType;
-      category?: string;
-      date?: Date | string;
-    },
-    subExpenses: Array<{
-      description: string;
-      amount: number;
-      category: string;
-    }>,
-  ): {
-    expense: ExpenseEntity;
-    subExpenses: ExpenseSubExpense[];
-  } {
-    const expense = this.createExpense(mainExpense);
-
-    return {
-      expense,
-      subExpenses: subExpenses.map((sub) => {
-        const subExpense = new ExpenseSubExpense();
-        subExpense.description = sub.description;
-        subExpense.amount = sub.amount;
-        subExpense.category = sub.category;
-        subExpense.expenseId = ''; // Will be set after expense is saved
-        return subExpense;
-      }),
-    };
-  }
-
-  static createRefundedExpense(originalExpense: ExpenseEntity): ExpenseEntity {
-    const currentDate = new Date();
-    const refundedExpense = new ExpenseEntity();
-    Object.assign(refundedExpense, originalExpense);
-    refundedExpense.type = ExpenseType.refunded;
-    refundedExpense.note = `Refunded at ${currentDate.toISOString()} \n ${originalExpense.note ?? ''}`;
-    return refundedExpense;
+  static createSubscriptionExpense(data: Omit<ExpenseData, 'type'>): ExpenseEntity {
+    return this.createExpense({ category: 'subscription', ...data, type: ExpenseType.expense });
   }
 
   static createTransferExpense(data: {
@@ -240,5 +71,68 @@ export class ExpenseFactory {
       balanceBeforeInteraction: data.currentBalance,
       subAccountId: data.subAccountId,
     });
+  }
+
+  static createExpenseFromPrediction(
+    prediction: { merchant: string; total_price: number; date: string; title: string; category: string },
+    walletId: string,
+    balanceBeforeInteraction?: number,
+    subAccountId?: string,
+  ): ExpenseEntity {
+    return this.createExpense({
+      amount: prediction.total_price,
+      description: prediction.title,
+      walletId,
+      type: ExpenseType.expense,
+      category: prediction.category,
+      date: new Date(prediction.date),
+      shop: prediction.merchant,
+      spontaneousRate: 0.5,
+      balanceBeforeInteraction,
+      subAccountId,
+    });
+  }
+
+  static createRefundedExpense(original: ExpenseEntity): ExpenseEntity {
+    return Object.assign(new ExpenseEntity(), original, {
+      type: ExpenseType.refunded,
+      note: `Refunded at ${new Date().toISOString()} \n ${original.note ?? ''}`,
+    });
+  }
+
+  static createBulkExpenses(expenses: ExpenseData[]): ExpenseEntity[] {
+    return expenses.map((e) => this.createExpense(e));
+  }
+
+  static createExpenseWithSubExpenses(
+    mainExpense: ExpenseData,
+    subExpenses: Array<{ description: string; amount: number; category: string }>,
+  ): { expense: ExpenseEntity; subExpenses: ExpenseSubExpense[] } {
+    return {
+      expense: this.createExpense(mainExpense),
+      subExpenses: subExpenses.map((sub) => this.createSubExpense({ ...sub, expenseId: '' })),
+    };
+  }
+
+  static createSubExpense(data: {
+    description: string;
+    amount: number;
+    category: string;
+    expenseId: string;
+  }): ExpenseSubExpense {
+    return Object.assign(new ExpenseSubExpense(), data);
+  }
+
+  static createLocation(data: {
+    name: string;
+    kind: string;
+    longitude?: number;
+    latitude?: number;
+  }): ExpenseLocationEntity {
+    return Object.assign(new ExpenseLocationEntity(), data);
+  }
+
+  static createExpenseFile(data: { url: string; expenseId: ExpenseEntity }): ExpenseFileEntity {
+    return Object.assign(new ExpenseFileEntity(), data);
   }
 }
