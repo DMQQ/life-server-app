@@ -78,4 +78,9 @@ export class SubscriptionEntity {
   @Column({ type: 'uuid', nullable: false })
   @Field(() => ID)
   walletId: string;
+
+  static formatDate(date: Date | string) {
+    const d = new Date(date);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+  }
 }

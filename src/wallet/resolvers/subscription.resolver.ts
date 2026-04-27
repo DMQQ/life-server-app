@@ -1,5 +1,6 @@
 import * as dayjs from 'dayjs';
 import { Args, ID, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
+import { AssignExpenseToSubscriptionInput } from '../dto/wallet.dto';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import {
   CacheInterceptor,
@@ -138,12 +139,11 @@ export class SubscriptionResolver {
   @Mutation(() => ExpenseEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
   async assignExpenseToSubscription(
-    @Args('expenseId', { type: () => ID }) expenseId: string,
-    @Args('subscriptionId', { type: () => ID, nullable: true }) subscriptionId: string | null,
+    @Args('input', { type: () => AssignExpenseToSubscriptionInput }) input: AssignExpenseToSubscriptionInput,
   ) {
     try {
-      await this.subscriptionService.assignSubscription(expenseId, subscriptionId);
-      return this.walletService.getExpense(expenseId);
+      await this.subscriptionService.assignSubscription(input.expenseId, input.subscriptionId ?? null);
+      return this.walletService.getExpense(input.expenseId);
     } catch (error) {
       console.error('Assign expense to subscription error:', error);
       throw new BadRequestException('Failed to assign expense to subscription');

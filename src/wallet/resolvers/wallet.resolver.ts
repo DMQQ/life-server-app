@@ -1,4 +1,12 @@
 import { Args, Float, ID, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
+import {
+  CreateExpenseInput,
+  CreateShortcutExpenseInput,
+  EditExpenseInput,
+  EditExpenseNoteInput,
+  EditWalletBalanceInput,
+  TransferBetweenSubAccountsInput,
+} from '../dto/wallet.dto';
 import { BadRequestException, NotFoundException, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { WalletService } from '../services/wallet.service';
@@ -14,7 +22,6 @@ import {
 import { User } from 'src/utils/decorators/user.decorator';
 import { GetWalletFilters, MonthlyExpenses, WalletStatisticsRange } from '../types/wallet.schemas';
 import { SubscriptionService } from '../services/subscriptions.service';
-import { BillingCycleEnum } from '../entities/subscription.entity';
 import {
   CacheInterceptor,
   DefaultCacheModule,
@@ -26,22 +33,7 @@ import { CacheService } from 'src/utils/services/Cache/cache.service';
 import { ExpensePredictionService } from '../services/expense-prediction.service';
 import { ExpenseCorrectionService } from '../services/expense-correction.service';
 import { ExpenseService } from '../services/expense.service';
-import { Model } from 'src/utils/decorators/model.decorator';
-
-const parseDate = (dateString: string) => {
-  const currentTime = new Date();
-  const inputDate = new Date(dateString);
-
-  return new Date(
-    inputDate.getFullYear(),
-    inputDate.getMonth(),
-    inputDate.getDate(),
-    currentTime.getHours(),
-    currentTime.getMinutes(),
-    currentTime.getSeconds(),
-    currentTime.getMilliseconds(),
-  );
-};
+import ModifyResult from 'src/utils/shared/resources/modify-result.resource';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
 @DefaultCacheModule('Wallet', { invalidateCurrentUser: true })
@@ -100,22 +92,10 @@ export class WalletResolver {
     const cached = await this.cacheService.get(cacheKey);
     if (cached) return cached as MonthlyExpenses[];
 
-    const grouped = await this.walletService.getExpensesGroupedByMonth(wallet.id, {
+    const result = await this.walletService.getExpensesGroupedByMonth(wallet.id, {
       monthPagination: { skip, take },
       where: filters,
       isExactCategory: filters?.isExactCategory,
-    });
-
-    const result: MonthlyExpenses[] = grouped.map(({ month, expenses }) => {
-      const flow = expenses.reduce(
-        (acc, e) => {
-          if (e.type === 'income') acc.income += e.amount;
-          else if (e.type === 'expense') acc.expense += e.amount;
-          return acc;
-        },
-        { income: 0, expense: 0 },
-      );
-      return { month, flow, expenses };
     });
 
     await this.cacheService.set(cacheKey, result, 1800);
@@ -126,71 +106,18 @@ export class WalletResolver {
   @InvalidateCache({ invalidateCurrentUser: true })
   async createExpense(
     @User() usrId: string,
-    @Args('amount', { type: () => Float }) amount: number,
-    @Args('description') description: string,
-    @Args('type', { type: () => String }) type: ExpenseType,
-    @Args('category', { type: () => String }) category: string,
-    @Args('date') date: string,
-    @Args('schedule', { type: () => Boolean, nullable: true }) schedule = false,
-    @Args('isSubscription', {
-      type: () => Boolean,
-      nullable: true,
-      defaultValue: false,
-    })
-    isSubscription: boolean,
-
-    @Args('spontaneousRate', { type: () => Float, nullable: true })
-    spontaneousRate: number,
-    @Args('subAccountId', { type: () => ID, nullable: true })
-    subAccountId?: string,
+    @Args('input', { type: () => CreateExpenseInput }) input: CreateExpenseInput,
   ) {
-    const parsedDate = parseDate(date || new Date().toISOString().split('T')[0]);
-
-    const walletId = await this.walletService.findWalletId(usrId);
-
-    let subscription = null;
-
-    if (isSubscription)
-      subscription = await this.subscriptionService.insert({
-        amount: amount,
-        dateStart: parsedDate,
-        dateEnd: null,
-        description: description,
-        isActive: true,
-        billingCycle: BillingCycleEnum.MONTHLY,
-        nextBillingDate: this.subscriptionService.getNextBillingDate({
-          billingCycle: BillingCycleEnum.MONTHLY,
-          nextBillingDate: parsedDate,
-        }),
-        walletId: walletId.id,
-      });
-
-    const expense = await this.walletService.createExpense(
-      usrId,
-      amount,
-      description,
-      type,
-      category,
-      parsedDate,
-      schedule,
-      subscription ? subscription.id : null,
-      spontaneousRate,
-      undefined,
-      subAccountId,
-    );
-
-    return expense;
+    return this.walletService.createExpenseFromInput(usrId, input);
   }
 
   @Mutation((returns) => ExpenseEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
   async createShortcutExpense(
     @User() usrId: string,
-    @Args('amount', { type: () => Float }) amount: number,
-    @Args('description') description: string,
-    @Args('latitude', { type: () => Float, nullable: true }) latitude?: number,
-    @Args('longitude', { type: () => Float, nullable: true }) longitude?: number,
+    @Args('input', { type: () => CreateShortcutExpenseInput }) input: CreateShortcutExpenseInput,
   ) {
+    const { amount, description, latitude, longitude } = input;
     const categoryPrediction = await this.predictionService.predictExpense(usrId, description, amount);
 
     const predictedCategory = categoryPrediction ? categoryPrediction.category : 'none';
@@ -236,7 +163,11 @@ export class WalletResolver {
   @Mutation(() => ID)
   @InvalidateCache({ invalidateCurrentUser: true })
   async deleteExpense(@Args('id', { type: () => ID }) id: string, @User() userId: string) {
-    await this.walletService.deleteExpense(id, userId);
+    const success = new ModifyResult(await this.walletService.deleteExpense(id, userId)).toBoolean();
+
+    if (!success) {
+      throw new NotFoundException('Expense not found or could not be deleted');
+    }
 
     return id;
   }
@@ -245,48 +176,23 @@ export class WalletResolver {
   @InvalidateCache({ invalidateCurrentUser: true })
   async editWalletBalance(
     @User() usrId: string,
-    @Args('amount', { type: () => Int, nullable: true }) amount: number,
-    @Args('paycheck', { type: () => Float, nullable: true }) paycheck: number,
-    @Args('paycheckDate', { type: () => String, nullable: true }) paycheckDate: string,
+    @Args('input', { type: () => EditWalletBalanceInput }) input: EditWalletBalanceInput,
   ) {
-    return await this.walletService.editUserWalletBalance(usrId, {
-      amount,
-      paycheck,
-      paycheckDate,
-    });
+    return await this.walletService.editUserWalletBalance(usrId, input);
   }
 
   @Mutation(() => ExpenseEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async editExpense(
-    @User() usrId: string,
-    @Args('expenseId', { type: () => ID }) expenseId: string,
-    @Args('amount', { type: () => Float }) amount: number,
-    @Args('description') description: string,
-    @Args('type', { type: () => String }) type: ExpenseType,
-    @Args('category', { type: () => String }) category: string,
-    @Args('date') date: string,
-    @Args('spontaneousRate', { type: () => Float, nullable: true }) spontaneousRate: number,
-    @Args('subAccountId', { type: () => ID, nullable: true }) subAccountId?: string,
-  ) {
-    const result = await this.walletService.editExpense(expenseId, usrId, {
-      amount,
-      description,
-      type,
-      category,
-      date: new Date(date),
-      spontaneousRate: spontaneousRate ?? 0,
-      subAccountId,
-    });
+  async editExpense(@User() usrId: string, @Args('input', { type: () => EditExpenseInput }) input: EditExpenseInput) {
+    const result = await this.walletService.editExpense(input.expenseId, usrId, input);
 
     return result;
   }
 
   @Mutation(() => Boolean)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async editExpenseNote(@Args('expenseId', { type: () => ID }) expenseId: string, @Args('note') note: string) {
-    const result = await this.walletService.editExpenseNote(expenseId, note);
-    return result.affected > 0;
+  async editExpenseNote(@Args('input', { type: () => EditExpenseNoteInput }) input: EditExpenseNoteInput) {
+    return new ModifyResult(await this.walletService.editExpenseNote(input.expenseId, input.note)).toBoolean();
   }
 
   @ResolveField(() => [WalletSubAccount])
@@ -300,11 +206,7 @@ export class WalletResolver {
     @User() userId: string,
     @Args('input', { type: () => CreateSubAccountInput }) input: CreateSubAccountInput,
   ) {
-    const response = await this.walletService.createSubAccount(userId, input);
-
-    console.log('Created sub-account:', response);
-
-    return response;
+    return this.walletService.createSubAccount(userId, input);
   }
 
   @Mutation(() => WalletSubAccount)
@@ -325,22 +227,9 @@ export class WalletResolver {
   @Mutation(() => TransferResult)
   @InvalidateCache({ invalidateCurrentUser: true })
   transferBetweenSubAccounts(
-    @Args('fromId', { type: () => ID }) fromId: string,
-    @Args('toId', { type: () => ID }) toId: string,
-    @Args('amount', { type: () => Float }) amount: number,
+    @Args('input', { type: () => TransferBetweenSubAccountsInput }) input: TransferBetweenSubAccountsInput,
   ) {
-    return this.walletService.transferBetweenSubAccounts(fromId, toId, amount);
-  }
-
-  @Query(() => Float)
-  @UserCache(3600)
-  async getMonthTotalExpenses(@User() usrId: string) {
-    return await this.walletService.getMonthTotalByType(
-      'expense',
-      usrId,
-      new Date().getMonth(),
-      new Date().getFullYear(),
-    );
+    return this.walletService.transferBetweenSubAccounts(input.fromId, input.toId, input.amount);
   }
 
   @Mutation(() => Boolean)
@@ -351,9 +240,7 @@ export class WalletResolver {
     initialBalance: number,
   ) {
     try {
-      await this.walletService.createWallet(user, initialBalance);
-
-      return true;
+      return new ModifyResult(await this.walletService.createWallet(user, initialBalance)).toBoolean();
     } catch (error) {
       throw new BadRequestException(error);
     }
@@ -394,8 +281,6 @@ export class WalletResolver {
       throw new BadRequestException('Invalid range');
     }
 
-    const stats = await this.walletService.getStatistics(usrId, range);
-
-    return stats[0];
+    return await this.walletService.getStatistics(usrId, range);
   }
 }

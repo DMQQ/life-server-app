@@ -11,7 +11,6 @@ import {
   DefaultCacheModule,
   InvalidateCache,
   InvalidateCacheInterceptor,
-  UserCache,
 } from '../../utils/services/Cache/cache.decorator';
 
 @UseInterceptors(CacheInterceptor, InvalidateCacheInterceptor)
@@ -51,9 +50,9 @@ export class StatisticsController {
         monthlyPercentageTarget: wallet.monthlyPercentageTarget,
       },
       monthlySpendings: {
-        total: stats[0].total || 0,
-        expense: stats[0].expense || 0,
-        income: stats[0].income || 0,
+        total: stats.total || 0,
+        expense: stats.expense || 0,
+        income: stats.income || 0,
       },
     };
   }
@@ -68,10 +67,7 @@ export class StatisticsController {
   }
 
   @Get('recent-expenses')
-  async getRecentExpenses(
-    @WalletId() walletId: string,
-    @Query('limit') limit: string = '4',
-  ) {
+  async getRecentExpenses(@WalletId() walletId: string, @Query('limit') limit: string = '4') {
     return this.statisticsService.getRecentExpenses(walletId, parseInt(limit, 10));
   }
 
@@ -79,7 +75,8 @@ export class StatisticsController {
   @InvalidateCache({ invalidateCurrentUser: true })
   async createExpense(
     @User() userId: string,
-    @Body() body: {
+    @Body()
+    body: {
       amount: number;
       description: string;
       type: 'expense' | 'income';
@@ -89,11 +86,10 @@ export class StatisticsController {
   ) {
     const expenseType = body.type === 'income' ? ExpenseType.income : ExpenseType.expense;
 
-    // Predict category if not provided and it's an expense
     let category = body.category || 'none';
     if (expenseType === ExpenseType.expense && !body.category) {
-      const categoryPrediction = await this.predictionService.predictExpense(userId, body.description, body.amount);
-      category = categoryPrediction ? categoryPrediction.category : 'none';
+      category =
+        (await this.predictionService.predictExpense(userId, body.description, body.amount))?.category ?? 'none';
     }
 
     const expense = await this.walletService.createExpense(

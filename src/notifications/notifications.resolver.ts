@@ -7,6 +7,7 @@ import { AuthGuard } from 'src/utils/guards/AuthGuard';
 import { NotificationsEntity, NotificationsHistoryEntity } from './notifications.entity';
 import { NotificationsService } from './notifications.service';
 import { NotificationTypeDto } from './dto/notification-type.dto';
+import { SetNotificationsTokenInput, SetPushToStartTokenInput } from './dto/notifications.dto';
 
 @UseGuards(AuthGuard)
 @Resolver()
@@ -14,10 +15,10 @@ export class NotificationsResolver {
   constructor(private notificationsService: NotificationsService) {}
 
   @Mutation(() => Boolean)
-  async setNotificationsToken(@User() usr: string, @Args('token') token: string) {
-    if (!Expo.isExpoPushToken(token)) throw new BadRequestException('Invalid token format');
+  async setNotificationsToken(@User() usr: string, @Args('input', { type: () => SetNotificationsTokenInput }) input: SetNotificationsTokenInput) {
+    if (!Expo.isExpoPushToken(input.token)) throw new BadRequestException('Invalid token format');
 
-    const userToken = await this.notificationsService.create(token, usr);
+    const userToken = await this.notificationsService.create(input.token, usr);
 
     return true;
   }
@@ -69,11 +70,11 @@ export class NotificationsResolver {
 
   @Mutation(() => Boolean)
   async setPushToStartToken(
-    @Args('pushToStartToken', { type: () => String }) pushToStartToken: string,
+    @Args('input', { type: () => SetPushToStartTokenInput }) input: SetPushToStartTokenInput,
     @User() userId: string,
   ) {
     try {
-      const result = await this.notificationsService.setPushToStartToken(userId, pushToStartToken);
+      const result = await this.notificationsService.setPushToStartToken(userId, input.pushToStartToken);
 
       return result.affected > 0;
     } catch (error) {

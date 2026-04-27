@@ -32,13 +32,13 @@ export class GroupsResolver {
 
   @Mutation(() => Group)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async createGroup(@Args('createGroupInput') input: CreateGroupInput, @User() userId: string): Promise<Group> {
+  async createGroup(@Args('input', { type: () => CreateGroupInput }) input: CreateGroupInput, @User() userId: string): Promise<Group> {
     return this.groupsService.create(input, userId);
   }
 
   @Mutation(() => Group)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async updateGroup(@Args('updateGroupInput') input: UpdateGroupInput, @User() userId: string): Promise<Group> {
+  async updateGroup(@Args('input', { type: () => UpdateGroupInput }) input: UpdateGroupInput, @User() userId: string): Promise<Group> {
     return this.groupsService.update(input.id, input, userId);
   }
 

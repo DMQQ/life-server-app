@@ -28,10 +28,9 @@ export class ReportSchedulerService extends BaseScheduler {
       try {
         if (!user.token) return null;
 
-        const statsResult = await this.walletService.getStatistics(user.userId, range);
+        const stats = await this.walletService.getStatistics(user.userId, range);
 
-        if (!statsResult || !statsResult.length) return null;
-        const stats = statsResult[0];
+        if (!stats) return null;
 
         return {
           to: user.token,
@@ -70,10 +69,9 @@ export class ReportSchedulerService extends BaseScheduler {
       try {
         if (!user.token) return null;
 
-        const statsResult = await this.walletService.getStatistics(user.userId, range);
+        const stats = await this.walletService.getStatistics(user.userId, range);
 
-        if (!statsResult || !statsResult.length) return null;
-        const stats = statsResult[0];
+        if (!stats) return null;
 
         return {
           to: user.token,

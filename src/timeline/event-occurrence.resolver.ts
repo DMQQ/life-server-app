@@ -19,7 +19,19 @@ import {
 } from './timeline.schemas';
 import { EventOccurrenceService } from './event-occurrence.service';
 import { OccurrenceTodoEntity, TodoFilesEntity } from './entities/occurrence-todo.entity';
-import { ExtractTasksArgs, ExtractTasksResponse } from './dto/timeline.dto';
+import {
+  AddTodoFileInput,
+  CompleteOccurrenceInput,
+  CompleteOccurrenceTodoInput,
+  CopyOccurrenceArgsInput,
+  CreateEventWithRepeatInput,
+  CreateOccurrenceTodoInput,
+  DeleteOccurrenceInput,
+  EditOccurrenceArgsInput,
+  ExtractTasksArgs,
+  ExtractTasksResponse,
+  TransferTodosInput,
+} from './dto/timeline.dto';
 import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
 import dayjs from 'dayjs';
 import { OpenAIService } from 'src/utils/services/OpenAI/openai.service';
@@ -80,8 +92,7 @@ export class EventOccurrenceResolver {
   @Mutation(() => OccurrenceView)
   @InvalidateCache({ invalidateCurrentUser: true })
   async createEvent(
-    @Args('input', { type: () => CreateEventInput }) input: CreateEventInput,
-    @Args('repeat', { type: () => RepeatInput, nullable: true }) repeat: RepeatInput,
+    @Args('input', { type: () => CreateEventWithRepeatInput }) { input, repeat }: CreateEventWithRepeatInput,
     @User() userId: string,
   ) {
     const result = await this.occurrenceService.createEvent({ ...input, userId }, repeat);
@@ -92,19 +103,16 @@ export class EventOccurrenceResolver {
   @Mutation(() => OccurrenceView)
   @InvalidateCache({ invalidateCurrentUser: true })
   async editOccurrence(
-    @Args('id', { type: () => ID }) id: string,
-    @Args('input', { type: () => EditOccurrenceInput }) input: EditOccurrenceInput,
-    @Args('scope', { type: () => String, defaultValue: 'THIS_ONLY' }) scope: 'THIS_ONLY' | 'ALL',
+    @Args('input', { type: () => EditOccurrenceArgsInput }) { id, input, scope = 'THIS_ONLY' }: EditOccurrenceArgsInput,
     @User() userId: string,
   ) {
-    return this.occurrenceService.editOccurrence(id, userId, input, scope);
+    return this.occurrenceService.editOccurrence(id, userId, input, scope as 'THIS_ONLY' | 'ALL');
   }
 
   @Mutation(() => OccurrenceView)
   @InvalidateCache({ invalidateCurrentUser: true })
   async completeOccurrence(
-    @Args('id', { type: () => ID }) id: string,
-    @Args('isCompleted', { type: () => Boolean }) isCompleted: boolean,
+    @Args('input', { type: () => CompleteOccurrenceInput }) { id, isCompleted }: CompleteOccurrenceInput,
   ) {
     return this.occurrenceService.completeOccurrence(id, isCompleted);
   }
@@ -118,18 +126,16 @@ export class EventOccurrenceResolver {
   @Mutation(() => Boolean)
   @InvalidateCache({ invalidateCurrentUser: true })
   async deleteOccurrence(
-    @Args('id', { type: () => ID }) id: string,
-    @Args('scope', { type: () => String, defaultValue: 'THIS_ONLY' }) scope: 'THIS_ONLY' | 'ALL',
+    @Args('input', { type: () => DeleteOccurrenceInput }) { id, scope = 'THIS_ONLY' }: DeleteOccurrenceInput,
     @User() userId: string,
   ) {
-    return this.occurrenceService.deleteOccurrence(id, userId, scope);
+    return this.occurrenceService.deleteOccurrence(id, userId, scope as 'THIS_ONLY' | 'ALL');
   }
 
   @Mutation(() => OccurrenceView)
   @InvalidateCache({ invalidateCurrentUser: true })
   async copyOccurrence(
-    @Args('occurrenceId', { type: () => ID }) occurrenceId: string,
-    @Args('input', { type: () => CopyOccurrenceInput, nullable: true }) input: CopyOccurrenceInput,
+    @Args('input', { type: () => CopyOccurrenceArgsInput }) { occurrenceId, input }: CopyOccurrenceArgsInput,
     @User() userId: string,
   ) {
     return this.occurrenceService.copyOccurrence(occurrenceId, userId, input?.newDate);
@@ -138,8 +144,7 @@ export class EventOccurrenceResolver {
   @Mutation(() => OccurrenceTodoEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
   async createOccurrenceTodo(
-    @Args('occurrenceId', { type: () => ID }) occurrenceId: string,
-    @Args('title', { type: () => String }) title: string,
+    @Args('input', { type: () => CreateOccurrenceTodoInput }) { occurrenceId, title }: CreateOccurrenceTodoInput,
   ) {
     return this.occurrenceService.createTodo(occurrenceId, title);
   }
@@ -147,8 +152,7 @@ export class EventOccurrenceResolver {
   @Mutation(() => OccurrenceTodoEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
   async completeOccurrenceTodo(
-    @Args('id', { type: () => ID }) id: string,
-    @Args('isCompleted', { type: () => Boolean }) isCompleted: boolean,
+    @Args('input', { type: () => CompleteOccurrenceTodoInput }) { id, isCompleted }: CompleteOccurrenceTodoInput,
   ) {
     return this.occurrenceService.completeTodo(id, isCompleted);
   }
@@ -162,9 +166,7 @@ export class EventOccurrenceResolver {
   @Mutation(() => TodoFilesEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
   async addTodoFile(
-    @Args('todoId', { type: () => ID }) todoId: string,
-    @Args('type', { type: () => String }) type: string,
-    @Args('url', { type: () => String }) url: string,
+    @Args('input', { type: () => AddTodoFileInput }) { todoId, type, url }: AddTodoFileInput,
   ) {
     return this.occurrenceService.addTodoFile(todoId, type, url);
   }
@@ -184,8 +186,7 @@ export class EventOccurrenceResolver {
   @Mutation(() => Boolean)
   @InvalidateCache({ invalidateCurrentUser: true })
   async transferTodos(
-    @Args('sourceOccurrenceId', { type: () => ID }) sourceOccurrenceId: string,
-    @Args('targetOccurrenceId', { type: () => ID }) targetOccurrenceId: string,
+    @Args('input', { type: () => TransferTodosInput }) { sourceOccurrenceId, targetOccurrenceId }: TransferTodosInput,
   ) {
     return this.occurrenceService.transferTodos(sourceOccurrenceId, targetOccurrenceId);
   }

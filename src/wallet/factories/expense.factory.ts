@@ -12,7 +12,7 @@ interface Expense {
   walletId: string;
   type?: ExpenseType;
   category?: string;
-  date?: Date;
+  date?: Date | string;
   schedule?: boolean;
   subscriptionId?: string;
   spontaneousRate?: number;
@@ -31,7 +31,7 @@ export class ExpenseFactory {
     expense.walletId = data.walletId;
     expense.type = data.type || ExpenseType.expense;
     expense.category = data.category || 'none';
-    expense.date = data.date || new Date();
+    expense.date = data.date ? new Date(data.date) : new Date();
     expense.schedule = data.schedule || false;
     expense.subscriptionId = data.subscriptionId;
     expense.spontaneousRate = data.spontaneousRate || 0;
@@ -48,7 +48,7 @@ export class ExpenseFactory {
     description: string;
     walletId: string;
     category?: string;
-    date?: Date;
+    date?: Date | string;
     balanceBeforeInteraction?: number;
   }): ExpenseEntity {
     return this.createExpense({
@@ -79,7 +79,7 @@ export class ExpenseFactory {
     walletId: string;
     subscriptionId: string;
     category?: string;
-    date?: Date;
+    date?: Date | string;
     balanceBeforeInteraction?: number;
     subAccountId?: string;
   }): ExpenseEntity {
@@ -158,7 +158,7 @@ export class ExpenseFactory {
       walletId: string;
       type?: ExpenseType;
       category?: string;
-      date?: Date;
+      date?: Date | string;
     }>,
   ): ExpenseEntity[] {
     return expenses.map((expense) => this.createExpense(expense));
@@ -171,7 +171,7 @@ export class ExpenseFactory {
       walletId: string;
       type?: ExpenseType;
       category?: string;
-      date?: Date;
+      date?: Date | string;
     },
     subExpenses: Array<{
       description: string;

@@ -11,9 +11,12 @@ import {
 } from 'src/wallet/entities/wallet.entity';
 import { Brackets, Repository, Not, IsNull } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { GetWalletFilters, WalletStatisticsRange } from '../types/wallet.schemas';
+import { GetWalletFilters, MonthlyExpenses, WalletStatisticsRange } from '../types/wallet.schemas';
 import { ExpenseFactory } from '../factories/expense.factory';
 import { ObservableRepository } from 'src/utils/emitter/observable-repository';
+import { CreateExpenseInput, EditExpenseInput, EditWalletBalanceInput } from '../dto/wallet.dto';
+import { SubscriptionEntity } from '../entities/subscription.entity';
+import SubscriptionFactory from '../factories/subscription.factory';
 
 @Injectable()
 export class WalletService {
@@ -28,6 +31,9 @@ export class WalletService {
 
     @InjectRepository(WalletSubAccount)
     private readonly subAccountRepository: Repository<WalletSubAccount>,
+
+    @InjectRepository(SubscriptionEntity)
+    private readonly subscriptionRepository: Repository<SubscriptionEntity>,
 
     private readonly eventEmitter: EventEmitter2,
   ) {
@@ -45,14 +51,7 @@ export class WalletService {
     return this.expenseRepository.update({ id }, { note });
   }
 
-  async editUserWalletBalance(
-    userId: string,
-    input: {
-      amount: number;
-      paycheck?: number;
-      paycheckDate?: string;
-    },
-  ) {
+  async editUserWalletBalance(userId: string, input: EditWalletBalanceInput) {
     let wallet = await this.getWalletIdByUserId(userId);
 
     if (
@@ -200,7 +199,7 @@ export class WalletService {
       monthPagination: { skip: number; take: number };
       isExactCategory?: boolean;
     },
-  ): Promise<{ month: string; expenses: ExpenseEntity[] }[]> {
+  ): Promise<MonthlyExpenses[]> {
     const skip = settings?.monthPagination?.skip ?? 0;
     const take = settings?.monthPagination?.take ?? 6;
     const titleWords = (settings?.where?.title || '').trim().split(/\s+/).filter(Boolean);
@@ -276,7 +275,34 @@ export class WalletService {
       monthMap.get(month)?.push(expense);
     }
 
-    return months.map((month) => ({ month, expenses: monthMap.get(month) ?? [] }));
+    return months
+      .map((month) => ({ month, expenses: monthMap.get(month) ?? [] }))
+      .map(({ month, expenses }) => {
+        const flow = expenses.reduce(
+          (acc, e) => {
+            if (e.type === 'income') acc.income += e.amount;
+            else if (e.type === 'expense') acc.expense += e.amount;
+            return acc;
+          },
+          { income: 0, expense: 0 },
+        );
+        return { month, flow, expenses };
+      });
+  }
+
+  async createExpenseFromInput(userId: string, input: CreateExpenseInput | ExpenseEntity) {
+    const wallet = await this.getWalletIdByUserId(userId);
+    const subAccountId = input.subAccountId ?? (await this._getOrCreateGeneralAccount(wallet.id)).id;
+
+    let entity = ExpenseFactory.createExpense({ ...input, walletId: wallet.id, subAccountId });
+
+    if (input.category.startsWith('subscription')) {
+      entity.subscription = SubscriptionFactory.create(input);
+    }
+
+    entity = await this.expenseRepository.save(entity);
+
+    return this.getExpense(entity.id);
   }
 
   async createExpense(
@@ -285,7 +311,7 @@ export class WalletService {
     description: string,
     type: ExpenseType,
     category: string,
-    date: Date,
+    date: Date | string,
     schedule: boolean = false,
     subscription: string | null,
     spontaneousRate: number,
@@ -370,8 +396,7 @@ export class WalletService {
   }
 
   async deleteExpense(id: string, userId: string) {
-    const result = await this.expenseRepository.delete({ id });
-    return result.affected > 0;
+    return this.expenseRepository.delete({ id });
   }
 
   async _getOrCreateGeneralAccount(walletId: string, initialBalance = 0): Promise<WalletSubAccount> {
@@ -419,16 +444,10 @@ export class WalletService {
     );
   }
 
-  async editExpense(
-    expenseId: string,
-    userId: string,
-    incoming: Partial<ExpenseEntity> & { amount: number; type: string },
-  ) {
-    const wallet = await this.walletRepository.findOne({ where: { userId } });
-    if (!wallet) throw new Error('Wallet not found');
+  async editExpense(expenseId: string, userId: string, incoming: EditExpenseInput) {
+    const wallet = await this.walletRepository.findOneOrFail({ where: { userId } });
 
-    const existing = await this.expenseRepository.findOne({ where: { id: expenseId } });
-    if (!existing) throw new Error('Expense not found');
+    const existing = await this.expenseRepository.findOneOrFail({ where: { id: expenseId } });
 
     const originalBalance =
       existing.type === ExpenseType.income ? wallet.balance - existing.amount : wallet.balance + existing.amount;
@@ -453,12 +472,12 @@ export class WalletService {
     return expenses[0].total;
   }
 
-  async getStatistics(userId: string, dateRange: [string, string]): Promise<[WalletStatisticsRange]> {
+  async getStatistics(userId: string, dateRange: [string, string]): Promise<WalletStatisticsRange> {
     const [startDate, endDate] = dateRange;
 
     if (!startDate || !endDate) return Promise.reject(`startDate '${startDate}' or endDate '${endDate}' is empty`);
 
-    return this.expenseRepository.query(
+    const result = await this.expenseRepository.query(
       `
       WITH walletId AS (
         SELECT id FROM wallet WHERE userId = ?
@@ -495,6 +514,11 @@ export class WalletService {
         endDate, // for main query date range
       ],
     );
+    if (!result || result.length === 0) {
+      return Promise.reject('Failed to calculate statistics');
+    }
+
+    return result[0];
   }
 
   async createWallet(userId: string, initialBalance: number) {
@@ -560,7 +584,10 @@ export class WalletService {
           subAccount.balance += balanceAdjustment;
           await entityManager.save(WalletSubAccount, subAccount);
 
-          await this._syncWalletBalance(subAccount.walletId);
+          await entityManager.query(
+            `UPDATE wallet SET balance = (SELECT COALESCE(SUM(balance), 0) FROM wallet_sub_account WHERE walletId = ?) WHERE id = ?`,
+            [subAccount.walletId, subAccount.walletId],
+          );
         }
 
         expense.type = ExpenseType.refunded;
@@ -570,6 +597,7 @@ export class WalletService {
 
       return this.expenseRepository.findOne({ where: { id: expenseId } });
     } catch (error) {
+      console.error('Error during refundExpense transaction:', error);
       throw new Error('Refund failed');
     }
   }
@@ -676,11 +704,10 @@ export class WalletService {
 
   async transferBetweenSubAccounts(fromId: string, toId: string, amount: number) {
     const [from, to] = await Promise.all([
-      this.subAccountRepository.findOne({ where: { id: fromId } }),
-      this.subAccountRepository.findOne({ where: { id: toId } }),
+      this.subAccountRepository.findOneOrFail({ where: { id: fromId } }),
+      this.subAccountRepository.findOneOrFail({ where: { id: toId } }),
     ]);
 
-    if (!from || !to) throw new Error('Sub-account not found');
     if (from.walletId !== to.walletId) throw new Error('Sub-accounts must belong to the same wallet');
     if (from.balance < amount) throw new Error('Insufficient balance');
 

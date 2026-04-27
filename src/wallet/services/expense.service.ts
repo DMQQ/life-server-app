@@ -186,13 +186,6 @@ export class ExpenseService {
     return { success: true, message: 'Sub-expense deleted successfully' };
   }
 
-  async getExpenseWithSubExpenses(expenseId: string) {
-    return this.expenseEntity.findOne({
-      where: { id: expenseId },
-      relations: ['subexpenses'],
-    });
-  }
-
   async addMultipleSubExpenses(expenseId: string, subExpenses: Partial<ExpenseSubExpense>[]) {
     const subExpensesToSave = subExpenses.map((subExpense) =>
       ExpenseFactory.createSubExpense({

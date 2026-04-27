@@ -4,7 +4,8 @@ import { WalletService } from '../services/wallet.service';
 import { SubscriptionService } from '../services/subscriptions.service';
 import * as dayjs from 'dayjs';
 import { BillingCycleEnum, SubscriptionEntity } from '../entities/subscription.entity';
-import { ExpenseType } from '../entities/wallet.entity';
+import { ExpenseFactory } from '../factories/expense.factory';
+import { SubscriptionBillingUtils } from '../utils/subscription-billing.util';
 
 @Injectable()
 export class TransactionSchedulerService {
@@ -56,7 +57,7 @@ export class TransactionSchedulerService {
 
           delete expense.id;
 
-          const subscriptionRange = this.subscriptionService.getBillingCycleString(
+          const subscriptionRange = SubscriptionBillingUtils.getBillingCycleString(
             subscription.nextBillingDate,
             subscription.billingCycle,
           );
@@ -101,16 +102,16 @@ export class TransactionSchedulerService {
           const shouldProcessPaycheck = this.shouldProcessPaycheck(wallet.paycheckDate, today);
 
           if (shouldProcessPaycheck && wallet.income > 0) {
-            await this.walletService.createExpense(
+            await this.walletService.createExpenseFromInput(
               wallet.userId,
-              wallet.income,
-              `Monthly paycheck - ${today.format('MMMM YYYY')}`,
-              ExpenseType.income,
-              'income',
-              today.toDate(),
-              false,
-              null,
-              0,
+              ExpenseFactory.createIncomeExpense({
+                amount: wallet.income,
+                description: 'Paycheck',
+                date: new Date(),
+                walletId: wallet.id,
+                balanceBeforeInteraction: wallet.balance,
+                category: 'income',
+              }),
             );
 
             this.logger.log(`Processed paycheck for user ${wallet.userId}: ${wallet.income}`);

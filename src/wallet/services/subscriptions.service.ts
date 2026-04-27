@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as dayjs from 'dayjs';
 import { TextSimilarityService } from 'src/utils/services/TextSimilarity/text-similarity.service';
 import { LessThan, Repository } from 'typeorm';
 import { BillingCycleEnum, SubscriptionEntity } from '../entities/subscription.entity';
 import { ExpenseEntity } from '../entities/wallet.entity';
+import SubscriptionFactory from '../factories/subscription.factory';
+import { SubscriptionBillingUtils } from '../utils/subscription-billing.util';
 
 @Injectable()
 export class SubscriptionService {
@@ -22,8 +23,8 @@ export class SubscriptionService {
     if (subscription.reminderDaysBeforehand == null && subscription.billingCycle) {
       subscription.reminderDaysBeforehand = this.getDefaultReminderDays(subscription.billingCycle);
     }
-    subscription.nextBillingDate = this.formatDate(subscription.nextBillingDate);
-    subscription.dateStart = this.formatDate(subscription.dateStart);
+    subscription.nextBillingDate = SubscriptionEntity.formatDate(subscription.nextBillingDate);
+    subscription.dateStart = SubscriptionEntity.formatDate(subscription.dateStart);
     subscription.isActive = true;
     return await this.subscriptionRepository.save(subscription);
   }
@@ -40,72 +41,13 @@ export class SubscriptionService {
     return await this.subscriptionRepository.find({
       relations: { expenses: true },
       where: [
-        { nextBillingDate: this.formatDate(new Date()), isActive: true },
+        { nextBillingDate: SubscriptionEntity.formatDate(new Date()), isActive: true },
         {
           isActive: true,
-          nextBillingDate: LessThan(this.formatDate(new Date())),
+          nextBillingDate: LessThan(SubscriptionEntity.formatDate(new Date())),
         },
       ],
     });
-  }
-
-  getNextBillingDate(subscription: {
-    billingCycle: BillingCycleEnum;
-    nextBillingDate: Date;
-    billingDay?: number | null;
-    customBillingMonths?: number[] | null;
-  }): Date {
-    let raw: Date;
-    switch (subscription.billingCycle) {
-      case BillingCycleEnum.MONTHLY:
-        raw = dayjs(subscription.nextBillingDate).add(1, 'month').toDate();
-        break;
-      case BillingCycleEnum.WEEKLY:
-        raw = dayjs(subscription.nextBillingDate).add(7, 'days').toDate();
-        break;
-      case BillingCycleEnum.DAILY:
-        raw = dayjs(subscription.nextBillingDate).add(1, 'day').toDate();
-        break;
-      case BillingCycleEnum.YEARLY:
-        raw = dayjs(subscription.nextBillingDate).add(1, 'year').toDate();
-        break;
-      case BillingCycleEnum.CUSTOM:
-        return this.getNextCustomBillingDate(
-          subscription.nextBillingDate,
-          subscription.customBillingMonths ?? [],
-          subscription.billingDay,
-        );
-      default:
-        throw new Error('Invalid billing cycle');
-    }
-    return this.snapToBillingDay(raw, subscription.billingDay);
-  }
-
-  private getNextCustomBillingDate(currentDate: Date, months: number[], billingDay?: number | null): Date {
-    if (!months || months.length === 0) {
-      throw new Error('customBillingMonths must be set for CUSTOM billing cycle');
-    }
-    const sorted = [...months].sort((a, b) => a - b);
-    const current = dayjs(currentDate);
-    const currentMonth = current.month() + 1;
-
-    const nextMonth = sorted.find((m) => m > currentMonth);
-
-    let nextDate: dayjs.Dayjs;
-    if (nextMonth) {
-      nextDate = current.year(current.year()).month(nextMonth - 1);
-    } else {
-      nextDate = current.year(current.year() + 1).month(sorted[0] - 1);
-    }
-
-    const day = billingDay ? Math.min(billingDay, nextDate.daysInMonth()) : 1;
-    return nextDate.date(day).toDate();
-  }
-
-  private snapToBillingDay(date: Date, billingDay?: number | null): Date {
-    if (!billingDay) return date;
-    const d = dayjs(date);
-    return d.date(Math.min(billingDay, d.daysInMonth())).toDate();
   }
 
   getDefaultReminderDays(cycle: BillingCycleEnum): number {
@@ -120,34 +62,12 @@ export class SubscriptionService {
   }
 
   async setNextBillingDate(subscription: SubscriptionEntity) {
-    const today = this.formatDate(new Date());
+    const today = SubscriptionEntity.formatDate(new Date());
 
     do {
-      subscription.nextBillingDate = this.formatDate(this.getNextBillingDate(subscription));
+      subscription.nextBillingDate = SubscriptionEntity.formatDate(SubscriptionBillingUtils.getNextBillingDate(subscription));
     } while (subscription.nextBillingDate < today);
     return await this.subscriptionRepository.save(subscription);
-  }
-
-  formatDate(date: Date | string) {
-    const d = new Date(date);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-  }
-
-  getBillingCycleString(nextBillingDate: string | Date, billingCycle: BillingCycleEnum) {
-    switch (billingCycle) {
-      case BillingCycleEnum.MONTHLY:
-        return `${dayjs(nextBillingDate).subtract(30, 'days').format('MM-DD')}-${dayjs(nextBillingDate).format('MM-DD')}`;
-      case BillingCycleEnum.WEEKLY:
-        return `${dayjs(nextBillingDate).subtract(7, 'days').format('MM-DD')}-${dayjs(nextBillingDate).format('MM-DD')}`;
-      case BillingCycleEnum.DAILY:
-        return `${dayjs(nextBillingDate).subtract(1, 'days').format('MM-DD')}-${dayjs(nextBillingDate).format('MM-DD')}`;
-      case BillingCycleEnum.YEARLY:
-        return `${dayjs(nextBillingDate).subtract(1, 'year').format('YYYY-MM')}-${dayjs(nextBillingDate).format('YYYY-MM')}`;
-      case BillingCycleEnum.CUSTOM:
-        return `${dayjs(nextBillingDate).subtract(1, 'month').format('YYYY-MM')}-${dayjs(nextBillingDate).format('YYYY-MM')}`;
-      default:
-        throw new Error('Invalid billing cycle');
-    }
   }
 
   async cancelSubscription(subscriptionId: string) {
@@ -166,14 +86,7 @@ export class SubscriptionService {
     const now = new Date();
     subscription.isActive = true;
     subscription.dateStart = now;
-    subscription.nextBillingDate = this.formatDate(
-      this.getNextBillingDate({
-        billingCycle: subscription.billingCycle,
-        nextBillingDate: now,
-        billingDay: subscription.billingDay,
-        customBillingMonths: subscription.customBillingMonths,
-      }),
-    );
+    subscription.nextBillingDate = SubscriptionEntity.formatDate(SubscriptionBillingUtils.getNextBillingDate(subscription));
 
     const updatedSubscription = await this.subscriptionRepository.save(subscription);
 
@@ -232,19 +145,11 @@ export class SubscriptionService {
     let sub = null;
 
     if (!expense.subscriptionId) {
-      sub = await this.insert({
-        amount: expense.amount,
-        dateStart: expense.date,
-        dateEnd: null,
-        description: expense.description,
-        isActive: true,
-        billingCycle: BillingCycleEnum.MONTHLY,
-        nextBillingDate: this.getNextBillingDate({
-          billingCycle: BillingCycleEnum.MONTHLY,
-          nextBillingDate: expense.date,
+      sub = await this.insert(
+        SubscriptionFactory.create({
+          ...expense,
         }),
-        walletId: walletId,
-      });
+      );
       await this.assignSubscription(expenseId, sub.id);
     } else {
       await this.enableSubscription(expense.subscriptionId);
@@ -257,7 +162,7 @@ export class SubscriptionService {
 
   async getSubscriptionsDueOn(walletId: string, date: string): Promise<SubscriptionEntity[]> {
     try {
-      const formattedDate = this.formatDate(new Date(date));
+      const formattedDate = SubscriptionEntity.formatDate(new Date(date));
 
       const subscriptions = await this.subscriptionRepository.find({
         where: {

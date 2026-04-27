@@ -1,4 +1,5 @@
 import { Args, Float, Mutation, Parent, ResolveField, Resolver, Query, ID } from '@nestjs/graphql';
+import { AddExpenseLocationInput, AddMultipleSubExpensesInput, CreateSubExpenseArgsInput } from '../dto/wallet.dto';
 import { ExpenseEntity, ExpenseLocationEntity, ExpenseSubExpense } from '../entities//wallet.entity';
 import { ExpenseService } from '../services/expense.service';
 import { User } from 'src/utils/decorators/user.decorator';
@@ -11,10 +12,9 @@ import {
   InvalidateCacheInterceptor,
   UserCache,
 } from '../../utils/services/Cache/cache.decorator';
-import { BadRequestException, Logger, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, UseInterceptors } from '@nestjs/common';
 import {
   CreateLocationDto,
-  CreateSubExpenseDto,
   HourlyStats,
   MonthlyCategoryComparisonOutput,
   MonthlyHeatMap,
@@ -49,7 +49,7 @@ export class ExpenseResolver {
 
   @Query(() => [ExpenseEntity])
   @UserCache(3600)
-  async similarExpenses(
+  async expenseSimilar(
     @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
     @Args('limit', { type: () => Float, nullable: true }) limit?: number,
   ) {
@@ -58,7 +58,8 @@ export class ExpenseResolver {
   }
 
   @ResolveField('subexpenses', () => [ExpenseSubExpense])
-  async getSubExpenses(@Parent() expense: ExpenseEntity) {
+  @UserCache(3600)
+  async _subexpenses(@Parent() expense: ExpenseEntity) {
     return this.expenseService.getSubExpenses(expense.id);
   }
 
@@ -82,19 +83,14 @@ export class ExpenseResolver {
 
   @Mutation(() => Boolean)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async addExpenseLocation(
-    @Args('expenseId', { type: () => ID, nullable: false }) expenseId: string,
-    @Args('locationId', { type: () => ID, nullable: false }) locationId: string,
-  ) {
-    return !!((await this.expenseService.addExpenseLocation(expenseId, locationId)).affected > 0);
+  async addExpenseLocation(@Args('input', { type: () => AddExpenseLocationInput }) input: AddExpenseLocationInput) {
+    return !!((await this.expenseService.addExpenseLocation(input.expenseId, input.locationId)).affected > 0);
   }
 
   @Mutation(() => ExpenseSubExpense)
   @InvalidateCache({ invalidateCurrentUser: true })
   createSubExpense(
-    @Args('expenseId', { type: () => ID }) expenseId: string,
-    @Args('input', { type: () => CreateSubExpenseDto })
-    input: CreateSubExpenseDto,
+    @Args('input', { type: () => CreateSubExpenseArgsInput }) { expenseId, input }: CreateSubExpenseArgsInput,
   ) {
     return this.expenseService.createSubExpense(expenseId, input);
   }
@@ -102,9 +98,7 @@ export class ExpenseResolver {
   @Mutation(() => [ExpenseSubExpense])
   @InvalidateCache({ invalidateCurrentUser: true })
   addMultipleSubExpenses(
-    @Args('expenseId', { type: () => ID }) expenseId: string,
-    @Args('inputs', { type: () => [CreateSubExpenseDto] })
-    inputs: CreateSubExpenseDto[],
+    @Args('input', { type: () => AddMultipleSubExpensesInput }) { expenseId, inputs }: AddMultipleSubExpensesInput,
   ) {
     return this.expenseService.addMultipleSubExpenses(expenseId, inputs);
   }
@@ -136,12 +130,6 @@ export class ExpenseResolver {
   @UserCache(3600)
   subExpense(@Args('id', { type: () => ID }) id: string) {
     return this.expenseService.getSubExpenseById(id);
-  }
-
-  @Query(() => ExpenseEntity)
-  @UserCache(3600)
-  expenseWithSubExpenses(@Args('expenseId', { type: () => ID }) expenseId: string) {
-    return this.expenseService.getExpenseWithSubExpenses(expenseId);
   }
 
   @Query(() => [MonthlyCategoryComparisonOutput])

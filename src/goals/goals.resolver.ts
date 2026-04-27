@@ -1,5 +1,6 @@
 import { UseInterceptors } from '@nestjs/common';
 import { Args, Field, ID, InputType, Mutation, ObjectType, Query, Resolver } from '@nestjs/graphql';
+import { UpsertGoalStatsInput } from './dto/goals.dto';
 import { IsDate, IsNumber, IsOptional, IsString } from 'class-validator';
 import { User } from 'src/utils/decorators/user.decorator';
 import { SuccessfulRemoval } from 'src/utils/schemas/SuccessfulRemoval';
@@ -138,11 +139,9 @@ export class GoalResolver {
   @Mutation(() => GoalStats)
   @InvalidateCache({ invalidateCurrentUser: true })
   async upsertGoalStats(
-    @Args('goalsId', { type: () => ID }) categoryId: string,
-    @Args('value', { type: () => Number }) value: number,
-    @Args('date', { type: () => Date, nullable: true }) date?: Date,
+    @Args('input', { type: () => UpsertGoalStatsInput }) input: UpsertGoalStatsInput,
   ) {
-    return this.goalService.upsertGoalEntry(categoryId, value, date);
+    return this.goalService.upsertGoalEntry(input.goalsId, input.value, input.date);
   }
 
   @Query(() => [Goals])
