@@ -371,7 +371,8 @@ export class WalletService {
     const originalBalance =
       existing.type === ExpenseType.income ? wallet.balance - existing.amount : wallet.balance + existing.amount;
 
-    await this.expenseRepository.update({ id: expenseId }, { ...incoming, balanceBeforeInteraction: originalBalance });
+    const { expenseId: _, ...fields } = incoming;
+    await this.expenseRepository.update({ id: expenseId }, { ...fields, balanceBeforeInteraction: originalBalance });
     return this.expenseRepository.findOne({ where: { id: expenseId } });
   }
 
