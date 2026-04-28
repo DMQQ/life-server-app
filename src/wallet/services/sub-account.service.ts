@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { ExpenseEntity, WalletEntity, WalletSubAccount } from '../entities/wallet.entity';
 import { ExpenseFactory } from '../factories/expense.factory';
 import { CreateSubAccountInput, UpdateSubAccountInput } from '../dto/wallet.dto';
+import * as dayjs from 'dayjs';
 
 @Injectable()
 export class SubAccountService {
@@ -19,8 +20,34 @@ export class SubAccountService {
   ) {}
 
   async getAll(userId: string): Promise<WalletSubAccount[]> {
+    const date = dayjs();
     const wallet = await this.walletRepository.findOne({ where: { userId } });
-    return this.subAccountRepository.find({ where: { walletId: wallet.id } });
+    const subAccounts = await this.subAccountRepository.find({ where: { walletId: wallet.id } });
+
+    const accountTraffic = await this.expenseRepository
+      .createQueryBuilder('expense')
+      .select('expense.subAccountId', 'subAccountId')
+      .addSelect(`SUM(CASE WHEN expense.type = 'income' THEN expense.amount ELSE 0 END)`, 'income')
+      .addSelect(`SUM(CASE WHEN expense.type = 'expense' THEN expense.amount ELSE 0 END)`, 'expense')
+      .where('expense.walletId = :walletId', { walletId: wallet.id })
+      .andWhere('expense.date >= :startOfMonth', { startOfMonth: date.startOf('month').toDate() })
+      .andWhere('expense.date <= :endOfMonth', { endOfMonth: date.endOf('month').toDate() })
+      .groupBy('expense.subAccountId')
+      .getRawMany();
+
+    const trafficMap = accountTraffic.reduce((acc, curr) => {
+      acc[curr.subAccountId] = {
+        income: parseFloat(curr.income) || 0,
+        expense: parseFloat(curr.expense) || 0,
+      };
+      return acc;
+    }, {});
+
+    return subAccounts.map((account) => ({
+      ...account,
+      income: trafficMap[account.id]?.income || 0,
+      expense: trafficMap[account.id]?.expense || 0,
+    }));
   }
 
   async create(userId: string, input: CreateSubAccountInput): Promise<WalletSubAccount> {

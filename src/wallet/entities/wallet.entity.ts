@@ -39,6 +39,12 @@ export class WalletSubAccount {
   @Field(() => [ExpenseEntity], { nullable: true })
   @OneToMany(() => ExpenseEntity, (expense) => expense.subAccount)
   expenses: ExpenseEntity[];
+
+  @Field(() => Float, { nullable: true })
+  income?: number;
+
+  @Field(() => Float, { nullable: true })
+  expense?: number;
 }
 
 @ObjectType()

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
-import { Between, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
 import { EventSeriesEntity } from './entities/event-series.entity';
@@ -55,12 +55,6 @@ function buildView(occurrence: EventOccurrenceEntity, series: EventSeriesEntity)
     })) as OccurrenceFileView[],
   };
 }
-
-const OCCURRENCE_RELATIONS = ['series', 'todos', 'todos.files', 'images'];
-const OCCURRENCE_ORDER = {
-  todos: { isCompleted: 'ASC' as const, modifiedAt: 'DESC' as const },
-  images: { createdAt: 'DESC' as const },
-};
 
 @Injectable()
 export class EventOccurrenceService {
@@ -183,8 +177,6 @@ export class EventOccurrenceService {
     return this.findByDate({ userId, date: currentDate });
   }
 
-  // ─── Edit ───────────────────────────────────────────────────────────────────
-
   async editOccurrence(
     id: string,
     userId: string,
@@ -209,7 +201,6 @@ export class EventOccurrenceService {
       if (input.date !== undefined) overrides.date = input.date;
       await this.occurrenceRepo.update({ id }, overrides);
     } else {
-      // ALL: update series, clear all overrides
       await this.seriesService.updateSeriesFields(occ.seriesId, {
         ...(input.title !== undefined && { title: input.title }),
         ...(input.description !== undefined && { description: input.description }),
@@ -224,19 +215,10 @@ export class EventOccurrenceService {
     return this._loadView(id);
   }
 
-  // ─── Complete / Skip ────────────────────────────────────────────────────────
-
   async completeOccurrence(id: string, isCompleted: boolean): Promise<OccurrenceView> {
     await this.occurrenceRepo.update({ id }, { isCompleted });
     return this._loadView(id);
   }
-
-  async skipOccurrence(id: string): Promise<OccurrenceView> {
-    await this.occurrenceRepo.update({ id }, { isSkipped: true });
-    return this._loadView(id);
-  }
-
-  // ─── Delete ─────────────────────────────────────────────────────────────────
 
   async deleteOccurrence(id: string, userId: string, scope: 'THIS_ONLY' | 'ALL'): Promise<boolean> {
     const occ = await this.occurrenceRepo
@@ -324,8 +306,6 @@ export class EventOccurrenceService {
 
     return this._loadView(newOcc.id);
   }
-
-  // ─── Todos ──────────────────────────────────────────────────────────────────
 
   async createTodo(occurrenceId: string, title: string): Promise<OccurrenceTodoEntity> {
     const todo = await this.todoRepo.save({ occurrenceId, title });

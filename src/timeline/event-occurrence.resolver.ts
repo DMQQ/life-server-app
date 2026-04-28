@@ -117,12 +117,6 @@ export class EventOccurrenceResolver {
     return this.occurrenceService.completeOccurrence(id, isCompleted);
   }
 
-  @Mutation(() => OccurrenceView)
-  @InvalidateCache({ invalidateCurrentUser: true })
-  async skipOccurrence(@Args('id', { type: () => ID }) id: string) {
-    return this.occurrenceService.skipOccurrence(id);
-  }
-
   @Mutation(() => Boolean)
   @InvalidateCache({ invalidateCurrentUser: true })
   async deleteOccurrence(
@@ -165,9 +159,7 @@ export class EventOccurrenceResolver {
 
   @Mutation(() => TodoFilesEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
-  async addTodoFile(
-    @Args('input', { type: () => AddTodoFileInput }) { todoId, type, url }: AddTodoFileInput,
-  ) {
+  async addTodoFile(@Args('input', { type: () => AddTodoFileInput }) { todoId, type, url }: AddTodoFileInput) {
     return this.occurrenceService.addTodoFile(todoId, type, url);
   }
 
