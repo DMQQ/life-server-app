@@ -210,6 +210,24 @@ export class EventOccurrenceService {
       realOccMap.set(key, occ);
     }
 
+    // Load anchor todos for recurring series (so virtual occurrences inherit them)
+    const recurringSeriesIds = allSeries.filter((s) => s.isRepeat).map((s) => s.id);
+    const anchorTodosMap = new Map<string, OccurrenceTodoEntity[]>();
+    if (recurringSeriesIds.length > 0) {
+      const anchorOccs = await this.occurrenceRepo
+        .createQueryBuilder('o')
+        .leftJoinAndSelect('o.todos', 'todos')
+        .leftJoinAndSelect('todos.files', 'todoFiles')
+        .where('o.seriesId IN (:...ids)', { ids: recurringSeriesIds })
+        .andWhere('o.position = 0')
+        .orderBy('todos.isCompleted', 'ASC')
+        .addOrderBy('todos.modifiedAt', 'DESC')
+        .getMany();
+      for (const occ of anchorOccs) {
+        anchorTodosMap.set(occ.seriesId, occ.todos || []);
+      }
+    }
+
     // 3. Build views per series
     for (const series of allSeries) {
       if (!series.isRepeat) {
@@ -257,7 +275,7 @@ export class EventOccurrenceService {
               descriptionOverride: null,
               beginTimeOverride: null,
               endTimeOverride: null,
-              todos: [],
+              todos: anchorTodosMap.get(series.id) || [],
               images: [],
               series,
             }),
@@ -405,6 +423,17 @@ export class EventOccurrenceService {
         : [];
       const pos = positions.length > 0 ? positions[0].position : 0;
 
+      // Load anchor todos to show on virtual occurrences
+      const anchorOcc = await this.occurrenceRepo
+        .createQueryBuilder('o')
+        .leftJoinAndSelect('o.todos', 'todos')
+        .leftJoinAndSelect('todos.files', 'todoFiles')
+        .where('o.seriesId = :seriesId', { seriesId: series.id })
+        .andWhere('o.position = 0')
+        .orderBy('todos.isCompleted', 'ASC')
+        .addOrderBy('todos.modifiedAt', 'DESC')
+        .getOne();
+
       const virtualOcc = {
         id: syntheticId(series.id, parsed.date),
         seriesId: series.id,
@@ -417,7 +446,7 @@ export class EventOccurrenceService {
         descriptionOverride: null,
         beginTimeOverride: null,
         endTimeOverride: null,
-        todos: [],
+        todos: anchorOcc?.todos || [],
         images: [],
         series,
       };
@@ -735,6 +764,31 @@ export class EventOccurrenceService {
         position,
         isException: false,
       });
+
+      // Copy anchor todos so this materialized occurrence is self-contained
+      const anchorOcc = await this.occurrenceRepo
+        .createQueryBuilder('o')
+        .leftJoinAndSelect('o.todos', 'todos')
+        .leftJoinAndSelect('todos.files', 'todoFiles')
+        .where('o.seriesId = :seriesId', { seriesId })
+        .andWhere('o.position = 0')
+        .andWhere('o.id != :newId', { newId: occ.id })
+        .getOne();
+
+      if (anchorOcc?.todos?.length) {
+        for (const t of anchorOcc.todos) {
+          const newTodo = await this.todoRepo.save({
+            occurrenceId: occ.id,
+            title: t.title,
+            isCompleted: false,
+          });
+          if (t.files?.length) {
+            await this.todoFileRepo.save(
+              t.files.map((f) => ({ todoId: newTodo.id, type: f.type, url: f.url })),
+            );
+          }
+        }
+      }
     }
     return occ;
   }
