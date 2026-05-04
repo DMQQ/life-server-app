@@ -33,11 +33,28 @@ export class CreateEventInput {
 
 @InputType()
 export class RepeatInput {
+  // ── New recurrence fields ──
+  @Field(() => String, { nullable: true })
+  repeatType?: string; // 'DAILY' | 'WEEKLY' | 'MONTHLY'
+
+  @Field(() => [Int], { nullable: true })
+  repeatDaysOfWeek?: number[]; // [0,2,4] for Sun/Tue/Thu (0=Sun, 6=Sat)
+
+  @Field(() => Int, { nullable: true })
+  repeatInterval?: number; // every N days/weeks/months
+
+  @Field({ nullable: true })
+  repeatUntil?: string; // YYYY-MM-DD, null = infinite
+
+  @Field(() => Int, { nullable: true })
+  reminderBeforeMinutes?: number; // N minutes before beginTime to notify
+
+  // ── Legacy fields (kept for backward compat during migration) ──
   @Field(() => Int, { nullable: true })
   repeatCount?: number;
 
   @Field({ nullable: true })
-  repeatOn?: string; // 'daily' | 'weekly'
+  repeatOn?: string; // 'daily' | 'weekly' (legacy)
 
   @Field(() => Int, { nullable: true })
   repeatEveryNth?: number;
@@ -160,6 +177,9 @@ export class OccurrenceView {
 
   @Field(() => Int)
   priority: number;
+
+  @Field(() => Int, { nullable: true })
+  reminderBeforeMinutes?: number;
 
   @Field(() => [OccurrenceTodoView])
   todos: OccurrenceTodoView[];

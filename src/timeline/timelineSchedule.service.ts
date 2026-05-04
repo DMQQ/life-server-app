@@ -5,6 +5,8 @@ import * as dayjs from 'dayjs';
 import * as timezone from 'dayjs/plugin/timezone';
 import * as utc from 'dayjs/plugin/utc';
 import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
+import { EventSeriesEntity } from './entities/event-series.entity';
+import { expandSeriesDates, SeriesRecurrenceConfig } from './recurrence-engine';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -18,6 +20,7 @@ interface FindEventsResponse {
   endTime: string;
   id: string;
   userId: string;
+  reminderBeforeMinutes?: number;
 }
 
 interface TodoResponse {
@@ -32,6 +35,9 @@ export class TimelineScheduleService {
   constructor(
     @InjectRepository(EventOccurrenceEntity)
     private occurrenceRepo: Repository<EventOccurrenceEntity>,
+
+    @InjectRepository(EventSeriesEntity)
+    private seriesRepo: Repository<EventSeriesEntity>,
   ) {}
 
   async findEventsByTypeWithCurrentTime(type: 'beginTime' | 'endTime'): Promise<FindEventsResponse[]> {
@@ -42,10 +48,12 @@ export class TimelineScheduleService {
     const timeField =
       type === 'beginTime' ? 'COALESCE(o.beginTimeOverride, s.beginTime)' : 'COALESCE(o.endTimeOverride, s.endTime)';
 
-    return this.occurrenceRepo.query(
+    // 1. Real occurrence rows (non-recurring + exceptions)
+    const realEvents: (FindEventsResponse & { seriesId: string })[] = await this.occurrenceRepo.query(
       `
       SELECT
         o.id,
+        s.id as seriesId,
         COALESCE(o.titleOverride, s.title) as title,
         COALESCE(o.descriptionOverride, s.description) as description,
         n.token, n.isEnable,
@@ -65,6 +73,76 @@ export class TimelineScheduleService {
     `,
       [currentDate, currentTime],
     );
+
+    // Track which series already have a real row on this date
+    const coveredSeriesIds = new Set(realEvents.map((e) => e.seriesId));
+
+    // 2. Find recurring series with virtual occurrences on currentDate
+    const recurringSeries = await this.seriesRepo.find({
+      where: { isRepeat: true, notification: true },
+    });
+
+    const virtualEvents: FindEventsResponse[] = [];
+
+    for (const series of recurringSeries) {
+      // Skip if we already have a real row for this series on this date
+      if (coveredSeriesIds.has(series.id)) continue;
+
+      // Get anchor date
+      const anchorOcc = await this.occurrenceRepo.findOne({
+        where: { seriesId: series.id },
+        order: { position: 'ASC' },
+      });
+      if (!anchorOcc || !anchorOcc.date) continue;
+
+      // Skip if this series has a skipped exception row for today
+      const skippedRow = await this.occurrenceRepo.findOne({
+        where: { seriesId: series.id, date: currentDate, isSkipped: true },
+      });
+      if (skippedRow) continue;
+
+      // Check if currentDate falls within recurrence pattern
+      const config: SeriesRecurrenceConfig = {
+        repeatType: series.repeatType || (series.repeatFrequency || 'daily').toUpperCase(),
+        repeatInterval: series.repeatInterval || series.repeatEveryNth || 1,
+        repeatDaysOfWeek: series.repeatDaysOfWeek || null,
+        repeatUntil: series.repeatUntil || null,
+      };
+
+      const dates = expandSeriesDates(config, anchorOcc.date, currentDate, currentDate);
+      if (dates.length === 0) continue;
+
+      // Check if time matches (using series defaults since no override for virtual)
+      const timeToCheck = type === 'beginTime' ? series.beginTime : series.endTime;
+      if (timeToCheck !== currentTime) continue;
+
+      // Check for a completed exception row
+      const completedRow = await this.occurrenceRepo.findOne({
+        where: { seriesId: series.id, date: currentDate, isCompleted: true },
+      });
+      if (completedRow) continue;
+
+      // Get user token
+      const tokenRow = await this.occurrenceRepo.query(
+        `SELECT n.token, n.isEnable FROM notifications n WHERE n.userId = ? AND n.isEnable = 1 AND n.token IS NOT NULL AND n.token != ""`,
+        [series.userId],
+      );
+
+      if (tokenRow.length === 0) continue;
+
+      virtualEvents.push({
+        id: `${series.id}_${currentDate}`, // synthetic ID
+        title: series.title,
+        description: series.description,
+        token: tokenRow[0].token,
+        isEnable: tokenRow[0].isEnable,
+        beginTime: series.beginTime,
+        endTime: series.endTime,
+        userId: series.userId,
+      });
+    }
+
+    return [...realEvents, ...virtualEvents];
   }
 
   async findExpiredEvents(): Promise<{ id: string; title: string; userId: string; token: string }[]> {
@@ -72,7 +150,8 @@ export class TimelineScheduleService {
     const today = warsawTime.format('YYYY-MM-DD');
     const twoDaysAgo = warsawTime.subtract(2, 'day').format('YYYY-MM-DD');
 
-    return this.occurrenceRepo.query(
+    // Real rows
+    const realEvents = await this.occurrenceRepo.query(
       `
       SELECT
         o.id,
@@ -93,9 +172,154 @@ export class TimelineScheduleService {
     `,
       [twoDaysAgo, today],
     );
+
+    // Virtual occurrences from recurring series
+    const recurringSeries = await this.seriesRepo.find({
+      where: { isRepeat: true, notification: true },
+    });
+
+    const virtualResults: { id: string; title: string; userId: string; token: string }[] = [];
+
+    for (const series of recurringSeries) {
+      const anchorOcc = await this.occurrenceRepo.findOne({
+        where: { seriesId: series.id },
+        order: { position: 'ASC' },
+      });
+      if (!anchorOcc || !anchorOcc.date) continue;
+
+      const config: SeriesRecurrenceConfig = {
+        repeatType: series.repeatType || (series.repeatFrequency || 'daily').toUpperCase(),
+        repeatInterval: series.repeatInterval || series.repeatEveryNth || 1,
+        repeatDaysOfWeek: series.repeatDaysOfWeek || null,
+        repeatUntil: series.repeatUntil || null,
+      };
+
+      const dates = expandSeriesDates(config, anchorOcc.date, twoDaysAgo, today);
+      if (dates.length === 0) continue;
+
+      // Get user token
+      const tokenRow = await this.occurrenceRepo.query(
+        `SELECT n.token FROM notifications n WHERE n.userId = ? AND n.isEnable = 1 AND n.token IS NOT NULL AND n.token != ""`,
+        [series.userId],
+      );
+      if (tokenRow.length === 0) continue;
+
+      for (const d of dates) {
+        // Skip if already completed or skipped via exception
+        const exception = await this.occurrenceRepo.findOne({
+          where: {
+            seriesId: series.id,
+            date: d.date,
+          },
+        });
+        if (exception?.isCompleted || exception?.isSkipped) continue;
+
+        virtualResults.push({
+          id: `${series.id}_${d.date}`,
+          title: series.title,
+          userId: series.userId,
+          token: tokenRow[0].token,
+        });
+      }
+    }
+
+    return [...realEvents, ...virtualResults];
+  }
+
+  /**
+   * Find events that have a reminderBeforeMinutes set and should fire now.
+   * Checks if (beginTime - reminderBeforeMinutes) matches current time.
+   */
+  async findEventsWithReminderBefore(): Promise<FindEventsResponse[]> {
+    const warsawTime = dayjs().tz('Europe/Warsaw');
+    const currentDate = warsawTime.format('YYYY-MM-DD');
+
+    // Find all series with reminderBeforeMinutes set
+    const seriesList = await this.seriesRepo.find({
+      where: { isRepeat: true, notification: true },
+    });
+
+    const results: FindEventsResponse[] = [];
+
+    for (const series of seriesList) {
+      if (!series.reminderBeforeMinutes || !series.beginTime) continue;
+
+      // Calculate when the reminder should fire
+      const eventTime = dayjs.tz(`${currentDate} ${series.beginTime}`, 'Europe/Warsaw');
+      const reminderTime = eventTime.subtract(series.reminderBeforeMinutes, 'minute');
+
+      // Check if current time matches reminder time
+      const now = warsawTime;
+      const diffMinutes = now.diff(reminderTime, 'minute');
+
+      // Allow 1-minute window (cron runs every minute)
+      if (diffMinutes !== 0) continue;
+
+      // Check if this series has an occurrence on currentDate
+      const anchorOcc = await this.occurrenceRepo.findOne({
+        where: { seriesId: series.id },
+        order: { position: 'ASC' },
+      });
+      if (!anchorOcc || !anchorOcc.date) continue;
+
+      const config: SeriesRecurrenceConfig = {
+        repeatType: series.repeatType || (series.repeatFrequency || 'daily').toUpperCase(),
+        repeatInterval: series.repeatInterval || series.repeatEveryNth || 1,
+        repeatDaysOfWeek: series.repeatDaysOfWeek || null,
+        repeatUntil: series.repeatUntil || null,
+      };
+
+      const dates = expandSeriesDates(config, anchorOcc.date, currentDate, currentDate);
+      if (dates.length === 0) continue;
+
+      // Check not completed or skipped
+      const exception = await this.occurrenceRepo.findOne({
+        where: { seriesId: series.id, date: currentDate },
+      });
+      if (exception?.isCompleted || exception?.isSkipped) continue;
+
+      // Get user token
+      const tokenRow = await this.occurrenceRepo.query(
+        `SELECT n.token, n.isEnable FROM notifications n WHERE n.userId = ? AND n.isEnable = 1 AND n.token IS NOT NULL AND n.token != ""`,
+        [series.userId],
+      );
+      if (tokenRow.length === 0) continue;
+
+      results.push({
+        id: `${series.id}_${currentDate}`,
+        title: series.title,
+        description: series.description,
+        token: tokenRow[0].token,
+        isEnable: tokenRow[0].isEnable,
+        beginTime: series.beginTime,
+        endTime: series.endTime,
+        userId: series.userId,
+        reminderBeforeMinutes: series.reminderBeforeMinutes,
+      });
+    }
+
+    return results;
   }
 
   async getUncompletedTodosForUser(occurrenceId: string): Promise<TodoResponse[]> {
+    // Handle synthetic IDs
+    let realId = occurrenceId;
+    if (occurrenceId.includes('_') && occurrenceId.length > 36) {
+      const parts = occurrenceId.split('_');
+      if (parts.length >= 2) {
+        const seriesId = parts[0];
+        const date = parts.slice(1).join('_');
+        const occ = await this.occurrenceRepo.findOne({
+          where: { seriesId, date },
+        });
+        if (occ) {
+          realId = occ.id;
+        } else {
+          return []; // Virtual occurrence with no real row has no todos
+        }
+      }
+    }
+
     return this.occurrenceRepo.query(
       `
       SELECT
@@ -108,7 +332,7 @@ export class TimelineScheduleService {
       ORDER BY ot.createdAt DESC
       LIMIT 20
     `,
-      [occurrenceId],
+      [realId],
     );
   }
 }

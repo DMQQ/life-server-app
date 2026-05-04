@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import * as dayjs from 'dayjs';
 import { Repository } from 'typeorm';
 import { EventSeriesEntity } from './entities/event-series.entity';
 import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
@@ -24,7 +23,8 @@ export class EventSeriesService {
     input: CreateEventInput & { userId: string },
     repeat?: RepeatInput,
   ): Promise<{ series: EventSeriesEntity; occurrences: EventOccurrenceEntity[] }> {
-    const isRepeat = !!(repeat?.repeatOn);
+    const isRepeat = !!(repeat?.repeatType || repeat?.repeatOn);
+    const anchorDate = repeat?.startDate || input.date || null;
 
     const series = await this.seriesRepo.save({
       title: input.title,
@@ -37,23 +37,29 @@ export class EventSeriesService {
       isRepeat,
       priority: input.priority ?? 0,
       ...(isRepeat && {
-        repeatFrequency: repeat.repeatOn,
-        repeatEveryNth: repeat.repeatEveryNth,
-        repeatCount: repeat.repeatCount,
+        // New recurrence fields
+        repeatType: repeat.repeatType || (repeat.repeatOn ? repeat.repeatOn.toUpperCase() : null),
+        repeatDaysOfWeek: repeat.repeatDaysOfWeek?.join(',') || null,
+        repeatInterval: repeat.repeatInterval || repeat.repeatEveryNth || 1,
+        repeatUntil: repeat.repeatUntil || null,
+        reminderBeforeMinutes: repeat.reminderBeforeMinutes || null,
+        // Legacy fields for backward compat
+        repeatFrequency: repeat.repeatOn || null,
+        repeatEveryNth: repeat.repeatEveryNth || null,
+        repeatCount: repeat.repeatCount || null,
       }),
     });
 
-    const dates: (string | null)[] = isRepeat
-      ? this._generateDates(repeat.startDate || input.date, repeat.repeatCount, repeat.repeatEveryNth, repeat.repeatOn)
-      : [input.date ?? null];
-
-    const occurrences = await this.occurrenceRepo.save(
-      dates.map((date, position) => ({
+    // Create only the anchor occurrence (one row). Virtual occurrences
+    // for other dates are generated on-the-fly by the recurrence engine.
+    const occurrences = await this.occurrenceRepo.save([
+      {
         seriesId: series.id,
-        date,
-        position,
-      })),
-    );
+        date: anchorDate,
+        position: 0,
+        isException: false,
+      },
+    ]);
 
     return { series, occurrences };
   }
@@ -86,17 +92,11 @@ export class EventSeriesService {
     await this.seriesRepo.delete({ id: seriesId });
   }
 
-  private _generateDates(
-    startDate: string,
-    count: number,
-    everyNth: number,
-    frequency: string,
-  ): string[] {
-    const unit: dayjs.ManipulateType = frequency === 'daily' ? 'days' : 'weeks';
-    const dates: string[] = [];
-    for (let i = 0; i < count; i++) {
-      dates.push(dayjs(startDate).add(i * everyNth, unit).format('YYYY-MM-DD'));
-    }
-    return dates;
+  async getAnchorDate(seriesId: string): Promise<string | null> {
+    const occ = await this.occurrenceRepo.findOne({
+      where: { seriesId, position: 0 },
+      order: { position: 'ASC' },
+    });
+    return occ?.date || null;
   }
 }

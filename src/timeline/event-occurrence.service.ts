@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as dayjs from 'dayjs';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EventOccurrenceEntity } from './entities/event-occurrence.entity';
 import { EventSeriesEntity } from './entities/event-series.entity';
@@ -17,27 +17,50 @@ import {
   CreateEventInput,
   RepeatInput,
 } from './timeline.schemas';
+import {
+  expandSeriesDates,
+  seriesHasOccurrenceOnDate,
+  SeriesRecurrenceConfig,
+} from './recurrence-engine';
 
 function excludeSeconds(time: string): string {
   return [...time.split(':').slice(0, 2), '00'].join(':');
 }
 
-function buildView(occurrence: EventOccurrenceEntity, series: EventSeriesEntity): OccurrenceView {
+/** Normalize a Date object or string to YYYY-MM-DD string */
+function toDateString(v: string | Date | null): string {
+  if (!v) return '';
+  if (typeof v === 'string') return v;
+  // Date object from raw MySQL query
+  const d = v as Date;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function buildView(
+  occurrence: Pick<
+    EventOccurrenceEntity,
+    'id' | 'seriesId' | 'date' | 'position' | 'isCompleted' | 'isSkipped'
+    | 'titleOverride' | 'descriptionOverride' | 'beginTimeOverride' | 'endTimeOverride'
+    | 'isException' | 'todos' | 'images'
+  > & { series?: Pick<EventSeriesEntity, 'title' | 'description' | 'beginTime' | 'endTime' | 'isAllDay' | 'isRepeat' | 'tags' | 'priority' | 'reminderBeforeMinutes'> },
+): OccurrenceView {
+  const series = occurrence.series;
   return {
     id: occurrence.id,
     seriesId: occurrence.seriesId,
     date: occurrence.date,
     position: occurrence.position,
-    title: occurrence.titleOverride ?? series.title,
-    description: occurrence.descriptionOverride ?? series.description,
-    beginTime: occurrence.beginTimeOverride ?? series.beginTime,
-    endTime: occurrence.endTimeOverride ?? series.endTime,
+    title: occurrence.titleOverride ?? series?.title ?? '',
+    description: occurrence.descriptionOverride ?? series?.description ?? '',
+    beginTime: occurrence.beginTimeOverride ?? series?.beginTime ?? null,
+    endTime: occurrence.endTimeOverride ?? series?.endTime ?? null,
     isCompleted: occurrence.isCompleted,
     isSkipped: occurrence.isSkipped,
-    isAllDay: series.isAllDay,
-    isRepeat: series.isRepeat,
-    tags: series.tags,
-    priority: series.priority,
+    isAllDay: series?.isAllDay ?? false,
+    isRepeat: series?.isRepeat ?? false,
+    tags: series?.tags ?? '',
+    priority: series?.priority ?? 0,
+    reminderBeforeMinutes: series?.reminderBeforeMinutes ?? null,
     todos: (occurrence.todos || []).map((t) => ({
       id: t.id,
       title: t.title,
@@ -54,6 +77,22 @@ function buildView(occurrence: EventOccurrenceEntity, series: EventSeriesEntity)
       isPublic: img.isPublic,
     })) as OccurrenceFileView[],
   };
+}
+
+/** Synthetic ID for virtual occurrences: seriesId_date */
+function syntheticId(seriesId: string, date: string): string {
+  return `${seriesId}_${date}`;
+}
+
+function isSyntheticId(id: string): boolean {
+  // Real UUIDs have 36 chars (with dashes). Synthetic IDs are longer.
+  return id.length > 36 && id.includes('_');
+}
+
+function parseSyntheticId(id: string): { seriesId: string; date: string } | null {
+  const parts = id.split('_');
+  if (parts.length < 2) return null;
+  return { seriesId: parts[0], date: parts.slice(1).join('_') };
 }
 
 @Injectable()
@@ -105,37 +144,155 @@ export class EventOccurrenceService {
   async findByDate(opts: {
     userId: string;
     date?: string;
+    endDate?: string;
     query?: string;
     pagination?: { skip: number; take: number };
   }): Promise<OccurrenceView[]> {
-    const qb = this.occurrenceRepo
+    const { date } = opts;
+    const rangeEnd = opts.endDate || date;
+
+    // Without a specific date, return only real rows (can't materialize infinite recurrence)
+    if (!date) {
+      const qb = this.occurrenceRepo
+        .createQueryBuilder('o')
+        .innerJoinAndSelect('o.series', 's')
+        .leftJoinAndSelect('o.todos', 'todos')
+        .leftJoinAndSelect('todos.files', 'todoFiles')
+        .leftJoinAndSelect('o.images', 'images')
+        .where('s.userId = :userId', { userId: opts.userId })
+        .orderBy('COALESCE(o.beginTimeOverride, s.beginTime)', 'DESC')
+        .addOrderBy('todos.isCompleted', 'ASC')
+        .addOrderBy('todos.modifiedAt', 'DESC');
+
+      if (opts.query) {
+        qb.andWhere(
+          '(COALESCE(o.titleOverride, s.title) LIKE :q OR COALESCE(o.descriptionOverride, s.description) LIKE :q)',
+          { q: `%${opts.query}%` },
+        );
+      }
+
+      if (opts.pagination) {
+        qb.skip(opts.pagination.skip).take(opts.pagination.take);
+      }
+
+      const results = await qb.getMany();
+      return results.map((occ) => buildView(occ));
+    }
+
+    // ── Date or date range: expand recurring series + real rows ────────────
+
+    const views: OccurrenceView[] = [];
+
+    // 1. Find ALL series for this user
+    const allSeries = await this.seriesRepo.find({
+      where: { userId: opts.userId },
+      relations: [],
+    });
+
+    // 2. Get all real occurrence rows in the date range (including exception rows)
+    const realOccurrences = await this.occurrenceRepo
       .createQueryBuilder('o')
-      .innerJoinAndSelect('o.series', 's')
       .leftJoinAndSelect('o.todos', 'todos')
       .leftJoinAndSelect('todos.files', 'todoFiles')
       .leftJoinAndSelect('o.images', 'images')
-      .where('s.userId = :userId', { userId: opts.userId })
-      .orderBy('COALESCE(o.beginTimeOverride, s.beginTime)', 'DESC')
+      .where('o.seriesId IN (:...seriesIds)', { seriesIds: allSeries.map((s) => s.id) })
+      .andWhere('(o.date >= :date AND o.date <= :rangeEnd)', { date, rangeEnd })
+      .orderBy('o.date', 'ASC')
       .addOrderBy('todos.isCompleted', 'ASC')
-      .addOrderBy('todos.modifiedAt', 'DESC');
+      .addOrderBy('todos.modifiedAt', 'DESC')
+      .addOrderBy('images.createdAt', 'DESC')
+      .getMany();
 
-    if (opts.date) {
-      qb.andWhere('(o.date = :date OR o.date IS NULL)', { date: opts.date });
+    // Index real rows by seriesId + date for quick lookup
+    const realOccMap = new Map<string, EventOccurrenceEntity>();
+    for (const occ of realOccurrences) {
+      const key = `${occ.seriesId}_${toDateString(occ.date)}`;
+      realOccMap.set(key, occ);
     }
 
+    // 3. Build views per series
+    for (const series of allSeries) {
+      if (!series.isRepeat) {
+        // Non-recurring: use real rows
+        for (const occ of realOccurrences) {
+          if (occ.seriesId === series.id) {
+            views.push(buildView({ ...occ, series }));
+          }
+        }
+        continue;
+      }
+
+      // Recurring: expand across the date range
+      const anchorDate = await this.seriesService.getAnchorDate(series.id);
+      if (!anchorDate) continue;
+
+      const config: SeriesRecurrenceConfig = {
+        repeatType: series.repeatType || (series.repeatFrequency || 'daily').toUpperCase(),
+        repeatInterval: series.repeatInterval || series.repeatEveryNth || 1,
+        repeatDaysOfWeek: series.repeatDaysOfWeek || null,
+        repeatUntil: series.repeatUntil || null,
+      };
+
+      const generatedDates = expandSeriesDates(config, anchorDate, date, rangeEnd);
+
+      for (const gen of generatedDates) {
+        const key = `${series.id}_${gen.date}`;
+        const realOcc = realOccMap.get(key);
+
+        if (realOcc) {
+          if (!realOcc.isSkipped) {
+            views.push(buildView({ ...realOcc, series }));
+          }
+        } else {
+          views.push(
+            buildView({
+              id: syntheticId(series.id, gen.date),
+              seriesId: series.id,
+              date: gen.date,
+              position: gen.position,
+              isCompleted: false,
+              isSkipped: false,
+              isException: false,
+              titleOverride: null,
+              descriptionOverride: null,
+              beginTimeOverride: null,
+              endTimeOverride: null,
+              todos: [],
+              images: [],
+              series,
+            }),
+          );
+        }
+      }
+    }
+
+    // 4. Apply query filter
+    let filtered = views;
     if (opts.query) {
-      qb.andWhere(
-        '(COALESCE(o.titleOverride, s.title) LIKE :q OR COALESCE(o.descriptionOverride, s.description) LIKE :q)',
-        { q: `%${opts.query}%` },
+      const q = opts.query.toLowerCase();
+      filtered = filtered.filter(
+        (v) =>
+          v.title.toLowerCase().includes(q) ||
+          v.description.toLowerCase().includes(q),
       );
     }
 
+    // 5. Sort by date ASC, then beginTime ASC
+    filtered.sort((a, b) => {
+      const dateCmp = (a.date || '').localeCompare(b.date || '');
+      if (dateCmp !== 0) return dateCmp;
+      return (a.beginTime || '').localeCompare(b.beginTime || '');
+    });
+
+    // 6. Paginate
     if (opts.pagination) {
-      qb.skip(opts.pagination.skip).take(opts.pagination.take);
+      filtered = filtered.slice(
+        opts.pagination.skip,
+        opts.pagination.skip + opts.pagination.take,
+      );
     }
 
-    const results = await qb.getMany();
-    return results.map((occ) => buildView(occ, occ.series));
+    return filtered;
   }
 
   async findMonthOccurrences(userId: string, date: string): Promise<{ date: string }[]> {
@@ -143,7 +300,8 @@ export class EventOccurrenceService {
     const startDate = `${year}-${month}-01`;
     const endDate = dayjs(startDate).endOf('month').format('YYYY-MM-DD');
 
-    return this.occurrenceRepo
+    // Real rows (non-recurring + exceptions)
+    const realRows = await this.occurrenceRepo
       .createQueryBuilder('o')
       .innerJoin('o.series', 's')
       .select('o.date', 'date')
@@ -152,9 +310,121 @@ export class EventOccurrenceService {
       .andWhere('o.date <= :endDate', { endDate })
       .andWhere('o.isSkipped = false')
       .getRawMany();
+
+    const dateSet = new Set<string>(
+      realRows.map((r) => toDateString(r.date)).filter(Boolean),
+    );
+
+    // Recurring series — expand across the month
+    const recurringSeries = await this.seriesRepo.find({
+      where: { userId, isRepeat: true },
+      relations: [],
+    });
+
+    for (const series of recurringSeries) {
+      const anchorDate = await this.seriesService.getAnchorDate(series.id);
+      if (!anchorDate) continue;
+
+      const config: SeriesRecurrenceConfig = {
+        repeatType: series.repeatType || (series.repeatFrequency || 'daily').toUpperCase(),
+        repeatInterval: series.repeatInterval || series.repeatEveryNth || 1,
+        repeatDaysOfWeek: series.repeatDaysOfWeek || null,
+        repeatUntil: series.repeatUntil || null,
+      };
+
+      // Skip if repeatUntil is before the month start
+      if (series.repeatUntil && series.repeatUntil < startDate) continue;
+
+      const dates = expandSeriesDates(config, anchorDate, startDate, endDate);
+
+      // Check for skipped exception rows for these dates
+      const skippedDates = new Set<string>();
+      if (dates.length > 0) {
+        const exceptions = await this.occurrenceRepo.find({
+          where: {
+            seriesId: series.id,
+            date: In(dates.map((d) => d.date)),
+            isSkipped: true,
+          },
+        });
+        for (const exc of exceptions) {
+          if (exc.date) skippedDates.add(toDateString(exc.date));
+        }
+      }
+
+      for (const d of dates) {
+        if (!skippedDates.has(d.date)) {
+          dateSet.add(d.date);
+        }
+      }
+    }
+
+    return Array.from(dateSet)
+      .map((d) => ({ date: d }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   async findById(id: string, userId: string): Promise<OccurrenceView> {
+    // Handle synthetic IDs (virtual occurrences)
+    if (isSyntheticId(id)) {
+      const parsed = parseSyntheticId(id);
+      if (!parsed) throw new NotFoundException(`Occurrence ${id} not found`);
+
+      const series = await this.seriesRepo.findOne({
+        where: { id: parsed.seriesId, userId },
+        relations: [],
+      });
+      if (!series) throw new NotFoundException(`Series ${parsed.seriesId} not found`);
+
+      // Check if a real row exists (was created as exception)
+      const realOcc = await this.occurrenceRepo
+        .createQueryBuilder('o')
+        .leftJoinAndSelect('o.todos', 'todos')
+        .leftJoinAndSelect('todos.files', 'todoFiles')
+        .leftJoinAndSelect('o.images', 'images')
+        .where('o.seriesId = :seriesId', { seriesId: parsed.seriesId })
+        .andWhere('o.date = :date', { date: parsed.date })
+        .getOne();
+
+      if (realOcc) {
+        const occWithSeries = { ...realOcc, series };
+        return buildView(occWithSeries);
+      }
+
+      // Virtual occurrence
+      const anchorDate = await this.seriesService.getAnchorDate(series.id);
+      const config: SeriesRecurrenceConfig = {
+        repeatType: series.repeatType || (series.repeatFrequency || 'daily').toUpperCase(),
+        repeatInterval: series.repeatInterval || series.repeatEveryNth || 1,
+        repeatDaysOfWeek: series.repeatDaysOfWeek || null,
+        repeatUntil: series.repeatUntil || null,
+      };
+
+      const positions = anchorDate
+        ? expandSeriesDates(config, anchorDate, parsed.date, parsed.date)
+        : [];
+      const pos = positions.length > 0 ? positions[0].position : 0;
+
+      const virtualOcc = {
+        id: syntheticId(series.id, parsed.date),
+        seriesId: series.id,
+        date: parsed.date,
+        position: pos,
+        isCompleted: false,
+        isSkipped: false,
+        isException: false,
+        titleOverride: null,
+        descriptionOverride: null,
+        beginTimeOverride: null,
+        endTimeOverride: null,
+        todos: [],
+        images: [],
+        series,
+      };
+      return buildView(virtualOcc);
+    }
+
+    // Real ID — existing lookup
     const occ = await this.occurrenceRepo
       .createQueryBuilder('o')
       .innerJoinAndSelect('o.series', 's')
@@ -169,7 +439,7 @@ export class EventOccurrenceService {
       .getOne();
 
     if (!occ) throw new NotFoundException(`Occurrence ${id} not found`);
-    return buildView(occ, occ.series);
+    return buildView(occ);
   }
 
   async findByCurrentDate(userId: string): Promise<OccurrenceView[]> {
@@ -183,10 +453,19 @@ export class EventOccurrenceService {
     input: EditOccurrenceInput,
     scope: 'THIS_ONLY' | 'ALL',
   ): Promise<OccurrenceView> {
+    // Resolve synthetic ID to real row if needed
+    let realId = id;
+    if (isSyntheticId(id)) {
+      const parsed = parseSyntheticId(id);
+      if (!parsed) throw new NotFoundException(`Invalid occurrence id ${id}`);
+      const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+      realId = occ.id;
+    }
+
     const occ = await this.occurrenceRepo
       .createQueryBuilder('o')
       .innerJoinAndSelect('o.series', 's')
-      .where('o.id = :id', { id })
+      .where('o.id = :id', { id: realId })
       .andWhere('s.userId = :userId', { userId })
       .getOne();
 
@@ -199,7 +478,8 @@ export class EventOccurrenceService {
       if (input.beginTime !== undefined) overrides.beginTimeOverride = excludeSeconds(input.beginTime);
       if (input.endTime !== undefined) overrides.endTimeOverride = excludeSeconds(input.endTime);
       if (input.date !== undefined) overrides.date = input.date;
-      await this.occurrenceRepo.update({ id }, overrides);
+      overrides.isException = true;
+      await this.occurrenceRepo.update({ id: realId }, overrides);
     } else {
       await this.seriesService.updateSeriesFields(occ.seriesId, {
         ...(input.title !== undefined && { title: input.title }),
@@ -212,19 +492,64 @@ export class EventOccurrenceService {
       await this.seriesService.clearAllOverrides(occ.seriesId);
     }
 
-    return this._loadView(id);
+    return this._loadView(realId);
   }
 
   async completeOccurrence(id: string, isCompleted: boolean): Promise<OccurrenceView> {
-    await this.occurrenceRepo.update({ id }, { isCompleted });
-    return this._loadView(id);
+    let realId = id;
+
+    // Virtual occurrence — create a real row first
+    if (isSyntheticId(id)) {
+      const parsed = parseSyntheticId(id);
+      if (!parsed) throw new NotFoundException(`Invalid occurrence id ${id}`);
+      const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+      realId = occ.id;
+    }
+
+    await this.occurrenceRepo.update({ id: realId }, { isCompleted });
+    return this._loadView(realId);
   }
 
   async deleteOccurrence(id: string, userId: string, scope: 'THIS_ONLY' | 'ALL'): Promise<boolean> {
+    let realId = id;
+    let date: string | null = null;
+
+    // Resolve synthetic ID
+    if (isSyntheticId(id)) {
+      const parsed = parseSyntheticId(id);
+      if (!parsed) throw new NotFoundException(`Invalid occurrence id ${id}`);
+      date = parsed.date;
+
+      // Check if a real row already exists
+      const existing = await this.occurrenceRepo.findOne({
+        where: { seriesId: parsed.seriesId, date: parsed.date },
+      });
+
+      if (existing) {
+        realId = existing.id;
+      } else if (scope === 'THIS_ONLY') {
+        // Create an exception row marked as skipped (don't store the occurrence, just skip it)
+        const newOcc = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        await this.occurrenceRepo.update({ id: newOcc.id }, { isSkipped: true, isException: true });
+        return true;
+      } else {
+        // ALL scope but no real row — delete the series directly
+        const occ = await this.occurrenceRepo.findOne({
+          where: { seriesId: parsed.seriesId },
+          relations: ['series'],
+        });
+        if (occ) {
+          await this.seriesService.deleteSeries(occ.seriesId);
+          return true;
+        }
+        throw new NotFoundException(`Series ${parsed.seriesId} not found`);
+      }
+    }
+
     const occ = await this.occurrenceRepo
       .createQueryBuilder('o')
       .innerJoin('o.series', 's')
-      .where('o.id = :id', { id })
+      .where('o.id = :id', { id: realId })
       .andWhere('s.userId = :userId', { userId })
       .getOne();
 
@@ -233,7 +558,7 @@ export class EventOccurrenceService {
     if (scope === 'ALL') {
       await this.seriesService.deleteSeries(occ.seriesId);
     } else {
-      await this.occurrenceRepo.delete({ id });
+      await this.occurrenceRepo.delete({ id: realId });
     }
 
     return true;
@@ -242,19 +567,28 @@ export class EventOccurrenceService {
   // ─── Copy ───────────────────────────────────────────────────────────────────
 
   async copyOccurrence(occurrenceId: string, userId: string, newDate?: string): Promise<OccurrenceView> {
+    // Handle synthetic ID
+    let realId = occurrenceId;
+    if (isSyntheticId(occurrenceId)) {
+      const parsed = parseSyntheticId(occurrenceId);
+      if (parsed) {
+        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        realId = occ.id;
+      }
+    }
+
     const source = await this.occurrenceRepo
       .createQueryBuilder('o')
       .innerJoinAndSelect('o.series', 's')
       .leftJoinAndSelect('o.todos', 'todos')
       .leftJoinAndSelect('todos.files', 'todoFiles')
       .leftJoinAndSelect('o.images', 'images')
-      .where('o.id = :id', { id: occurrenceId })
+      .where('o.id = :id', { id: realId })
       .andWhere('s.userId = :userId', { userId })
       .getOne();
 
     if (!source) throw new NotFoundException(`Occurrence ${occurrenceId} not found`);
 
-    // Create a new non-repeating series
     const newSeries = await this.seriesRepo.save({
       title: source.titleOverride ?? source.series.title,
       description: source.descriptionOverride ?? source.series.description,
@@ -270,9 +604,9 @@ export class EventOccurrenceService {
       seriesId: newSeries.id,
       date: newDate || source.date,
       position: 0,
+      isException: false,
     });
 
-    // Copy images
     if (source.images?.length > 0) {
       await this.fileRepo.save(
         source.images.map((img) => ({
@@ -285,7 +619,6 @@ export class EventOccurrenceService {
       );
     }
 
-    // Copy todos and their files
     for (const todo of source.todos || []) {
       const newTodo = await this.todoRepo.save({
         occurrenceId: newOcc.id,
@@ -308,7 +641,16 @@ export class EventOccurrenceService {
   }
 
   async createTodo(occurrenceId: string, title: string): Promise<OccurrenceTodoEntity> {
-    const todo = await this.todoRepo.save({ occurrenceId, title });
+    let realId = occurrenceId;
+    if (isSyntheticId(occurrenceId)) {
+      const parsed = parseSyntheticId(occurrenceId);
+      if (parsed) {
+        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        realId = occ.id;
+      }
+    }
+
+    const todo = await this.todoRepo.save({ occurrenceId: realId, title });
     return this.todoRepo.findOne({ where: { id: todo.id }, relations: ['files'] });
   }
 
@@ -328,15 +670,33 @@ export class EventOccurrenceService {
   }
 
   async transferTodos(sourceOccurrenceId: string, targetOccurrenceId: string): Promise<boolean> {
+    // Resolve synthetic IDs
+    let sourceId = sourceOccurrenceId;
+    if (isSyntheticId(sourceOccurrenceId)) {
+      const parsed = parseSyntheticId(sourceOccurrenceId);
+      if (parsed) {
+        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        sourceId = occ.id;
+      }
+    }
+    let targetId = targetOccurrenceId;
+    if (isSyntheticId(targetOccurrenceId)) {
+      const parsed = parseSyntheticId(targetOccurrenceId);
+      if (parsed) {
+        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        targetId = occ.id;
+      }
+    }
+
     const sourceTodos = await this.todoRepo
       .createQueryBuilder('t')
-      .where('t.occurrenceId = :id', { id: sourceOccurrenceId })
+      .where('t.occurrenceId = :id', { id: sourceId })
       .getMany();
 
     if (!sourceTodos.length) return false;
 
     await this.todoRepo.save(
-      sourceTodos.map((t) => ({ occurrenceId: targetOccurrenceId, title: t.title, isCompleted: false })),
+      sourceTodos.map((t) => ({ occurrenceId: targetId, title: t.title, isCompleted: false })),
     );
 
     return true;
@@ -355,6 +715,30 @@ export class EventOccurrenceService {
 
   // ─── Internal ───────────────────────────────────────────────────────────────
 
+  /**
+   * Ensure a real occurrence row exists for a (seriesId, date) pair.
+   * Creates one with isException=false if it doesn't exist.
+   * Used when a user interacts with a virtual occurrence (complete, skip, edit, add todo).
+   */
+  private async _ensureOccurrenceRow(
+    seriesId: string,
+    date: string,
+    position: number,
+  ): Promise<EventOccurrenceEntity> {
+    let occ = await this.occurrenceRepo.findOne({
+      where: { seriesId, date },
+    });
+    if (!occ) {
+      occ = await this.occurrenceRepo.save({
+        seriesId,
+        date,
+        position,
+        isException: false,
+      });
+    }
+    return occ;
+  }
+
   private async _loadView(id: string): Promise<OccurrenceView> {
     const occ = await this.occurrenceRepo
       .createQueryBuilder('o')
@@ -369,6 +753,6 @@ export class EventOccurrenceService {
       .getOne();
 
     if (!occ) throw new NotFoundException(`Occurrence ${id} not found`);
-    return buildView(occ, occ.series);
+    return buildView(occ);
   }
 }

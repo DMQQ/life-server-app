@@ -60,6 +60,7 @@ export class EventSeriesEntity {
   @Column({ type: 'boolean', default: false })
   isRepeat: boolean;
 
+  // ── Legacy recurrence columns (kept for existing data migration) ──
   @Field({ nullable: true })
   @Column({ type: 'varchar', length: 20, nullable: true })
   repeatFrequency: string;
@@ -71,6 +72,27 @@ export class EventSeriesEntity {
   @Field(() => Int, { nullable: true })
   @Column({ type: 'int', nullable: true })
   repeatCount: number;
+
+  // ── New recurrence columns ──
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  repeatType: string; // 'DAILY' | 'WEEKLY' | 'MONTHLY'
+
+  @Field(() => String, { nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  repeatDaysOfWeek: string; // comma-separated day numbers: 0=Sun,1=Mon,...,6=Sat
+
+  @Field(() => Int, { nullable: true })
+  @Column({ type: 'int', nullable: true, default: 1 })
+  repeatInterval: number; // every N days/weeks/months (replaces repeatEveryNth)
+
+  @Field({ nullable: true })
+  @Column({ type: 'date', nullable: true })
+  repeatUntil: string; // null = infinite, YYYY-MM-DD = stop on this date
+
+  @Field(() => Int, { nullable: true })
+  @Column({ type: 'int', nullable: true })
+  reminderBeforeMinutes: number; // null = no reminder, N = notify N minutes before beginTime
 
   @CreateDateColumn()
   createdAt: Date;

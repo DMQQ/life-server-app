@@ -101,7 +101,40 @@ export class TimelineSchedule extends BaseScheduler {
     }
   }
 
-  // Runs daily at 9 PM Warsaw time
+  // ── Reminder before event (every minute) ────────────────────────────────────
+
+  @Cron('0 * * * * *', { timeZone: 'Europe/Warsaw' })
+  async handleReminderBefore() {
+    const events = await this.timelineScheduleService.findEventsWithReminderBefore();
+
+    for (const event of events) {
+      const userToken = await this.notificationService.findUserToken(event.userId);
+      if (!userToken?.token) {
+        console.log(`No push token for user ${event.userId}, skipping reminder`);
+        continue;
+      }
+
+      if (!this.isNotificationEnabled(userToken, 'timeline_reminder_before')) continue;
+
+      try {
+        await this.sendSingleNotification(
+          {
+            to: userToken.token,
+            title: 'Upcoming event',
+            body: `${event.title} in ${event.reminderBeforeMinutes} min`,
+            sound: 'default',
+          },
+          event.userId,
+        );
+        console.log(`Reminder notification sent for event ${event.id}`);
+      } catch (error) {
+        console.error(`Failed to send reminder for event ${event.id}:`, error);
+      }
+    }
+  }
+
+  // ── Missed event reminders (daily at 9 PM Warsaw time) ──────────────────────
+
   @Cron('0 0 21 * * *', { timeZone: 'Europe/Warsaw' })
   async handleExpiredEventReminders() {
     const events = await this.timelineScheduleService.findExpiredEvents();

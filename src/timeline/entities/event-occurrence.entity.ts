@@ -43,6 +43,10 @@ export class EventOccurrenceEntity {
   @Column({ type: 'boolean', default: false })
   isSkipped: boolean;
 
+  @Field()
+  @Column({ type: 'boolean', default: false })
+  isException: boolean; // true = this row represents an override/skip/completion for a specific date
+
   @Field({ nullable: true })
   @Column({ type: 'varchar', length: 150, nullable: true })
   titleOverride: string;

@@ -63,10 +63,11 @@ export class EventOccurrenceResolver {
   occurrences(
     @User() userId: string,
     @Args('date', { nullable: true }) date: string,
+    @Args('endDate', { nullable: true }) endDate: string,
     @Args('query', { nullable: true }) query: string,
     @Args('pagination', { nullable: true, type: () => PaginationInput }) pagination: PaginationInput,
   ) {
-    return this.occurrenceService.findByDate({ userId, date, query, pagination });
+    return this.occurrenceService.findByDate({ userId, date, endDate, query, pagination });
   }
 
   @Query(() => [MonthDay])
