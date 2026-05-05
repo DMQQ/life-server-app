@@ -147,9 +147,9 @@ export class EventOccurrenceResolver {
   @Mutation(() => OccurrenceTodoEntity)
   @InvalidateCache({ invalidateCurrentUser: true })
   async completeOccurrenceTodo(
-    @Args('input', { type: () => CompleteOccurrenceTodoInput }) { id, isCompleted }: CompleteOccurrenceTodoInput,
+    @Args('input', { type: () => CompleteOccurrenceTodoInput }) { id, isCompleted, occurrenceId }: CompleteOccurrenceTodoInput,
   ) {
-    return this.occurrenceService.completeTodo(id, isCompleted);
+    return this.occurrenceService.completeTodo(id, isCompleted, occurrenceId);
   }
 
   @Mutation(() => Boolean)

@@ -683,7 +683,28 @@ export class EventOccurrenceService {
     return this.todoRepo.findOne({ where: { id: todo.id }, relations: ['files'] });
   }
 
-  async completeTodo(id: string, isCompleted: boolean): Promise<OccurrenceTodoEntity> {
+  async completeTodo(id: string, isCompleted: boolean, occurrenceId?: string): Promise<OccurrenceTodoEntity> {
+    // If the occurrence is virtual (synthetic ID), materialize it first so we
+    // complete an independent copy of the todo rather than the anchor's todo.
+    if (occurrenceId && isSyntheticId(occurrenceId)) {
+      const parsed = parseSyntheticId(occurrenceId);
+      if (parsed) {
+        // Materialize the row (copies anchor todos into it)
+        const realOcc = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        // Find the corresponding copied todo by title (anchor todo id is no longer valid)
+        const anchorTodo = await this.todoRepo.findOne({ where: { id } });
+        if (anchorTodo) {
+          const copiedTodo = await this.todoRepo.findOne({
+            where: { occurrenceId: realOcc.id, title: anchorTodo.title },
+          });
+          if (copiedTodo) {
+            await this.todoRepo.update({ id: copiedTodo.id }, { isCompleted });
+            return this.todoRepo.findOne({ where: { id: copiedTodo.id }, relations: ['files'] });
+          }
+        }
+      }
+    }
+
     await this.todoRepo.update({ id }, { isCompleted });
     return this.todoRepo.findOne({ where: { id }, relations: ['files'] });
   }

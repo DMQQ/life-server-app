@@ -84,6 +84,9 @@ export class CompleteOccurrenceTodoInput {
 
   @Field(() => Boolean)
   isCompleted: boolean;
+
+  @Field(() => ID, { nullable: true })
+  occurrenceId?: string;
 }
 
 @InputType()
