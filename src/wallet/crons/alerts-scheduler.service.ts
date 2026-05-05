@@ -8,6 +8,7 @@ import { ExpenseType, LimitRange } from '../entities/wallet.entity';
 import { SubscriptionEntity } from '../entities/subscription.entity';
 import { ExpenseService } from '../services/expense.service';
 import { LimitsService } from '../services/limits.service';
+import { SubAccountService } from '../services/sub-account.service';
 import { SubscriptionService } from '../services/subscriptions.service';
 import { WalletService } from '../services/wallet.service';
 import { BaseScheduler } from '../../notifications/scheduler-base.service';
@@ -20,6 +21,7 @@ export class AlertsSchedulerService extends BaseScheduler {
     private limitsService: LimitsService,
     private subscriptionService: SubscriptionService,
     private expenseService: ExpenseService,
+    private subAccountService: SubAccountService,
   ) {
     super(notificationService);
   }
@@ -145,17 +147,35 @@ export class AlertsSchedulerService extends BaseScheduler {
         const isFinal = finalReminders.length > 0;
         const daysLabel = isFinal ? 'tomorrow' : `in ${subs[0].reminderDaysBeforehand} days`;
         const totalAmount = subs.reduce((sum, s) => sum + s.amount, 0);
-        const hasEnoughBalance = wallet.balance >= totalAmount;
-        const balanceWarning = hasEnoughBalance
-          ? ''
-          : ` ⚠️ Insufficient balance! Current: ${wallet.balance.toFixed(2)}zł`;
+
+        const subAccountBalances = new Map<string, number>();
+        for (const sub of subs) {
+          if (sub.subAccountId && !subAccountBalances.has(sub.subAccountId)) {
+            const accounts = await this.subAccountService.getAll(user.userId);
+            const account = accounts.find((a) => a.id === sub.subAccountId);
+            if (account) subAccountBalances.set(sub.subAccountId, account.balance);
+          }
+        }
+
+        const hasEnoughBalance = subs.every((sub) => {
+          const balance = sub.subAccountId ? (subAccountBalances.get(sub.subAccountId) ?? 0) : wallet.balance;
+          return balance >= sub.amount;
+        });
+
+        const buildBalanceWarning = (sub: SubscriptionEntity) => {
+          if (sub.subAccountId) {
+            const balance = subAccountBalances.get(sub.subAccountId) ?? 0;
+            return balance < sub.amount ? ` ⚠️ Insufficient sub-account balance! Current: ${balance.toFixed(2)}zł` : '';
+          }
+          return wallet.balance < sub.amount ? ` ⚠️ Insufficient balance! Current: ${wallet.balance.toFixed(2)}zł` : '';
+        };
 
         if (subs.length === 1) {
           return {
             to: user.token,
             sound: 'default',
             title: isFinal ? '📆 Subscription Reminder' : '📅 Upcoming Subscription',
-            body: `🔄 ${subs[0].description} - ${subs[0].amount.toFixed(2)}zł due ${daysLabel}.${balanceWarning}`,
+            body: `🔄 ${subs[0].description} - ${subs[0].amount.toFixed(2)}zł due ${daysLabel}.${buildBalanceWarning(subs[0])}`,
             data: {
               type: 'subscription_reminder',
               subscriptionId: subs[0].id,
@@ -165,6 +185,7 @@ export class AlertsSchedulerService extends BaseScheduler {
           } as ExpoPushMessage;
         }
 
+        const balanceWarning = hasEnoughBalance ? '' : ` ⚠️ Insufficient balance for some subscriptions!`;
         return {
           to: user.token,
           sound: 'default',

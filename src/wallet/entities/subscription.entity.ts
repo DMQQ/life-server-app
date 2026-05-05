@@ -1,6 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { ObjectType, Field, ID, Int, Float } from '@nestjs/graphql';
-import { ExpenseEntity } from '../entities/wallet.entity';
+import { ExpenseEntity, WalletSubAccount } from '../entities/wallet.entity';
 
 export enum BillingCycleEnum {
   DAILY = 'daily',
@@ -78,6 +78,14 @@ export class SubscriptionEntity {
   @Column({ type: 'uuid', nullable: false })
   @Field(() => ID)
   walletId: string;
+
+  @Column({ type: 'uuid', nullable: true, default: null })
+  @Field(() => ID, { nullable: true })
+  subAccountId: string | null;
+
+  @ManyToOne(() => WalletSubAccount, { nullable: true, eager: false })
+  @JoinColumn({ name: 'subAccountId' })
+  subAccount: WalletSubAccount;
 
   static formatDate(date: Date | string) {
     const d = new Date(date);

@@ -70,6 +70,7 @@ export class TransactionSchedulerService {
             note: `Subscription for ${subscriptionRange}`,
             subscription: subscription,
             category: 'subscription',
+            subAccountId: subscription.subAccountId ?? undefined,
           });
 
           await this.subscriptionService.setNextBillingDate(subscription);

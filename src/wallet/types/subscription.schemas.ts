@@ -29,6 +29,9 @@ export class CreateSubscriptionInput {
 
   @Field(() => Int, { nullable: true })
   reminderDaysBeforehand?: number;
+
+  @Field(() => ID, { nullable: true })
+  subAccountId?: string;
 }
 
 @InputType()
@@ -68,4 +71,7 @@ export class UpdateSubscriptionInput {
 
   @Field(() => Int, { nullable: true })
   reminderDaysBeforehand?: number;
+
+  @Field(() => ID, { nullable: true })
+  subAccountId?: string;
 }
