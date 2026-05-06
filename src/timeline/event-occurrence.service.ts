@@ -210,24 +210,6 @@ export class EventOccurrenceService {
       realOccMap.set(key, occ);
     }
 
-    // Load anchor todos for recurring series (so virtual occurrences inherit them)
-    const recurringSeriesIds = allSeries.filter((s) => s.isRepeat).map((s) => s.id);
-    const anchorTodosMap = new Map<string, OccurrenceTodoEntity[]>();
-    if (recurringSeriesIds.length > 0) {
-      const anchorOccs = await this.occurrenceRepo
-        .createQueryBuilder('o')
-        .leftJoinAndSelect('o.todos', 'todos')
-        .leftJoinAndSelect('todos.files', 'todoFiles')
-        .where('o.seriesId IN (:...ids)', { ids: recurringSeriesIds })
-        .andWhere('o.position = 0')
-        .orderBy('todos.isCompleted', 'ASC')
-        .addOrderBy('todos.modifiedAt', 'DESC')
-        .getMany();
-      for (const occ of anchorOccs) {
-        anchorTodosMap.set(occ.seriesId, occ.todos || []);
-      }
-    }
-
     // 3. Build views per series
     for (const series of allSeries) {
       if (!series.isRepeat) {
@@ -253,6 +235,18 @@ export class EventOccurrenceService {
 
       const generatedDates = expandSeriesDates(config, anchorDate, date, rangeEnd);
 
+      // Load anchor todos once per series (oldest occurrence row = the anchor)
+      const anchorOcc = await this.occurrenceRepo
+        .createQueryBuilder('o')
+        .leftJoinAndSelect('o.todos', 'todos')
+        .leftJoinAndSelect('todos.files', 'todoFiles')
+        .where('o.seriesId = :seriesId', { seriesId: series.id })
+        .orderBy('o.createdAt', 'ASC')
+        .addOrderBy('todos.isCompleted', 'ASC')
+        .addOrderBy('todos.modifiedAt', 'DESC')
+        .getOne();
+      const anchorTodos = anchorOcc?.todos || [];
+
       for (const gen of generatedDates) {
         const key = `${series.id}_${gen.date}`;
         const realOcc = realOccMap.get(key);
@@ -275,7 +269,7 @@ export class EventOccurrenceService {
               descriptionOverride: null,
               beginTimeOverride: null,
               endTimeOverride: null,
-              todos: anchorTodosMap.get(series.id) || [],
+              todos: anchorTodos,
               images: [],
               series,
             }),
@@ -423,14 +417,14 @@ export class EventOccurrenceService {
         : [];
       const pos = positions.length > 0 ? positions[0].position : 0;
 
-      // Load anchor todos to show on virtual occurrences
+      // Load anchor todos to show on virtual occurrences (oldest row = anchor)
       const anchorOcc = await this.occurrenceRepo
         .createQueryBuilder('o')
         .leftJoinAndSelect('o.todos', 'todos')
         .leftJoinAndSelect('todos.files', 'todoFiles')
         .where('o.seriesId = :seriesId', { seriesId: series.id })
-        .andWhere('o.position = 0')
-        .orderBy('todos.isCompleted', 'ASC')
+        .orderBy('o.createdAt', 'ASC')
+        .addOrderBy('todos.isCompleted', 'ASC')
         .addOrderBy('todos.modifiedAt', 'DESC')
         .getOne();
 
@@ -487,7 +481,7 @@ export class EventOccurrenceService {
     if (isSyntheticId(id)) {
       const parsed = parseSyntheticId(id);
       if (!parsed) throw new NotFoundException(`Invalid occurrence id ${id}`);
-      const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+      const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date);
       realId = occ.id;
     }
 
@@ -531,7 +525,7 @@ export class EventOccurrenceService {
     if (isSyntheticId(id)) {
       const parsed = parseSyntheticId(id);
       if (!parsed) throw new NotFoundException(`Invalid occurrence id ${id}`);
-      const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+      const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date);
       realId = occ.id;
     }
 
@@ -558,7 +552,7 @@ export class EventOccurrenceService {
         realId = existing.id;
       } else if (scope === 'THIS_ONLY') {
         // Create an exception row marked as skipped (don't store the occurrence, just skip it)
-        const newOcc = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        const newOcc = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date);
         await this.occurrenceRepo.update({ id: newOcc.id }, { isSkipped: true, isException: true });
         return true;
       } else {
@@ -601,7 +595,7 @@ export class EventOccurrenceService {
     if (isSyntheticId(occurrenceId)) {
       const parsed = parseSyntheticId(occurrenceId);
       if (parsed) {
-        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date);
         realId = occ.id;
       }
     }
@@ -674,7 +668,7 @@ export class EventOccurrenceService {
     if (isSyntheticId(occurrenceId)) {
       const parsed = parseSyntheticId(occurrenceId);
       if (parsed) {
-        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date);
         realId = occ.id;
       }
     }
@@ -690,7 +684,7 @@ export class EventOccurrenceService {
       const parsed = parseSyntheticId(occurrenceId);
       if (parsed) {
         // Materialize the row (copies anchor todos into it)
-        const realOcc = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        const realOcc = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date);
         // Find the corresponding copied todo by title (anchor todo id is no longer valid)
         const anchorTodo = await this.todoRepo.findOne({ where: { id } });
         if (anchorTodo) {
@@ -725,7 +719,7 @@ export class EventOccurrenceService {
     if (isSyntheticId(sourceOccurrenceId)) {
       const parsed = parseSyntheticId(sourceOccurrenceId);
       if (parsed) {
-        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date);
         sourceId = occ.id;
       }
     }
@@ -733,7 +727,7 @@ export class EventOccurrenceService {
     if (isSyntheticId(targetOccurrenceId)) {
       const parsed = parseSyntheticId(targetOccurrenceId);
       if (parsed) {
-        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date, 0);
+        const occ = await this._ensureOccurrenceRow(parsed.seriesId, parsed.date);
         targetId = occ.id;
       }
     }
@@ -767,18 +761,34 @@ export class EventOccurrenceService {
 
   /**
    * Ensure a real occurrence row exists for a (seriesId, date) pair.
-   * Creates one with isException=false if it doesn't exist.
+   * Creates one (with the correct position) if it doesn't exist.
    * Used when a user interacts with a virtual occurrence (complete, skip, edit, add todo).
    */
   private async _ensureOccurrenceRow(
     seriesId: string,
     date: string,
-    position: number,
   ): Promise<EventOccurrenceEntity> {
     let occ = await this.occurrenceRepo.findOne({
       where: { seriesId, date },
     });
     if (!occ) {
+      // Calculate the real position from the recurrence engine
+      let position = 0;
+      const series = await this.seriesRepo.findOne({ where: { id: seriesId } });
+      if (series?.isRepeat) {
+        const anchorDate = await this.seriesService.getAnchorDate(seriesId);
+        if (anchorDate) {
+          const config: SeriesRecurrenceConfig = {
+            repeatType: series.repeatType || (series.repeatFrequency || 'daily').toUpperCase(),
+            repeatInterval: series.repeatInterval || series.repeatEveryNth || 1,
+            repeatDaysOfWeek: series.repeatDaysOfWeek || null,
+            repeatUntil: series.repeatUntil || null,
+          };
+          const results = expandSeriesDates(config, anchorDate, date, date);
+          if (results.length > 0) position = results[0].position;
+        }
+      }
+
       occ = await this.occurrenceRepo.save({
         seriesId,
         date,
@@ -787,13 +797,14 @@ export class EventOccurrenceService {
       });
 
       // Copy anchor todos so this materialized occurrence is self-contained
+      // The anchor is always the oldest occurrence row for the series.
       const anchorOcc = await this.occurrenceRepo
         .createQueryBuilder('o')
         .leftJoinAndSelect('o.todos', 'todos')
         .leftJoinAndSelect('todos.files', 'todoFiles')
         .where('o.seriesId = :seriesId', { seriesId })
-        .andWhere('o.position = 0')
         .andWhere('o.id != :newId', { newId: occ.id })
+        .orderBy('o.createdAt', 'ASC')
         .getOne();
 
       if (anchorOcc?.todos?.length) {

@@ -93,9 +93,12 @@ export class EventSeriesService {
   }
 
   async getAnchorDate(seriesId: string): Promise<string | null> {
+    // The anchor is the oldest occurrence row — find by createdAt ASC
+    // (position: 0 is unreliable because materialized virtual occurrences
+    //  are also saved with position: 0, corrupting anchor resolution)
     const occ = await this.occurrenceRepo.findOne({
-      where: { seriesId, position: 0 },
-      order: { position: 'ASC' },
+      where: { seriesId },
+      order: { createdAt: 'ASC' },
     });
     return occ?.date || null;
   }
