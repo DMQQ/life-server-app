@@ -145,12 +145,18 @@ export class TimelineScheduleService {
     return [...realEvents, ...virtualEvents];
   }
 
+  /**
+   * Find events whose end time was exactly 15 or 30 minutes ago (today, Warsaw
+   * time) and that are still incomplete. Used to send "missed event" push
+   * notifications shortly after an event passes.
+   */
   async findExpiredEvents(): Promise<{ id: string; title: string; userId: string; token: string }[]> {
     const warsawTime = dayjs().tz('Europe/Warsaw');
     const today = warsawTime.format('YYYY-MM-DD');
-    const twoDaysAgo = warsawTime.subtract(2, 'day').format('YYYY-MM-DD');
+    const minus15 = warsawTime.subtract(15, 'minute').format('HH:mm:ss');
+    const minus30 = warsawTime.subtract(30, 'minute').format('HH:mm:ss');
 
-    // Real rows
+    // Real rows – match events that ended exactly 15 or 30 minutes ago today
     const realEvents = await this.occurrenceRepo.query(
       `
       SELECT
@@ -161,16 +167,15 @@ export class TimelineScheduleService {
       FROM event_occurrence as o
         INNER JOIN event_series as s ON o.seriesId = s.id
         LEFT JOIN notifications as n ON s.userId = n.userId
-      WHERE o.date >= ?
-        AND o.date < ?
+      WHERE o.date = ?
+        AND COALESCE(o.endTimeOverride, s.endTime) IN (?, ?)
         AND o.isCompleted = 0
         AND o.isSkipped = 0
         AND s.notification = 1
         AND (n.token IS NOT NULL AND n.token != "")
         AND n.isEnable = 1
-      ORDER BY s.userId, o.date DESC
     `,
-      [twoDaysAgo, today],
+      [today, minus15, minus30],
     );
 
     // Virtual occurrences from recurring series
@@ -181,6 +186,9 @@ export class TimelineScheduleService {
     const virtualResults: { id: string; title: string; userId: string; token: string }[] = [];
 
     for (const series of recurringSeries) {
+      // Only process if the series end time matches one of our windows
+      if (series.endTime !== minus15 && series.endTime !== minus30) continue;
+
       const anchorOcc = await this.occurrenceRepo.findOne({
         where: { seriesId: series.id },
         order: { position: 'ASC' },
@@ -194,7 +202,7 @@ export class TimelineScheduleService {
         repeatUntil: series.repeatUntil || null,
       };
 
-      const dates = expandSeriesDates(config, anchorOcc.date, twoDaysAgo, today);
+      const dates = expandSeriesDates(config, anchorOcc.date, today, today);
       if (dates.length === 0) continue;
 
       // Get user token
@@ -204,23 +212,18 @@ export class TimelineScheduleService {
       );
       if (tokenRow.length === 0) continue;
 
-      for (const d of dates) {
-        // Skip if already completed or skipped via exception
-        const exception = await this.occurrenceRepo.findOne({
-          where: {
-            seriesId: series.id,
-            date: d.date,
-          },
-        });
-        if (exception?.isCompleted || exception?.isSkipped) continue;
+      // Skip if a real exception row already marks it completed or skipped
+      const exception = await this.occurrenceRepo.findOne({
+        where: { seriesId: series.id, date: today },
+      });
+      if (exception?.isCompleted || exception?.isSkipped) continue;
 
-        virtualResults.push({
-          id: `${series.id}_${d.date}`,
-          title: series.title,
-          userId: series.userId,
-          token: tokenRow[0].token,
-        });
-      }
+      virtualResults.push({
+        id: `${series.id}_${today}`,
+        title: series.title,
+        userId: series.userId,
+        token: tokenRow[0].token,
+      });
     }
 
     return [...realEvents, ...virtualResults];

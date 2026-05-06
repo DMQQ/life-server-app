@@ -61,14 +61,20 @@ function buildView(
     tags: series?.tags ?? '',
     priority: series?.priority ?? 0,
     reminderBeforeMinutes: series?.reminderBeforeMinutes ?? null,
-    todos: (occurrence.todos || []).map((t) => ({
-      id: t.id,
-      title: t.title,
-      isCompleted: t.isCompleted,
-      files: t.files || [],
-      createdAt: t.createdAt,
-      modifiedAt: t.modifiedAt,
-    })) as OccurrenceTodoView[],
+    todos: (occurrence.todos || [])
+      .slice()
+      .sort((a, b) => {
+        if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
+        return (a.title || '').localeCompare(b.title || '');
+      })
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        isCompleted: t.isCompleted,
+        files: t.files || [],
+        createdAt: t.createdAt,
+        modifiedAt: t.modifiedAt,
+      })) as OccurrenceTodoView[],
     images: (occurrence.images || []).map((img) => ({
       id: img.id,
       url: img.url,
@@ -693,7 +699,32 @@ export class EventOccurrenceService {
           });
           if (copiedTodo) {
             await this.todoRepo.update({ id: copiedTodo.id }, { isCompleted });
-            return this.todoRepo.findOne({ where: { id: copiedTodo.id }, relations: ['files'] });
+            const result = await this.todoRepo.findOne({ where: { id: copiedTodo.id }, relations: ['files'] });
+            // Return with the anchor's ID so the frontend Apollo cache can update
+            // the existing entry (which was keyed by the anchor todo ID).
+            result.id = anchorTodo.id;
+            return result;
+          }
+        }
+      }
+    }
+
+    // Real occurrence ID: the frontend may still be referencing the anchor todo
+    // ID (e.g. after the occurrence was just materialized). Look the todo up by
+    // title within the target occurrence so we complete the right row.
+    if (occurrenceId && !isSyntheticId(occurrenceId)) {
+      const ownTodo = await this.todoRepo.findOne({ where: { id, occurrenceId } });
+      if (!ownTodo) {
+        const anchorTodo = await this.todoRepo.findOne({ where: { id } });
+        if (anchorTodo) {
+          const occTodo = await this.todoRepo.findOne({
+            where: { occurrenceId, title: anchorTodo.title },
+          });
+          if (occTodo) {
+            await this.todoRepo.update({ id: occTodo.id }, { isCompleted });
+            const result = await this.todoRepo.findOne({ where: { id: occTodo.id }, relations: ['files'] });
+            result.id = id; // keep ID stable for Apollo cache
+            return result;
           }
         }
       }
@@ -809,16 +840,12 @@ export class EventOccurrenceService {
 
       if (anchorOcc?.todos?.length) {
         for (const t of anchorOcc.todos) {
-          const newTodo = await this.todoRepo.save({
+          await this.todoRepo.save({
             occurrenceId: occ.id,
             title: t.title,
             isCompleted: false,
+            // Files are not copied — each occurrence starts with a clean slate
           });
-          if (t.files?.length) {
-            await this.todoFileRepo.save(
-              t.files.map((f) => ({ todoId: newTodo.id, type: f.type, url: f.url })),
-            );
-          }
         }
       }
     }

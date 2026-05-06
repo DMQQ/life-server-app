@@ -133,15 +133,15 @@ export class TimelineSchedule extends BaseScheduler {
     }
   }
 
-  // ── Missed event reminders (daily at 9 PM Warsaw time) ──────────────────────
+  // ── Missed event reminders (every minute, fires 15 & 30 min after end time) ──
 
-  @Cron('0 0 21 * * *', { timeZone: 'Europe/Warsaw' })
+  @Cron('0 * * * * *', { timeZone: 'Europe/Warsaw' })
   async handleExpiredEventReminders() {
     const events = await this.timelineScheduleService.findExpiredEvents();
 
     if (events.length === 0) return;
 
-    // Group by userId
+    // Group by userId so we can batch multiple missed events into one notification
     const byUser = new Map<string, { token: string; titles: string[] }>();
     for (const event of events) {
       if (!byUser.has(event.userId)) {
@@ -154,13 +154,11 @@ export class TimelineSchedule extends BaseScheduler {
       const userToken = await this.notificationService.findUserToken(userId);
       if (!this.isNotificationEnabled(userToken, 'expired_event_reminders')) continue;
 
-      if (titles.length <= 2) {
-        for (const title of titles) {
-          await this.sendSingleNotification(
-            { to: token, title: 'Missed event', body: title, sound: 'default' },
-            userId,
-          );
-        }
+      if (titles.length === 1) {
+        await this.sendSingleNotification(
+          { to: token, title: 'Missed event', body: titles[0], sound: 'default' },
+          userId,
+        );
       } else {
         await this.sendSingleNotification(
           {
